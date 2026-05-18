@@ -1,13 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../database/job_database.dart';
 import '../models/job_application.dart';
 
 class ApplicationProvider extends ChangeNotifier {
-  static const String storageKey = 'job_applications';
-
   List<JobApplication> applications = [];
   bool isLoading = true;
 
@@ -110,105 +106,124 @@ class ApplicationProvider extends ChangeNotifier {
   }
 
   Future<void> loadApplications() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? savedData = prefs.getString(storageKey);
+    isLoading = true;
+    notifyListeners();
 
-    if (savedData == null) {
-      applications = [
-        const JobApplication(
-          company: 'Apple',
-          role: 'iOS Developer',
-          status: 'Applied',
-          dateApplied: 'May 17, 2026',
-          location: 'Cupertino, CA',
-          salaryRange: '\$120k - \$160k',
-          notes: 'Applied through LinkedIn.',
-          hasResume: true,
-          hasPortfolio: true,
-          hasCoverLetter: false,
-          hasApplicationQuestions: true,
-          hasOther: false,
-          isSaved: true,
-        ),
-        const JobApplication(
-          company: 'Robinhood',
-          role: 'Mobile Engineer',
-          status: 'Interviewing',
-          dateApplied: 'May 15, 2026',
-          location: 'Remote',
-          salaryRange: '\$130k - \$170k',
-          notes: 'Need to follow up with recruiter.',
-          hasResume: true,
-          hasPortfolio: true,
-          hasCoverLetter: true,
-          hasApplicationQuestions: true,
-          hasOther: false,
-          isSaved: false,
-        ),
-        const JobApplication(
-          company: 'Duolingo',
-          role: 'Software Engineer',
-          status: 'Rejected',
-          dateApplied: 'May 10, 2026',
-          location: 'Pittsburgh, PA',
-          salaryRange: 'Not listed',
-          notes: 'Keep improving mobile portfolio.',
-          hasResume: true,
-          hasPortfolio: false,
-          hasCoverLetter: false,
-          hasApplicationQuestions: true,
-          hasOther: false,
-          isSaved: false,
-        ),
-      ];
+    applications = await JobDatabase.instance.readAllApplications();
 
-      isLoading = false;
-      notifyListeners();
-
-      await saveApplications();
-      return;
+    if (applications.isEmpty) {
+      await seedSampleApplications();
+      applications = await JobDatabase.instance.readAllApplications();
     }
-
-    final List<dynamic> decodedData = jsonDecode(savedData);
-
-    applications =
-        decodedData.map((item) => JobApplication.fromJson(item)).toList();
 
     isLoading = false;
     notifyListeners();
   }
 
-  Future<void> saveApplications() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
+  Future<void> seedSampleApplications() async {
+    final List<JobApplication> sampleApplications = [
+      const JobApplication(
+        company: 'Apple',
+        role: 'iOS Developer',
+        status: 'Applied',
+        dateApplied: 'May 17, 2026',
+        location: 'Cupertino, CA',
+        salaryRange: '\$120k - \$160k',
+        notes: 'Applied through LinkedIn.',
+        hasResume: true,
+        hasPortfolio: true,
+        hasCoverLetter: false,
+        hasApplicationQuestions: true,
+        hasOther: false,
+        isSaved: true,
+      ),
+      const JobApplication(
+        company: 'Robinhood',
+        role: 'Mobile Engineer',
+        status: 'Interviewing',
+        dateApplied: 'May 15, 2026',
+        location: 'Remote',
+        salaryRange: '\$130k - \$170k',
+        notes: 'Need to follow up with recruiter.',
+        hasResume: true,
+        hasPortfolio: true,
+        hasCoverLetter: true,
+        hasApplicationQuestions: true,
+        hasOther: false,
+        isSaved: false,
+      ),
+      const JobApplication(
+        company: 'Duolingo',
+        role: 'Software Engineer',
+        status: 'Rejected',
+        dateApplied: 'May 10, 2026',
+        location: 'Pittsburgh, PA',
+        salaryRange: 'Not listed',
+        notes: 'Keep improving mobile portfolio.',
+        hasResume: true,
+        hasPortfolio: false,
+        hasCoverLetter: false,
+        hasApplicationQuestions: true,
+        hasOther: false,
+        isSaved: false,
+      ),
+    ];
 
-    final List<Map<String, dynamic>> encodedApplications =
-    applications.map((application) => application.toJson()).toList();
-
-    await prefs.setString(storageKey, jsonEncode(encodedApplications));
+    for (JobApplication application in sampleApplications) {
+      await JobDatabase.instance.create(application);
+    }
   }
 
   Future<void> addApplication(JobApplication newApplication) async {
-    applications.add(newApplication);
-    notifyListeners();
+    final int newId = await JobDatabase.instance.create(newApplication);
 
-    await saveApplications();
+    applications.insert(
+      0,
+      newApplication.copyWith(id: newId),
+    );
+
+    notifyListeners();
   }
 
   Future<void> updateApplication(
       int index,
       JobApplication updatedApplication,
       ) async {
-    applications[index] = updatedApplication;
-    notifyListeners();
+    if (index < 0 || index >= applications.length) {
+      return;
+    }
 
-    await saveApplications();
+    final int? id = applications[index].id;
+
+    if (id == null) {
+      return;
+    }
+
+    final JobApplication applicationWithId = updatedApplication.copyWith(id: id);
+
+    await JobDatabase.instance.update(id, applicationWithId);
+
+    applications[index] = applicationWithId;
+
+    notifyListeners();
   }
 
   Future<void> deleteApplication(int index) async {
-    applications.removeAt(index);
-    notifyListeners();
+    if (index < 0 || index >= applications.length) {
+      return;
+    }
 
-    await saveApplications();
+    final int? id = applications[index].id;
+
+    if (id == null) {
+      return;
+    }
+
+    await JobDatabase.instance.delete(id);
+
+    applications.removeAt(index);
+
+    notifyListeners();
   }
 
   Future<void> toggleSaved(JobApplication selectedApplication) async {

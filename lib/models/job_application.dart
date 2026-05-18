@@ -1,4 +1,5 @@
 class JobApplication {
+  final int? id;
   final String company;
   final String role;
   final String status;
@@ -14,6 +15,7 @@ class JobApplication {
   final bool isSaved;
 
   const JobApplication({
+    this.id,
     required this.company,
     required this.role,
     required this.status,
@@ -30,6 +32,7 @@ class JobApplication {
   });
 
   JobApplication copyWith({
+    int? id,
     String? company,
     String? role,
     String? status,
@@ -45,6 +48,7 @@ class JobApplication {
     bool? isSaved,
   }) {
     return JobApplication(
+      id: id ?? this.id,
       company: company ?? this.company,
       role: role ?? this.role,
       status: status ?? this.status,
@@ -62,8 +66,9 @@ class JobApplication {
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toDatabaseJson() {
     return {
+      'id': id,
       'company': company,
       'role': role,
       'status': status,
@@ -71,17 +76,18 @@ class JobApplication {
       'location': location,
       'salaryRange': salaryRange,
       'notes': notes,
-      'hasResume': hasResume,
-      'hasPortfolio': hasPortfolio,
-      'hasCoverLetter': hasCoverLetter,
-      'hasApplicationQuestions': hasApplicationQuestions,
-      'hasOther': hasOther,
-      'isSaved': isSaved,
+      'hasResume': hasResume ? 1 : 0,
+      'hasPortfolio': hasPortfolio ? 1 : 0,
+      'hasCoverLetter': hasCoverLetter ? 1 : 0,
+      'hasApplicationQuestions': hasApplicationQuestions ? 1 : 0,
+      'hasOther': hasOther ? 1 : 0,
+      'isSaved': isSaved ? 1 : 0,
     };
   }
 
-  factory JobApplication.fromJson(Map<String, dynamic> json) {
+  factory JobApplication.fromDatabaseJson(Map<String, dynamic> json) {
     return JobApplication(
+      id: json['id'],
       company: json['company'] ?? '',
       role: json['role'] ?? '',
       status: json['status'] ?? 'Applied',
@@ -89,12 +95,12 @@ class JobApplication {
       location: json['location'] ?? 'No location added',
       salaryRange: json['salaryRange'] ?? 'No salary added',
       notes: json['notes'] ?? 'No notes added.',
-      hasResume: json['hasResume'] ?? false,
-      hasPortfolio: json['hasPortfolio'] ?? false,
-      hasCoverLetter: json['hasCoverLetter'] ?? false,
-      hasApplicationQuestions: json['hasApplicationQuestions'] ?? false,
-      hasOther: json['hasOther'] ?? false,
-      isSaved: json['isSaved'] ?? false,
+      hasResume: json['hasResume'] == 1,
+      hasPortfolio: json['hasPortfolio'] == 1,
+      hasCoverLetter: json['hasCoverLetter'] == 1,
+      hasApplicationQuestions: json['hasApplicationQuestions'] == 1,
+      hasOther: json['hasOther'] == 1,
+      isSaved: json['isSaved'] == 1,
     );
   }
 
