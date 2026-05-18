@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import 'providers/application_provider.dart';
 import 'screens/home_screen.dart';
 
 void main() {
-  runApp(const TrackHireApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ApplicationProvider(),
+      child: const TrackHireApp(),
+    ),
+  );
 }
 
 class TrackHireApp extends StatelessWidget {
