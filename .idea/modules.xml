@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/trackhire.iml" filepath="$PROJECT_DIR$/trackhire.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/trackhire_android.iml" filepath="$PROJECT_DIR$/android/trackhire_android.iml" />
     </modules>
   </component>
 </project>
