@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class EmptySearchMessage extends StatelessWidget {
   final VoidCallback onClear;
 
-  const EmptySearchMessage({
-    super.key,
-    required this.onClear,
-  });
+  const EmptySearchMessage({super.key, required this.onClear});
 
   @override
   Widget build(BuildContext context) {
@@ -15,16 +12,13 @@ class EmptySearchMessage extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            const Icon(
-              Icons.search_off,
-              size: 48,
-            ),
+            const Icon(Icons.search_off, size: 48),
             const SizedBox(height: 12),
             Text(
               'No matching applications',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(

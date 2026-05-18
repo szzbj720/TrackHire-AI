@@ -52,14 +52,9 @@ class StatCard extends StatelessWidget {
     return Card(
       elevation: 0,
       color: backgroundColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -70,11 +65,7 @@ class StatCard extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.78),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                icon,
-                size: 21,
-                color: iconColor,
-              ),
+              child: Icon(icon, size: 21, color: iconColor),
             ),
             const SizedBox(height: 8),
             Text(

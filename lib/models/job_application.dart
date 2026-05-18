@@ -60,7 +60,7 @@ class JobApplication {
       hasPortfolio: hasPortfolio ?? this.hasPortfolio,
       hasCoverLetter: hasCoverLetter ?? this.hasCoverLetter,
       hasApplicationQuestions:
-      hasApplicationQuestions ?? this.hasApplicationQuestions,
+          hasApplicationQuestions ?? this.hasApplicationQuestions,
       hasOther: hasOther ?? this.hasOther,
       isSaved: isSaved ?? this.isSaved,
     );

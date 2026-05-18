@@ -5,10 +5,7 @@ import '../models/job_application.dart';
 class MaterialsSection extends StatelessWidget {
   final JobApplication application;
 
-  const MaterialsSection({
-    super.key,
-    required this.application,
-  });
+  const MaterialsSection({super.key, required this.application});
 
   @override
   Widget build(BuildContext context) {
@@ -27,23 +24,18 @@ class MaterialsSection extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   'Application Materials',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Text('${application.checklistCompletedCount}/5'),
               ],
             ),
             const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: checklistProgress,
-            ),
+            LinearProgressIndicator(value: checklistProgress),
             const SizedBox(height: 12),
-            ChecklistItem(
-              title: 'Resume',
-              isChecked: application.hasResume,
-            ),
+            ChecklistItem(title: 'Resume', isChecked: application.hasResume),
             ChecklistItem(
               title: 'Portfolio',
               isChecked: application.hasPortfolio,
@@ -56,10 +48,7 @@ class MaterialsSection extends StatelessWidget {
               title: 'Application Questions',
               isChecked: application.hasApplicationQuestions,
             ),
-            ChecklistItem(
-              title: 'Other',
-              isChecked: application.hasOther,
-            ),
+            ChecklistItem(title: 'Other', isChecked: application.hasOther),
           ],
         ),
       ),

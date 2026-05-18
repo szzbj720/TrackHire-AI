@@ -2,6 +2,8 @@
 
 TrackHire is a cross-platform Flutter mobile app that helps job seekers organize job applications, track required materials, save important opportunities, and manage application progress in one clean workspace.
 
+![Flutter CI](https://github.com/szzbj720/trackhire/actions/workflows/flutter_ci.yml/badge.svg)
+
 ## Overview
 
 Job searching can get messy fast. TrackHire gives users a simple way to keep all job applications in one place, including company details, role information, application status, salary range, location, notes, saved jobs, and required application materials.

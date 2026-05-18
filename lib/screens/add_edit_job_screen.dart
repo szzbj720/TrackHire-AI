@@ -6,10 +6,7 @@ import '../widgets/checklist_checkbox.dart';
 class AddEditJobScreen extends StatefulWidget {
   final JobApplication? existingApplication;
 
-  const AddEditJobScreen({
-    super.key,
-    this.existingApplication,
-  });
+  const AddEditJobScreen({super.key, this.existingApplication});
 
   @override
   State<AddEditJobScreen> createState() => _AddEditJobScreenState();
@@ -80,9 +77,7 @@ class _AddEditJobScreenState extends State<AddEditJobScreen> {
   void saveApplication() {
     if (companyController.text.isEmpty || roleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a company and role.'),
-        ),
+        const SnackBar(content: Text('Please enter a company and role.')),
       );
       return;
     }
@@ -91,16 +86,18 @@ class _AddEditJobScreenState extends State<AddEditJobScreen> {
       company: companyController.text,
       role: roleController.text,
       status: selectedStatus,
-      dateApplied:
-      dateController.text.isEmpty ? 'No date added' : dateController.text,
+      dateApplied: dateController.text.isEmpty
+          ? 'No date added'
+          : dateController.text,
       location: locationController.text.isEmpty
           ? 'No location added'
           : locationController.text,
       salaryRange: salaryRangeController.text.isEmpty
           ? 'No salary added'
           : salaryRangeController.text,
-      notes:
-      notesController.text.isEmpty ? 'No notes added.' : notesController.text,
+      notes: notesController.text.isEmpty
+          ? 'No notes added.'
+          : notesController.text,
       hasResume: hasResume,
       hasPortfolio: hasPortfolio,
       hasCoverLetter: hasCoverLetter,
@@ -115,22 +112,21 @@ class _AddEditJobScreenState extends State<AddEditJobScreen> {
   @override
   Widget build(BuildContext context) {
     String pageTitle = isEditing ? 'Edit Application' : 'Add Application';
-    String heading = isEditing ? 'Update Job Application' : 'New Job Application';
+    String heading = isEditing
+        ? 'Update Job Application'
+        : 'New Job Application';
     String buttonText = isEditing ? 'Save Changes' : 'Save Application';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(pageTitle),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text(pageTitle), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
             heading,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
@@ -165,10 +161,7 @@ class _AddEditJobScreenState extends State<AddEditJobScreen> {
               border: OutlineInputBorder(),
             ),
             items: statuses.map((status) {
-              return DropdownMenuItem(
-                value: status,
-                child: Text(status),
-              );
+              return DropdownMenuItem(value: status, child: Text(status));
             }).toList(),
             onChanged: (value) {
               if (value != null) {
@@ -208,9 +201,9 @@ class _AddEditJobScreenState extends State<AddEditJobScreen> {
           const SizedBox(height: 24),
           Text(
             'Application Materials',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           ChecklistCheckbox(

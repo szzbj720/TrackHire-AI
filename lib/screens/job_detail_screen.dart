@@ -9,19 +9,13 @@ class JobDetailResult {
   final JobApplication? updatedApplication;
   final bool shouldDelete;
 
-  const JobDetailResult({
-    this.updatedApplication,
-    this.shouldDelete = false,
-  });
+  const JobDetailResult({this.updatedApplication, this.shouldDelete = false});
 }
 
 class JobDetailScreen extends StatefulWidget {
   final JobApplication application;
 
-  const JobDetailScreen({
-    super.key,
-    required this.application,
-  });
+  const JobDetailScreen({super.key, required this.application});
 
   @override
   State<JobDetailScreen> createState() => _JobDetailScreenState();
@@ -54,9 +48,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     final updatedApplication = await Navigator.push<JobApplication>(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditJobScreen(
-          existingApplication: currentApplication,
-        ),
+        builder: (context) =>
+            AddEditJobScreen(existingApplication: currentApplication),
       ),
     );
 
@@ -116,10 +109,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         return;
       }
 
-      Navigator.pop(
-        context,
-        const JobDetailResult(shouldDelete: true),
-      );
+      Navigator.pop(context, const JobDetailResult(shouldDelete: true));
     }
   }
 
@@ -160,9 +150,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           children: [
             Text(
               currentApplication.company,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -239,9 +229,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               onPressed: confirmDelete,
               icon: const Icon(Icons.delete_outline),
               label: const Text('Delete Application'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
             ),
           ],
         ),

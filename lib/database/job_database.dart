@@ -23,11 +23,7 @@ class JobDatabase {
     final String databasePath = await getDatabasesPath();
     final String path = join(databasePath, filePath);
 
-    return openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDatabase,
-    );
+    return openDatabase(path, version: 1, onCreate: _createDatabase);
   }
 
   Future<void> _createDatabase(Database db, int version) async {
@@ -53,10 +49,7 @@ class JobDatabase {
 
   Future<int> create(JobApplication application) async {
     final Database db = await instance.database;
-    return db.insert(
-      'job_applications',
-      application.toDatabaseJson(),
-    );
+    return db.insert('job_applications', application.toDatabaseJson());
   }
 
   Future<List<JobApplication>> readAllApplications() async {
@@ -84,11 +77,7 @@ class JobDatabase {
   Future<int> delete(int id) async {
     final Database db = await instance.database;
 
-    return db.delete(
-      'job_applications',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.delete('job_applications', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> close() async {

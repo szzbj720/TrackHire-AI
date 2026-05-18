@@ -54,9 +54,7 @@ class JobCard extends StatelessWidget {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(26),
-        side: const BorderSide(
-          color: Color(0xFFF0EAF8),
-        ),
+        side: const BorderSide(color: Color(0xFFF0EAF8)),
       ),
       child: InkWell(
         onTap: onTap,
@@ -90,23 +88,23 @@ class JobCard extends StatelessWidget {
                           application.company,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                          Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: const Color(0xFF25223A),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: const Color(0xFF25223A),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           application.role,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF6B6680),
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: const Color(0xFF6B6680),
+                                fontWeight: FontWeight.w500,
+                              ),
                         ),
                       ],
                     ),

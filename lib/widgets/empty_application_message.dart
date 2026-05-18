@@ -10,16 +10,13 @@ class EmptyApplicationMessage extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            const Icon(
-              Icons.work_outline,
-              size: 48,
-            ),
+            const Icon(Icons.work_outline, size: 48),
             const SizedBox(height: 12),
             Text(
               'No applications yet',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(

@@ -22,9 +22,9 @@ class SettingsScreen extends StatelessWidget {
       children: [
         Text(
           'Settings',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
@@ -56,9 +56,8 @@ class SettingsScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Data Overview',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -74,10 +73,7 @@ class SettingsScreen extends StatelessWidget {
                   value: savedApplications.toString(),
                 ),
                 const SizedBox(height: 10),
-                const SettingsInfoRow(
-                  label: 'Storage',
-                  value: 'SQLite',
-                ),
+                const SettingsInfoRow(label: 'Storage', value: 'SQLite'),
               ],
             ),
           ),
@@ -115,7 +111,9 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Clear applications will be added later.'),
+                        content: Text(
+                          'Clear applications will be added later.',
+                        ),
                       ),
                     );
                   },
@@ -175,21 +173,14 @@ class SettingsInfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const SettingsInfoRow({
-    super.key,
-    required this.label,
-    required this.value,
-  });
+  const SettingsInfoRow({super.key, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
         Text(
           value,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -222,9 +213,7 @@ class SettingsTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
             Container(
@@ -234,10 +223,7 @@ class SettingsTile extends StatelessWidget {
                 color: const Color(0xFFF5F2FF),
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: Icon(
-                icon,
-                color: const Color(0xFF6C63FF),
-              ),
+              child: Icon(icon, color: const Color(0xFF6C63FF)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -252,17 +238,11 @@ class SettingsTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: Color(0xFFAAA3BC),
-            ),
+            const Icon(Icons.chevron_right, color: Color(0xFFAAA3BC)),
           ],
         ),
       ),
@@ -273,10 +253,7 @@ class SettingsTile extends StatelessWidget {
 class TechChip extends StatelessWidget {
   final String label;
 
-  const TechChip({
-    super.key,
-    required this.label,
-  });
+  const TechChip({super.key, required this.label});
 
   @override
   Widget build(BuildContext context) {

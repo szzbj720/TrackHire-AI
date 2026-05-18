@@ -51,38 +51,24 @@ class TrackHireApp extends StatelessWidget {
           fillColor: Colors.white,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(
-              color: Color(0xFFE8E3F5),
-            ),
+            borderSide: const BorderSide(color: Color(0xFFE8E3F5)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(
-              color: Color(0xFFE8E3F5),
-            ),
+            borderSide: const BorderSide(color: Color(0xFFE8E3F5)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(
-              color: Color(0xFF6C63FF),
-              width: 1.5,
-            ),
+            borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
           ),
-          labelStyle: const TextStyle(
-            color: Color(0xFF6B6680),
-          ),
-          hintStyle: const TextStyle(
-            color: Color(0xFFAAA3BC),
-          ),
+          labelStyle: const TextStyle(color: Color(0xFF6B6680)),
+          hintStyle: const TextStyle(color: Color(0xFFAAA3BC)),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF6C63FF),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 14,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
             ),
@@ -91,13 +77,8 @@ class TrackHireApp extends StatelessWidget {
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF6C63FF),
-            side: const BorderSide(
-              color: Color(0xFFD8D1F0),
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 14,
-            ),
+            side: const BorderSide(color: Color(0xFFD8D1F0)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
             ),
@@ -119,37 +100,27 @@ class TrackHireApp extends StatelessWidget {
               );
             }
 
-            return const TextStyle(
-              color: Color(0xFF6B6680),
-            );
+            return const TextStyle(color: Color(0xFF6B6680));
           }),
           iconTheme: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return const IconThemeData(
-                color: Color(0xFF6C63FF),
-              );
+              return const IconThemeData(color: Color(0xFF6C63FF));
             }
 
-            return const IconThemeData(
-              color: Color(0xFF8D87A1),
-            );
+            return const IconThemeData(color: Color(0xFF8D87A1));
           }),
         ),
         chipTheme: ChipThemeData(
           backgroundColor: Colors.white,
           selectedColor: const Color(0xFFEDEAFF),
-          labelStyle: const TextStyle(
-            color: Color(0xFF25223A),
-          ),
+          labelStyle: const TextStyle(color: Color(0xFF25223A)),
           secondaryLabelStyle: const TextStyle(
             color: Color(0xFF6C63FF),
             fontWeight: FontWeight.bold,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(
-              color: Color(0xFFE8E3F5),
-            ),
+            side: const BorderSide(color: Color(0xFFE8E3F5)),
           ),
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
@@ -165,18 +136,10 @@ class TrackHireApp extends StatelessWidget {
             color: Color(0xFF25223A),
             fontWeight: FontWeight.bold,
           ),
-          titleMedium: TextStyle(
-            color: Color(0xFF25223A),
-          ),
-          titleSmall: TextStyle(
-            color: Color(0xFF25223A),
-          ),
-          bodyMedium: TextStyle(
-            color: Color(0xFF6B6680),
-          ),
-          bodySmall: TextStyle(
-            color: Color(0xFF8D87A1),
-          ),
+          titleMedium: TextStyle(color: Color(0xFF25223A)),
+          titleSmall: TextStyle(color: Color(0xFF25223A)),
+          bodyMedium: TextStyle(color: Color(0xFF6B6680)),
+          bodySmall: TextStyle(color: Color(0xFF8D87A1)),
         ),
         useMaterial3: true,
       ),

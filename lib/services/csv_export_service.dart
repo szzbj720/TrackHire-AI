@@ -14,9 +14,7 @@ class CsvExportService {
   }) async {
     if (applications.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No applications to export.'),
-        ),
+        const SnackBar(content: Text('No applications to export.')),
       );
       return;
     }
@@ -91,8 +89,9 @@ class CsvExportService {
               name: 'trackhire_applications.csv',
             ),
           ],
-          sharePositionOrigin:
-          box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
         ),
       );
     } catch (error) {
@@ -100,11 +99,9 @@ class CsvExportService {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Export failed: $error'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export failed: $error')));
     }
   }
 }

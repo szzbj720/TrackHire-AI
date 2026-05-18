@@ -41,18 +41,19 @@ class ApplicationProvider extends ChangeNotifier {
   }
 
   List<JobApplication> get filteredApplications {
-    List<JobApplication> sourceApplications =
-    selectedPageIndex == 0 ? applications : savedApplications;
+    List<JobApplication> sourceApplications = selectedPageIndex == 0
+        ? applications
+        : savedApplications;
 
     return sourceApplications.where((application) {
       final String query = searchQuery.toLowerCase();
 
       final bool matchesSearch =
           application.company.toLowerCase().contains(query) ||
-              application.role.toLowerCase().contains(query) ||
-              application.location.toLowerCase().contains(query) ||
-              application.salaryRange.toLowerCase().contains(query) ||
-              application.notes.toLowerCase().contains(query);
+          application.role.toLowerCase().contains(query) ||
+          application.location.toLowerCase().contains(query) ||
+          application.salaryRange.toLowerCase().contains(query) ||
+          application.notes.toLowerCase().contains(query);
 
       final bool matchesStatusFilter =
           selectedFilter == 'All' || application.status == selectedFilter;
@@ -177,18 +178,15 @@ class ApplicationProvider extends ChangeNotifier {
   Future<void> addApplication(JobApplication newApplication) async {
     final int newId = await JobDatabase.instance.create(newApplication);
 
-    applications.insert(
-      0,
-      newApplication.copyWith(id: newId),
-    );
+    applications.insert(0, newApplication.copyWith(id: newId));
 
     notifyListeners();
   }
 
   Future<void> updateApplication(
-      int index,
-      JobApplication updatedApplication,
-      ) async {
+    int index,
+    JobApplication updatedApplication,
+  ) async {
     if (index < 0 || index >= applications.length) {
       return;
     }
@@ -199,7 +197,9 @@ class ApplicationProvider extends ChangeNotifier {
       return;
     }
 
-    final JobApplication applicationWithId = updatedApplication.copyWith(id: id);
+    final JobApplication applicationWithId = updatedApplication.copyWith(
+      id: id,
+    );
 
     await JobDatabase.instance.update(id, applicationWithId);
 

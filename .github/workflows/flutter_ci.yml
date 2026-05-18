@@ -9,10 +9,15 @@ on:
     branches:
       - main
 
+concurrency:
+  group: flutter-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  analyze-and-test:
-    name: Analyze and Test Flutter App
+  analyze-test-build:
+    name: Analyze, Test, and Build Flutter App
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -22,6 +27,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Show Flutter version
         run: flutter --version
@@ -29,8 +35,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
       - name: Analyze project
         run: flutter analyze
 
       - name: Run tests
         run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trackhire-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
