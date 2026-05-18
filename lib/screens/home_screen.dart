@@ -306,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CircularProgressIndicator(),
       )
           : ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
           Text(
             selectedPageIndex == 0
@@ -324,54 +324,62 @@ class _HomeScreenState extends State<HomeScreen> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: 'Total',
-                  value: totalApplications.toString(),
-                  icon: Icons.work_outline,
+
+          SizedBox(
+            height: 128,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                SizedBox(
+                  width: 132,
+                  child: StatCard(
+                    title: 'Total',
+                    value: totalApplications.toString(),
+                    icon: Icons.work_outline,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  title: 'Saved',
-                  value: savedCount.toString(),
-                  icon: Icons.favorite_border,
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 132,
+                  child: StatCard(
+                    title: 'Saved',
+                    value: savedCount.toString(),
+                    icon: Icons.favorite_border,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  title: 'Offers',
-                  value: offerCount.toString(),
-                  icon: Icons.star_outline,
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 132,
+                  child: StatCard(
+                    title: 'Offers',
+                    value: offerCount.toString(),
+                    icon: Icons.star_outline,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 148,
+                  child: StatCard(
+                    title: 'Interviewing',
+                    value: interviewingCount.toString(),
+                    icon: Icons.people_outline,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 132,
+                  child: StatCard(
+                    title: 'Rejected',
+                    value: rejectedCount.toString(),
+                    icon: Icons.close,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: 'Interviewing',
-                  value: interviewingCount.toString(),
-                  icon: Icons.people_outline,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  title: 'Rejected',
-                  value: rejectedCount.toString(),
-                  icon: Icons.close,
-                ),
-              ),
-            ],
-          ),
+
           const SizedBox(height: 24),
+
           TextField(
             decoration: InputDecoration(
               labelText: 'Search applications',
@@ -396,7 +404,9 @@ class _HomeScreenState extends State<HomeScreen> {
               });
             },
           ),
+
           const SizedBox(height: 16),
+
           Text(
             'Status',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -424,7 +434,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+
           const SizedBox(height: 16),
+
           Text(
             'Materials',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -452,7 +464,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+
           const SizedBox(height: 24),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -468,7 +482,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+
           const SizedBox(height: 12),
+
           if (selectedPageIndex == 0 && applications.isEmpty)
             const EmptyApplicationMessage()
           else if (selectedPageIndex == 1 && savedApplications.isEmpty)
