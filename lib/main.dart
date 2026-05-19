@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/application_provider.dart';
 import 'screens/home_screen.dart';
 
+
 void main() {
   runApp(
     ChangeNotifierProvider(
