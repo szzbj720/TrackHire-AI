@@ -28,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Manage your TrackHire app preferences and data.',
+          'Manage your TrackHire AI preferences, application data, and project details.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 24),
@@ -74,6 +74,10 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 const SettingsInfoRow(label: 'Storage', value: 'SQLite'),
+                const SizedBox(height: 10),
+                const SettingsInfoRow(label: 'Backend', value: 'Node.js API'),
+                const SizedBox(height: 10),
+                const SettingsInfoRow(label: 'Architecture', value: 'MVVM'),
               ],
             ),
           ),
@@ -130,15 +134,17 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'About TrackHire',
+                  'About TrackHire AI',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'TrackHire helps job seekers organize applications, track required materials, save important opportunities, and monitor progress throughout the job search process.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  'TrackHire AI is an AI-powered job application tracker that helps job seekers organize applications, track required materials, save important opportunities, analyze job descriptions, and generate interview preparation throughout the job search process.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -157,6 +163,11 @@ class SettingsScreen extends StatelessWidget {
                     TechChip(label: 'Dart'),
                     TechChip(label: 'Provider'),
                     TechChip(label: 'SQLite'),
+                    TechChip(label: 'Node.js'),
+                    TechChip(label: 'Express'),
+                    TechChip(label: 'REST APIs'),
+                    TechChip(label: 'MVVM'),
+                    TechChip(label: 'AI Integration'),
                     TechChip(label: 'Material 3'),
                   ],
                 ),
