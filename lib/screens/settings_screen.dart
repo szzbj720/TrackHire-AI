@@ -142,9 +142,9 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   'TrackHire AI is an AI-powered job application tracker that helps job seekers organize applications, track required materials, save important opportunities, analyze job descriptions, and generate interview preparation throughout the job search process.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.4,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(height: 1.4),
                 ),
                 const SizedBox(height: 16),
                 Text(

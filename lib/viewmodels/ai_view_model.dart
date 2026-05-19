@@ -28,7 +28,8 @@ class AIViewModel extends ChangeNotifier {
     try {
       _analysis = await _aiService.analyzeJobDescription(jobDescription);
     } catch (error) {
-      _errorMessage = 'Something went wrong while analyzing the job description.';
+      _errorMessage =
+          'Something went wrong while analyzing the job description.';
     }
 
     _isLoading = false;

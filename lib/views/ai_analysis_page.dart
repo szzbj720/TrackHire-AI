@@ -15,7 +15,7 @@ class AIAnalysisPage extends StatefulWidget {
 
 class _AIAnalysisPageState extends State<AIAnalysisPage> {
   final TextEditingController _jobDescriptionController =
-  TextEditingController();
+      TextEditingController();
 
   final AIViewModel _viewModel = AIViewModel();
 
@@ -39,7 +39,8 @@ class _AIAnalysisPageState extends State<AIAnalysisPage> {
 
     final provider = context.read<ApplicationProvider>();
 
-    final String notes = '''
+    final String notes =
+        '''
 AI Summary:
 ${analysis.summary}
 
@@ -58,17 +59,19 @@ ${analysis.interviewQuestions.map((question) => '- $question').join('\n')}
       role: analysis.role,
       status: 'Applied',
       dateApplied:
-      '${DateTime.now().month}/${DateTime.now().day}/${DateTime.now().year}',
+          '${DateTime.now().month}/${DateTime.now().day}/${DateTime.now().year}',
       location: analysis.location,
       salaryRange: analysis.salaryRange,
       notes: notes,
       hasResume: analysis.recommendedMaterials.contains('Resume'),
-      hasPortfolio: analysis.recommendedMaterials.contains('Portfolio') ||
+      hasPortfolio:
+          analysis.recommendedMaterials.contains('Portfolio') ||
           analysis.recommendedMaterials.contains('UI Project Examples') ||
           analysis.recommendedMaterials.contains('Salesforce Project Examples'),
       hasCoverLetter: analysis.recommendedMaterials.contains('Cover Letter'),
       hasApplicationQuestions: false,
-      hasOther: analysis.recommendedMaterials.contains('GitHub') ||
+      hasOther:
+          analysis.recommendedMaterials.contains('GitHub') ||
           analysis.recommendedMaterials.contains('Project Examples'),
       isSaved: false,
     );
@@ -160,9 +163,7 @@ ${analysis.interviewQuestions.map((question) => '- $question').join('\n')}
               if (_viewModel.isLoading)
                 const Padding(
                   padding: EdgeInsets.only(top: 20),
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
 
               if (_viewModel.errorMessage.isNotEmpty)

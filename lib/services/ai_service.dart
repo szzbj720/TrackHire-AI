@@ -108,11 +108,15 @@ class AIService {
       final String lowerLine = line.toLowerCase();
 
       if (lowerLine.startsWith('location:')) {
-        return line.replaceFirst(RegExp(r'Location:', caseSensitive: false), '').trim();
+        return line
+            .replaceFirst(RegExp(r'Location:', caseSensitive: false), '')
+            .trim();
       }
 
       if (lowerLine.startsWith('work location:')) {
-        return line.replaceFirst(RegExp(r'Work Location:', caseSensitive: false), '').trim();
+        return line
+            .replaceFirst(RegExp(r'Work Location:', caseSensitive: false), '')
+            .trim();
       }
     }
 
@@ -146,7 +150,9 @@ class AIService {
       final String lowerLine = line.toLowerCase();
 
       if (lowerLine.startsWith('pay:')) {
-        return line.replaceFirst(RegExp(r'Pay:', caseSensitive: false), '').trim();
+        return line
+            .replaceFirst(RegExp(r'Pay:', caseSensitive: false), '')
+            .trim();
       }
 
       if (lowerLine.contains('per hour') || lowerLine.contains('/hour')) {
@@ -235,11 +241,7 @@ class AIService {
   }
 
   List<String> _recommendMaterials(String lowerText) {
-    final List<String> materials = [
-      'Resume',
-      'Portfolio',
-      'Cover Letter',
-    ];
+    final List<String> materials = ['Resume', 'Portfolio', 'Cover Letter'];
 
     if (lowerText.contains('ui') ||
         lowerText.contains('figma') ||
@@ -261,9 +263,9 @@ class AIService {
   }
 
   List<String> _generateInterviewQuestions(
-      String role,
-      List<String> requiredSkills,
-      ) {
+    String role,
+    List<String> requiredSkills,
+  ) {
     final List<String> questions = [
       'Tell me about yourself and your background related to $role.',
       'Describe a project where you translated design requirements into a working user interface.',
@@ -296,11 +298,11 @@ class AIService {
   }
 
   String _generateSummary(
-      String role,
-      String location,
-      String salaryRange,
-      List<String> requiredSkills,
-      ) {
+    String role,
+    String location,
+    String salaryRange,
+    List<String> requiredSkills,
+  ) {
     final String skillsText = requiredSkills.take(5).join(', ');
 
     return 'This role appears to be a $role position based in $location. '
