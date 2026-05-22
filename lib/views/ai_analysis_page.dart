@@ -37,7 +37,7 @@ class _AIAnalysisPageState extends State<AIAnalysisPage> {
       return;
     }
 
-    final provider = context.read<ApplicationProvider>();
+    final ApplicationProvider provider = context.read<ApplicationProvider>();
 
     final String notes =
         '''
@@ -54,12 +54,13 @@ Interview Questions:
 ${analysis.interviewQuestions.map((question) => '- $question').join('\n')}
 ''';
 
+    final DateTime now = DateTime.now();
+
     final JobApplication newApplication = JobApplication(
       company: analysis.company,
       role: analysis.role,
       status: 'Applied',
-      dateApplied:
-          '${DateTime.now().month}/${DateTime.now().day}/${DateTime.now().year}',
+      dateApplied: '${now.month}/${now.day}/${now.year}',
       location: analysis.location,
       salaryRange: analysis.salaryRange,
       notes: notes,
@@ -84,13 +85,15 @@ ${analysis.interviewQuestions.map((question) => '- $question').join('\n')}
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${analysis.role} saved to TrackHire.'),
+        content: Text('${analysis.role} saved to TrackHire AI.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
 
     _jobDescriptionController.clear();
     _viewModel.clearAnalysis();
+
+    provider.changePage(0);
   }
 
   void _clearAnalysis() {
@@ -103,92 +106,100 @@ ${analysis.interviewQuestions.map((question) => '- $question').join('\n')}
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, child) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'AI Job Analyzer',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Paste a job description below, and TrackHire AI will analyze the role, skills, materials, and interview prep for you.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 20),
-
-              TextField(
-                controller: _jobDescriptionController,
-                maxLines: 10,
-                decoration: InputDecoration(
-                  labelText: 'Job Description',
-                  hintText: 'Paste job description here...',
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _viewModel.isLoading ? null : _analyzeJob,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: Text(
-                        _viewModel.isLoading
-                            ? 'Analyzing...'
-                            : 'Analyze with AI',
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Job Analyzer',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Paste a job description below, and TrackHire AI will analyze the role, skills, materials, and interview prep for you.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _jobDescriptionController,
+                      maxLines: 10,
+                      decoration: InputDecoration(
+                        labelText: 'Job Description',
+                        hintText: 'Paste job description here...',
+                        alignLabelWithHint: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  if (_viewModel.analysis != null ||
-                      _jobDescriptionController.text.isNotEmpty)
-                    OutlinedButton.icon(
-                      onPressed: _clearAnalysis,
-                      icon: const Icon(Icons.clear),
-                      label: const Text('Clear'),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _viewModel.isLoading
+                                ? null
+                                : _analyzeJob,
+                            icon: const Icon(Icons.auto_awesome),
+                            label: Text(
+                              _viewModel.isLoading
+                                  ? 'Analyzing...'
+                                  : 'Analyze with AI',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        if (_viewModel.analysis != null ||
+                            _jobDescriptionController.text.isNotEmpty)
+                          OutlinedButton.icon(
+                            onPressed: _clearAnalysis,
+                            icon: const Icon(Icons.clear),
+                            label: const Text('Clear'),
+                          ),
+                      ],
                     ),
-                ],
+                    if (_viewModel.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 20),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    if (_viewModel.errorMessage.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Text(
+                          _viewModel.errorMessage,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    if (_viewModel.analysis != null)
+                      AIResultCard(analysis: _viewModel.analysis!),
+                  ],
+                ),
               ),
-
-              if (_viewModel.isLoading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 20),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-
-              if (_viewModel.errorMessage.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(
-                    _viewModel.errorMessage,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
-
-              if (_viewModel.analysis != null) ...[
-                AIResultCard(analysis: _viewModel.analysis!),
-                const SizedBox(height: 16),
-                SizedBox(
+            ),
+            if (_viewModel.analysis != null)
+              SafeArea(
+                top: false,
+                child: Container(
                   width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFFBF7),
+                    border: Border(top: BorderSide(color: Color(0xFFE8E3F5))),
+                  ),
                   child: FilledButton.icon(
                     onPressed: _saveAnalysisToTrackHire,
                     icon: const Icon(Icons.save_alt),
                     label: const Text('Save to TrackHire'),
                   ),
                 ),
-              ],
-            ],
-          ),
+              ),
+          ],
         );
       },
     );
