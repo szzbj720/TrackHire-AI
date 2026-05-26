@@ -4,6 +4,10 @@
 
 TrackHire AI is a full-stack Flutter mobile career management app that helps job seekers track applications, analyze job descriptions, generate resume bullet ideas, manage required materials, and save structured insights in one clean mobile workspace.
 
+## Project Status
+
+TrackHire AI is an active personal project. The current version supports full job tracking, backend persistence, AI-inspired job analysis, resume bullet generation, CSV export, and GitHub Actions CI. Next steps include iOS testing, TestFlight deployment, and improved mobile polish.
+
 ## Product Overview
 
 Job searching can get messy fast. Applicants often track roles across spreadsheets, notes apps, emails, and job boards, making it difficult to stay organized.
@@ -140,3 +144,18 @@ ApiService / AIService
 Node.js / Express REST API
   ↓
 SQLite Backend Database
+
+
+## Try It
+
+TrackHire AI has been tested on both Android Emulator and iOS Simulator.
+iOS/TestFlight support is planned next so the app can be tested on real iPhones.
+
+## Demo
+
+A short demo video/GIF will be added here to show:
+
+1. Tracking job applications
+2. Analyzing a job description
+3. Generating resume bullet ideas
+4. Saving AI insights into TrackHire

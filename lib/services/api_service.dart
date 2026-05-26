@@ -1,11 +1,22 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../models/job_application.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:3000';
+  static String get baseUrl {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:3000';
+    }
+
+    if (Platform.isIOS) {
+      return 'http://localhost:3000';
+    }
+
+    return 'http://localhost:3000';
+  }
 
   static Future<List<JobApplication>> fetchApplications() async {
     final Uri url = Uri.parse('$baseUrl/applications');
@@ -22,8 +33,8 @@ class ApiService {
   }
 
   static Future<JobApplication> createApplication(
-    JobApplication application,
-  ) async {
+      JobApplication application,
+      ) async {
     final Uri url = Uri.parse('$baseUrl/applications');
 
     final http.Response response = await http.post(
@@ -42,9 +53,9 @@ class ApiService {
   }
 
   static Future<JobApplication> updateApplication(
-    int id,
-    JobApplication application,
-  ) async {
+      int id,
+      JobApplication application,
+      ) async {
     final Uri url = Uri.parse('$baseUrl/applications/$id');
 
     final http.Response response = await http.put(
