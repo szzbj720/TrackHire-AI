@@ -1,174 +1,311 @@
 # TrackHire AI
 
-![Flutter CI](https://github.com/szzbj720/TrackHire-AI/actions/workflows/flutter_ci.yml/badge.svg)
+![Flutter CI](https://github.com/szzbj720/trackhire/actions/workflows/flutter_ci.yml/badge.svg)
 
-TrackHire AI is a full-stack Flutter mobile career management app that helps job seekers track applications, analyze job descriptions, generate resume bullet ideas, manage required materials, and save structured insights in one clean mobile workspace.
+TrackHire AI is a full-stack Flutter mobile application designed to help job seekers organize applications, analyze job descriptions with AI, track required materials, manage interview preparation, and streamline the overall career application workflow across both Android and iOS platforms.
 
-## Project Status
+---
 
-TrackHire AI is an active personal project. The current version supports full job tracking, backend persistence, AI-inspired job analysis, resume bullet generation, CSV export, Android APK builds, iOS Simulator testing, and GitHub Actions CI.
+# Overview
 
-TestFlight deployment is planned for a future release.
+TrackHire AI was built to solve a common problem for students and early-career professionals: managing dozens of job applications across multiple platforms becomes disorganized very quickly.
 
-## Product Overview
+The project started as a local Flutter application with SQLite persistence and evolved into a more complete full-stack mobile platform featuring:
 
-Job searching can get messy fast. Applicants often track roles across spreadsheets, notes apps, emails, and job boards, making it difficult to stay organized.
+- Flutter frontend
+- Provider state management
+- MVVM-inspired architecture
+- Node.js + Express REST API backend
+- SQLite backend persistence
+- AI-powered job analysis workflows
+- CSV exporting and sharing
+- GitHub Actions CI/CD
+- Android + iOS simulator support
 
-TrackHire AI solves this by giving users a structured mobile workflow for managing job applications, including company details, role information, application status, salary range, location, notes, saved jobs, and required application materials.
+One of the core features is the AI Job Analyzer. Users can paste a real job description into the app, and the system extracts structured insights such as:
 
-The app started as a local Flutter application and later expanded into a backend-connected mobile platform with Provider state management, an MVVM-inspired workflow, a dedicated API service layer, a Node.js/Express REST API, SQLite persistence, CSV export support, and GitHub Actions CI. The current README also documents Android/iOS testing and demo build plans. :contentReference[oaicite:0]{index=0}
+- Role title
+- Company
+- Salary information
+- Required skills
+- Preferred skills
+- Recommended application materials
+- Interview preparation questions
+- Role summaries
 
-## Product Goals
+Users can then directly save the generated analysis into their application tracker workflow.
 
-- Simplify job application tracking through a clean mobile interface
-- Help users organize applications, materials, notes, and saved roles
-- Analyze job descriptions and extract useful role insights
-- Generate resume bullet ideas and interview preparation prompts
-- Save AI-generated insights directly into real application records
-- Demonstrate full-stack mobile development with clean architecture
+---
 
-## Screenshots
+# Screenshots
 
-### Home Screen
+## Home Screen
 
 ![Home Screen](screenshots/home.png)
 
-### Saved Applications
+## Saved Applications
 
 ![Saved Applications](screenshots/saved.png)
 
-### AI Job Analyzer
+## AI Job Analyzer
 
 ![AI Job Analyzer](screenshots/ai.png)
 
-### Settings
+## Settings
 
 ![Settings](screenshots/settings.png)
 
-## Try It
+---
 
-Android demo APK is available in the GitHub Releases section.
+# Features
 
-TrackHire AI has also been tested on iOS Simulator. TestFlight deployment is planned for a future release.
+## Application Tracking
 
-## Platform Testing
+- Add, edit, delete, and manage job applications
+- Track statuses:
+    - Applied
+    - Interviewing
+    - Offer
+    - Rejected
+- Save important applications
+- Search applications by:
+    - Company
+    - Role
+    - Location
+    - Salary
+    - Notes
+- Track required materials:
+    - Resume
+    - Cover Letter
+    - Portfolio
+    - Application Questions
+    - Other Documents
 
-TrackHire AI has been tested on both Android Emulator and iOS Simulator.
+---
 
-The API service automatically switches backend URLs depending on platform:
+## AI Job Analyzer
 
-- Android Emulator: `http://10.0.2.2:3000`
-- iOS Simulator: `http://localhost:3000`
+- Analyze pasted job descriptions
+- Extract structured job insights
+- Generate:
+    - Required skills
+    - Preferred skills
+    - Suggested materials
+    - Interview questions
+    - Role summaries
+- Save AI-generated analysis directly into the application tracker
 
-## Demo
+---
 
-A short demo video/GIF will be added here to show:
+## Data Management
 
-1. Tracking job applications
-2. Analyzing a job description
-3. Generating resume bullet ideas
-4. Saving AI insights into TrackHire
+- Local SQLite persistence
+- Backend SQLite persistence
+- CSV export functionality
+- Native mobile share-sheet integration
+- Persistent application storage
 
-## Features
+---
 
-- Add, edit, delete, and view job applications
-- Track application status: Applied, Interviewing, Offer, or Rejected
-- Save important applications to a dedicated Saved page
-- Search applications by company, role, location, salary, or notes
-- Filter applications by status and required materials
-- Track materials such as resume, portfolio, cover letter, application questions, and other documents
-- View dashboard stats for total applications, saved jobs, offers, interviews, and rejections
-- Analyze pasted job descriptions with an AI-inspired job analyzer
-- Extract role title, company, location, salary range, required skills, preferred skills, and recommended materials
-- Generate role summaries and tailored interview preparation questions
-- Generate resume bullet ideas based on job-description keywords
-- Save AI-generated job analysis and resume bullets directly as a TrackHire application
-- Export job application data as a CSV file
-- Share exported CSV files through the native mobile share sheet
-- Connect the Flutter app to a Node.js/Express REST API
-- Persist backend data using SQLite
-- Handle API connection errors with a user-friendly error state
-- Use a clean Material 3 UI with pastel dashboard cards and responsive mobile layouts
-- Organize code with models, views, widgets, providers, viewmodels, services, database, and backend layers
-- Validate code quality through GitHub Actions CI for formatting, static analysis, testing, and Android debug APK builds
+## Backend Integration
 
-## Tech Stack
+- Flutter frontend connected to Node.js REST API
+- Express backend routing
+- JSON request/response handling
+- Error handling for failed API connections
+- Cross-platform API communication
 
-### Frontend
+---
+
+## UI/UX
+
+- Material 3 design system
+- Responsive mobile layouts
+- Clean pastel dashboard design
+- Mobile-first interface
+- Android and iOS simulator support
+
+---
+
+# Tech Stack
+
+## Frontend
 
 - Flutter
 - Dart
-- Provider
 - Material 3
-- http
-- csv
+- Provider
+- HTTP package
+- CSV package
 - share_plus
 - path_provider
 
-### Backend
+---
+
+## Backend
 
 - Node.js
-- Express
+- Express.js
 - SQLite
+- REST API architecture
 - CORS
-- REST API
-- JSON request and response handling
-- Persistent backend storage
-
-### Architecture and State Management
-
-- Provider state management
-- MVVM-inspired AI workflow
-- Dedicated model layer
-- Dedicated service layer
-- Dedicated viewmodel layer
-- Reusable widget components
 - JSON serialization
-- Separation of UI, business logic, API logic, and data models
 
-### AI-Inspired Features
+---
 
-- Job description analysis
-- Structured role insight extraction
-- Required and preferred skill detection
-- Recommended materials generation
-- Interview question generation
-- Resume bullet idea generation
-- Save AI analysis into the application workflow
+## Architecture
 
-### Local Data and App Services
+- MVVM-inspired architecture
+- Provider state management
+- Service layer abstraction
+- Reusable widget components
+- Dedicated models/viewmodels/services structure
 
-- SQLite with sqflite
-- Local model serialization
-- CSV export service
-- Native share-sheet integration
+---
 
-### Development Tools
+## AI Workflow
+
+- AI-powered job analysis
+- Structured insight extraction
+- Resume/interview preparation support
+- Dynamic recommendation generation
+
+---
+
+## DevOps & Tooling
 
 - Git
 - GitHub
 - GitHub Actions CI/CD
-- Android Studio
-- Xcode
-- Dart Format
 - Flutter Analyze
 - Flutter Test
-- Android debug APK builds
-- iOS Simulator testing
+- Dart Format
+- Android APK builds
+- Xcode iOS simulator testing
 
-## Architecture
+---
+
+# Architecture Flow
 
 ```txt
 Flutter UI
-  ↓
+   ↓
 Provider State Management
-  ↓
+   ↓
 ViewModel Layer
-  ↓
+   ↓
 Service Layer
-  ↓
+   ↓
 ApiService / AIService
-  ↓
+   ↓
 Node.js / Express REST API
-  ↓
+   ↓
 SQLite Backend Database
+```
+
+---
+
+# Project Structure
+
+```txt
+lib/
+├── models/
+├── providers/
+├── services/
+├── viewmodels/
+├── screens/
+├── widgets/
+├── database/
+└── main.dart
+
+backend/
+├── routes/
+├── server.js
+├── package.json
+└── trackhire.db
+```
+
+---
+
+# Supported Platforms
+
+| Platform | Status |
+|---|---|
+| Android Emulator | Supported |
+| Android APK | Supported |
+| iOS Simulator | Supported |
+| TestFlight | Planned |
+| Web | Planned |
+
+---
+
+# CI/CD
+
+GitHub Actions automatically performs:
+
+- Dart formatting checks
+- Flutter static analysis
+- Flutter tests
+- Android debug APK builds
+
+---
+
+# APK Download
+
+Android APK download:
+
+https://drive.google.com/file/d/1o03Y8E9fmwhhF-GbZhPGtK1KeHRM7P0s/view?usp=sharing
+
+---
+
+# Demo Workflow
+
+Example user workflow:
+
+1. Add and manage applications
+2. Paste a real job description
+3. Analyze the posting with AI
+4. Generate interview preparation questions
+5. Save the AI-generated application
+6. Export applications as CSV
+7. Share exported files natively on mobile
+
+---
+
+# Future Improvements
+
+- Real OpenAI API integration
+- Firebase authentication
+- Cloud synchronization
+- Push notifications
+- Resume parsing
+- Interview tracking
+- TestFlight deployment
+- Production App Store release
+- Advanced analytics dashboard
+
+---
+
+# Why This Project Matters
+
+TrackHire AI demonstrates:
+
+- Cross-platform mobile development
+- Full-stack application architecture
+- REST API integration
+- SQLite database management
+- State management patterns
+- AI workflow integration
+- CI/CD automation
+- Mobile UI/UX design
+- Backend communication
+- Real-world software engineering practices
+
+---
+
+# Author
+
+Selena Zhang
+
+GitHub:
+https://github.com/szzbj720
