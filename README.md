@@ -6,7 +6,9 @@ TrackHire AI is a full-stack Flutter mobile career management app that helps job
 
 ## Project Status
 
-TrackHire AI is an active personal project. The current version supports full job tracking, backend persistence, AI-inspired job analysis, resume bullet generation, CSV export, and GitHub Actions CI. Next steps include iOS testing, TestFlight deployment, and improved mobile polish.
+TrackHire AI is an active personal project. The current version supports full job tracking, backend persistence, AI-inspired job analysis, resume bullet generation, CSV export, Android APK builds, iOS Simulator testing, and GitHub Actions CI.
+
+TestFlight deployment is planned for a future release.
 
 ## Product Overview
 
@@ -14,7 +16,7 @@ Job searching can get messy fast. Applicants often track roles across spreadshee
 
 TrackHire AI solves this by giving users a structured mobile workflow for managing job applications, including company details, role information, application status, salary range, location, notes, saved jobs, and required application materials.
 
-The app started as a local Flutter application and later expanded into a backend-connected mobile platform with Provider state management, an MVVM-inspired workflow, a dedicated API service layer, a Node.js/Express REST API, SQLite persistence, CSV export support, and GitHub Actions CI.
+The app started as a local Flutter application and later expanded into a backend-connected mobile platform with Provider state management, an MVVM-inspired workflow, a dedicated API service layer, a Node.js/Express REST API, SQLite persistence, CSV export support, and GitHub Actions CI. The current README also documents Android/iOS testing and demo build plans. :contentReference[oaicite:0]{index=0}
 
 ## Product Goals
 
@@ -42,6 +44,30 @@ The app started as a local Flutter application and later expanded into a backend
 ### Settings
 
 ![Settings](screenshots/settings.png)
+
+## Try It
+
+Android demo APK is available in the GitHub Releases section.
+
+TrackHire AI has also been tested on iOS Simulator. TestFlight deployment is planned for a future release.
+
+## Platform Testing
+
+TrackHire AI has been tested on both Android Emulator and iOS Simulator.
+
+The API service automatically switches backend URLs depending on platform:
+
+- Android Emulator: `http://10.0.2.2:3000`
+- iOS Simulator: `http://localhost:3000`
+
+## Demo
+
+A short demo video/GIF will be added here to show:
+
+1. Tracking job applications
+2. Analyzing a job description
+3. Generating resume bullet ideas
+4. Saving AI insights into TrackHire
 
 ## Features
 
@@ -123,10 +149,12 @@ The app started as a local Flutter application and later expanded into a backend
 - GitHub
 - GitHub Actions CI/CD
 - Android Studio
+- Xcode
 - Dart Format
 - Flutter Analyze
 - Flutter Test
 - Android debug APK builds
+- iOS Simulator testing
 
 ## Architecture
 
@@ -144,18 +172,3 @@ ApiService / AIService
 Node.js / Express REST API
   ↓
 SQLite Backend Database
-
-
-## Try It
-
-TrackHire AI has been tested on both Android Emulator and iOS Simulator.
-iOS/TestFlight support is planned next so the app can be tested on real iPhones.
-
-## Demo
-
-A short demo video/GIF will be added here to show:
-
-1. Tracking job applications
-2. Analyzing a job description
-3. Generating resume bullet ideas
-4. Saving AI insights into TrackHire
