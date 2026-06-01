@@ -1,47 +1,50 @@
+````markdown
 # TrackHire AI
 
 ![Flutter CI](https://github.com/szzbj720/trackhire/actions/workflows/flutter_ci.yml/badge.svg)
 
-TrackHire AI is a full-stack Flutter mobile application that helps job seekers organize applications, analyze job descriptions with AI, track required materials, manage interview preparation, and streamline the career application workflow across Android and iOS platforms.
+TrackHire AI is a mobile app I built to help job seekers stay organized during the application process. I started this project because I was applying to a lot of internships and new grad roles, and I kept running into the same problem: my applications, job descriptions, deadlines, notes, and interview prep were spread across different tabs, spreadsheets, and random documents.
+
+Instead of treating job searching as just a list of companies, I wanted to build something that felt closer to a personal job search workspace. The app lets users track applications, save important roles, organize required materials, and use AI to break down job descriptions into useful next steps.
 
 ---
 
 ## Demo Video
 
-A 1-minute walkthrough of TrackHire AI, showing the main application tracking workflow, saved applications, AI job analysis, and settings experience.
+A short walkthrough of the main application tracking flow, saved jobs page, AI job analyzer, and settings page.
 
 https://github.com/user-attachments/assets/42c91ef6-a733-48a4-aea2-1aaa86538415
 
 ---
 
-## Overview
+## Why I Built This
 
-TrackHire AI was built to solve a common problem for students and early-career professionals: managing many job applications across different platforms can quickly become disorganized.
+During my own job search, I realized that the hardest part was not just finding jobs. It was keeping track of everything after applying.
 
-The project started as a local Flutter application with SQLite persistence and evolved into a more complete full-stack mobile platform featuring:
+I would have one job description saved in a browser tab, another company in a spreadsheet, notes in a document, and interview questions somewhere else. After a while, it became hard to remember which applications needed a cover letter, which ones I wanted to follow up on, and which roles were actually good matches for my experience.
 
-- Flutter frontend
-- Provider state management
-- MVVM-inspired architecture
-- Node.js and Express REST API backend
-- SQLite backend persistence
-- AI-powered job analysis workflows
-- CSV exporting and sharing
-- GitHub Actions CI/CD
-- Android and iOS simulator support
+That is what led me to build TrackHire AI.
 
-One of the core features is the AI Job Analyzer. Users can paste a real job description into the app, and the system extracts structured insights such as:
+My goal was to create a simple mobile app that could help someone manage the whole job application process in one place. I also wanted to explore how AI could be used in a practical way, not just as a chatbot, but as part of a real workflow where a user can paste a job description, understand what the role is asking for, and save that information directly into their tracker.
 
-- Role title
-- Company
-- Salary information
-- Required skills
-- Preferred skills
-- Recommended application materials
-- Interview preparation questions
-- Role summaries
+---
 
-Users can then save the generated analysis directly into their application tracker workflow.
+## What the App Does
+
+TrackHire AI lets users:
+
+- Add and manage job applications
+- Track each application by status
+- Save important roles
+- Search through applications
+- Track required materials like resumes, cover letters, portfolios, and application questions
+- Paste job descriptions into an AI analyzer
+- Generate structured job insights and interview preparation questions
+- Save AI-generated job analysis into the main tracker
+- Export application data as a CSV file
+- Share exported files using the native mobile share sheet
+
+The app supports both Android and iOS simulator testing.
 
 ---
 
@@ -65,125 +68,23 @@ Users can then save the generated analysis directly into their application track
 
 ---
 
-## Features
+## How I Designed the App
 
-### Application Tracking
+I wanted the app to feel simple and practical. Since job searching can already feel overwhelming, I did not want the interface to look too complicated or overloaded.
 
-- Add, edit, delete, and manage job applications
-- Track application statuses:
-  - Applied
-  - Interviewing
-  - Offer
-  - Rejected
-- Save important applications
-- Search applications by:
-  - Company
-  - Role
-  - Location
-  - Salary
-  - Notes
-- Track required materials:
-  - Resume
-  - Cover Letter
-  - Portfolio
-  - Application Questions
-  - Other Documents
+The main screen focuses on the applications themselves. From there, users can quickly see where each application stands, search through their list, or add a new one. I also added a saved applications page because I personally like separating roles that feel especially important from the full application list.
+
+For the AI feature, I wanted it to fit naturally into the app instead of feeling like a separate tool. The user can paste a job description, get a structured breakdown, and then save that result directly into the tracker. This made the AI feature feel connected to the actual job search process rather than being a standalone experiment.
 
 ---
 
-### AI Job Analyzer
+## Technical Approach
 
-- Analyze pasted job descriptions
-- Extract structured job insights
-- Generate:
-  - Required skills
-  - Preferred skills
-  - Suggested materials
-  - Interview questions
-  - Role summaries
-- Save AI-generated analysis directly into the application tracker
+I built the frontend with Flutter because I wanted one codebase that could run on both Android and iOS. This also gave me more practice thinking about cross-platform mobile development, responsive layouts, and simulator testing on different devices.
 
----
+For state management, I used Provider and organized the app with an MVVM-inspired structure. I separated the project into models, services, viewmodels, screens, and reusable widgets so that the app would be easier to maintain as I added more features.
 
-### Data Management
-
-- Local SQLite persistence
-- Backend SQLite persistence
-- CSV export functionality
-- Native mobile share-sheet integration
-- Persistent application storage
-
----
-
-### Backend Integration
-
-- Flutter frontend connected to a Node.js REST API
-- Express backend routing
-- JSON request and response handling
-- Error handling for failed API connections
-- Cross-platform API communication
-
----
-
-### UI/UX
-
-- Material 3 design system
-- Responsive mobile layouts
-- Clean pastel dashboard design
-- Mobile-first interface
-- Android and iOS simulator support
-
----
-
-## Tech Stack
-
-### Frontend
-
-- Flutter
-- Dart
-- Material 3
-- Provider
-- HTTP package
-- CSV package
-- share_plus
-- path_provider
-
-### Backend
-
-- Node.js
-- Express.js
-- SQLite
-- REST API architecture
-- CORS
-- JSON serialization
-
-### Architecture
-
-- MVVM-inspired architecture
-- Provider state management
-- Service layer abstraction
-- Reusable widget components
-- Dedicated models, viewmodels, services, and widgets
-- Separation of frontend UI logic and backend data handling
-
-### AI Workflow
-
-- AI-powered job analysis
-- Structured insight extraction from job descriptions
-- Resume and interview preparation support
-- Dynamic recommendation generation
-- Save-to-tracker workflow from AI output
-
-### DevOps and Tooling
-
-- Git
-- GitHub
-- GitHub Actions CI/CD
-- Flutter Analyze
-- Flutter Test
-- Dart Format
-- Android APK builds
-- Xcode iOS simulator testing
+The app also includes a Node.js and Express backend with SQLite persistence. I wanted to practice connecting a mobile frontend to a backend API, handling JSON request and response data, and thinking through how data should move between the UI, service layer, backend routes, and database.
 
 ---
 
@@ -203,7 +104,42 @@ ApiService / AIService
 Node.js / Express REST API
    ↓
 SQLite Backend Database
-```
+````
+
+---
+
+## Tech Stack
+
+### Frontend
+
+* Flutter
+* Dart
+* Material 3
+* Provider
+* HTTP package
+* CSV package
+* share_plus
+* path_provider
+
+### Backend
+
+* Node.js
+* Express.js
+* SQLite
+* REST API architecture
+* CORS
+* JSON serialization
+
+### Tooling
+
+* Git
+* GitHub
+* GitHub Actions
+* Flutter Analyze
+* Flutter Test
+* Dart Format
+* Android APK builds
+* Xcode iOS Simulator
 
 ---
 
@@ -235,28 +171,40 @@ screenshots/
 
 ---
 
-## Supported Platforms
+## AI Job Analyzer
 
-| Platform | Status |
-|---|---|
-| Android Emulator | Supported |
-| Android APK | Supported |
-| iOS Simulator | Supported |
-| TestFlight | Planned |
-| Web | Planned |
+One of the main features I wanted to experiment with was AI-assisted job analysis.
+
+The user can paste a job description, and the app extracts information such as:
+
+* Company
+* Role title
+* Location
+* Salary range
+* Required skills
+* Preferred skills
+* Recommended application materials
+* Interview preparation questions
+* A short role summary
+
+I built this because job descriptions can be long and difficult to process quickly, especially when applying to many roles. The goal was to help users understand what a role is really asking for and turn that information into something they can act on.
+
+The most important part of this feature was making the AI output useful inside the app. Instead of only showing the generated analysis once, I added the ability to save AI-generated job analysis into the main tracker, which made the feature feel more useful and realistic.
 
 ---
 
 ## CI/CD
 
-GitHub Actions automatically performs:
+I added a GitHub Actions workflow to make the project more reliable as I continued building.
 
-- Dart formatting checks
-- Flutter static analysis
-- Flutter tests
-- Android debug APK builds
+The workflow checks:
 
-This helps ensure the project remains stable and maintainable as new features are added.
+* Dart formatting
+* Flutter static analysis
+* Flutter tests
+* Android debug APK builds
+
+This helped me catch issues earlier and gave me experience setting up a basic mobile CI pipeline.
 
 ---
 
@@ -268,68 +216,46 @@ https://drive.google.com/file/d/1o03Y8E9fmwhhF-GbZhPGtK1KeHRM7P0s/view?usp=shari
 
 ---
 
-## Demo Workflow
-
-Example user workflow:
-
-1. Add and manage job applications
-2. Paste a real job description
-3. Analyze the posting with AI
-4. Generate interview preparation questions
-5. Save the AI-generated application
-6. Export applications as CSV
-7. Share exported files natively on mobile
-
----
-
 ## What I Learned
 
-Through this project, I gained hands-on experience with:
+This project helped me practice building a mobile app beyond just the UI layer. I worked through the process of structuring a Flutter project, managing state, connecting to a backend, saving data, exporting files, and testing on both Android and iOS.
 
-- Building cross-platform mobile apps with Flutter
-- Managing app-wide state with Provider
-- Designing an MVVM-inspired project structure
-- Connecting a mobile frontend to a backend REST API
-- Persisting data with SQLite locally and through the backend
-- Building AI-assisted workflows into a real application
-- Exporting and sharing app data as CSV files
-- Testing and debugging on both Android and iOS simulators
-- Setting up CI/CD with GitHub Actions
-- Structuring a project to be readable, maintainable, and recruiter-friendly
+Some of the biggest things I learned were:
+
+* How to organize a larger Flutter app using models, services, viewmodels, and screens
+* How Provider can be used to manage app-wide state
+* How to connect a mobile frontend to a REST API
+* How to use SQLite for persistent storage
+* How to design a feature so that AI output fits into a real user workflow
+* How to debug platform-specific issues across Android and iOS
+* How to set up GitHub Actions for formatting, analysis, testing, and builds
+* How to think more carefully about product flow, not just individual features
+
+One challenge I ran into was keeping the AI feature connected to the rest of the app. At first, it felt like a separate tool. I improved this by adding the ability to save AI-generated job analysis into the main tracker, which made the feature feel more useful and realistic.
 
 ---
 
 ## Future Improvements
 
-- Real OpenAI API integration
-- Cloud synchronization
-- Push notifications
-- Resume parsing
-- Interview tracking
-- TestFlight deployment
-- Production App Store release
-- Advanced analytics dashboard
-- User authentication
-- Multi-device syncing
+There are several features I would like to add next:
+
+* User authentication
+* Cloud synchronization across devices
+* Resume parsing
+* Interview date tracking
+* Push notification reminders
+* More advanced analytics for application progress
+* TestFlight deployment
+* Production App Store release
+* Multi-device syncing
 
 ---
 
-## Why This Project Matters
+## Why This Project Matters To Me
 
-TrackHire AI demonstrates practical, real-world software engineering skills across mobile development, backend integration, AI-assisted workflows, data persistence, and deployment automation.
+TrackHire AI is meaningful to me because it came from a real problem I experienced while applying for jobs. I wanted to build something that could help students and early-career developers feel less overwhelmed during the application process.
 
-This project highlights:
-
-- Cross-platform mobile development
-- Full-stack application architecture
-- REST API integration
-- SQLite database management
-- State management patterns
-- AI workflow integration
-- CI/CD automation
-- Mobile UI/UX design
-- Backend communication
-- Real-world software engineering practices
+It also gave me a chance to combine several areas I have been learning: mobile development, backend APIs, databases, AI workflows, and CI/CD. More importantly, it helped me practice thinking like a developer building for an actual user, not just completing a class assignment.
 
 ---
 
@@ -337,5 +263,8 @@ This project highlights:
 
 Selena Zhang
 
-GitHub:  
+GitHub:
 https://github.com/szzbj720
+
+```
+```
