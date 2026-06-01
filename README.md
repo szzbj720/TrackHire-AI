@@ -1,4 +1,3 @@
-````markdown
 # TrackHire AI
 
 ![Flutter CI](https://github.com/szzbj720/trackhire/actions/workflows/flutter_ci.yml/badge.svg)
@@ -33,16 +32,16 @@ My goal was to create a simple mobile app that could help someone manage the who
 
 TrackHire AI lets users:
 
-- Add and manage job applications
-- Track each application by status
-- Save important roles
-- Search through applications
-- Track required materials like resumes, cover letters, portfolios, and application questions
-- Paste job descriptions into an AI analyzer
-- Generate structured job insights and interview preparation questions
-- Save AI-generated job analysis into the main tracker
-- Export application data as a CSV file
-- Share exported files using the native mobile share sheet
+* Add and manage job applications
+* Track each application by status
+* Save important roles
+* Search through applications
+* Track required materials like resumes, cover letters, portfolios, and application questions
+* Paste job descriptions into an AI analyzer
+* Generate structured job insights and interview preparation questions
+* Save AI-generated job analysis into the main tracker
+* Export application data as a CSV file
+* Share exported files using the native mobile share sheet
 
 The app supports both Android and iOS simulator testing.
 
@@ -74,7 +73,7 @@ I wanted the app to feel simple and practical. Since job searching can already f
 
 The main screen focuses on the applications themselves. From there, users can quickly see where each application stands, search through their list, or add a new one. I also added a saved applications page because I personally like separating roles that feel especially important from the full application list.
 
-For the AI feature, I wanted it to fit naturally into the app instead of feeling like a separate tool. The user can paste a job description, get a structured breakdown, and then save that result directly into the tracker. This made the AI feature feel connected to the actual job search process rather than being a standalone experiment.
+For the AI feature, I wanted it to fit naturally into the app instead of feeling like a separate tool. The user can paste a job description, get a structured breakdown, and then save that result directly into the tracker. This made the AI feature feel connected to the actual job search process instead of feeling like a separate experiment.
 
 ---
 
@@ -104,7 +103,7 @@ ApiService / AIService
 Node.js / Express REST API
    ↓
 SQLite Backend Database
-````
+```
 
 ---
 
@@ -265,6 +264,3 @@ Selena Zhang
 
 GitHub:
 https://github.com/szzbj720
-
-```
-```
