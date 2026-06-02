@@ -28,6 +28,33 @@ My goal was to create a simple mobile app that could help someone manage the who
 
 ---
 
+## The Problem
+
+Job searching can become disorganized very quickly. A user might apply to one role on LinkedIn, save another job description in a browser tab, write notes in a document, and track deadlines in a spreadsheet.
+
+That creates a few problems:
+
+* It is hard to remember where each application stands
+* Important roles can get lost in a long list
+* Job descriptions are long and time-consuming to review
+* Application materials are often tracked separately
+* Interview preparation notes are easy to forget
+* Users do not always have a clear view of their overall progress
+
+I wanted TrackHire AI to solve that by giving users one place to track, review, and organize their job search.
+
+---
+
+## My Solution
+
+I built TrackHire AI as a mobile-first workspace for job seekers.
+
+Instead of managing applications across spreadsheets, browser tabs, notes, and emails, users can keep everything in one place. The app combines application tracking, material organization, and AI-powered job analysis into a single workflow designed around the realities of modern job searching.
+
+My goal was not to build another AI chatbot. I wanted to create a tool that helps users take action on the information they receive and stay organized throughout the application process.
+
+---
+
 ## What the App Does
 
 TrackHire AI lets users:
@@ -44,6 +71,19 @@ TrackHire AI lets users:
 * Share exported files using the native mobile share sheet
 
 The app supports both Android and iOS simulator testing.
+
+---
+
+## Project Highlights
+
+* Cross-platform mobile application built with Flutter
+* Tested on both Android and iOS simulators
+* AI-powered job description analysis workflow
+* Node.js + Express backend with SQLite persistence
+* REST API integration between mobile frontend and backend
+* CSV export and native mobile sharing
+* GitHub Actions CI/CD pipeline for testing and builds
+* Built from a real problem I experienced during my own job search
 
 ---
 
@@ -74,6 +114,21 @@ I wanted the app to feel simple and practical. Since job searching can already f
 The main screen focuses on the applications themselves. From there, users can quickly see where each application stands, search through their list, or add a new one. I also added a saved applications page because I personally like separating roles that feel especially important from the full application list.
 
 For the AI feature, I wanted it to fit naturally into the app instead of feeling like a separate tool. The user can paste a job description, get a structured breakdown, and then save that result directly into the tracker. This made the AI feature feel connected to the actual job search process instead of feeling like a separate experiment.
+
+---
+
+## Product Decisions
+
+A few decisions I made while building the app:
+
+* I kept the main screen focused on job applications because that is the center of the user workflow.
+* I added saved applications because users often have a few roles they care about more than the rest.
+* I included material tracking because resumes, cover letters, portfolios, and referrals are usually part of the application process but are easy to forget.
+* I added search and filtering because a tracker becomes less useful if users cannot quickly find what they need.
+* I connected the AI analyzer to the main tracker because AI output is more useful when it becomes part of the user's workflow.
+* I added CSV export because users should be able to keep their own data outside the app.
+
+The main product goal was to reduce friction. I wanted the app to help users feel more organized without adding more work to their job search.
 
 ---
 
@@ -192,6 +247,22 @@ The most important part of this feature was making the AI output useful inside t
 
 ---
 
+## Technical Challenges
+
+Some of the main challenges I worked through:
+
+* Structuring the Flutter app so it did not become difficult to maintain as more screens and features were added
+* Keeping state consistent across the home screen, saved applications, settings, and AI analyzer
+* Connecting the mobile frontend to a backend API and handling request and response data cleanly
+* Making the AI feature feel like part of the app instead of a separate demo
+* Handling platform differences between Android and iOS simulator testing
+* Setting up a CI workflow that checks formatting, analysis, tests, and Android builds
+* Thinking through how application data should be saved, exported, and shared
+
+A lot of this project was less about one specific feature and more about making all the pieces work together as a complete product.
+
+---
+
 ## CI/CD
 
 I added a GitHub Actions workflow to make the project more reliable as I continued building.
@@ -232,6 +303,8 @@ Some of the biggest things I learned were:
 
 One challenge I ran into was keeping the AI feature connected to the rest of the app. At first, it felt like a separate tool. I improved this by adding the ability to save AI-generated job analysis into the main tracker, which made the feature feel more useful and realistic.
 
+The biggest product lesson I learned was that AI is only helpful when it fits naturally into what the user is already trying to do. For this project, that meant making the AI analysis something users could save, review, and use as part of their job search instead of treating it as a one-time response.
+
 ---
 
 ## Future Improvements
@@ -250,11 +323,28 @@ There are several features I would like to add next:
 
 ---
 
+## What I'd Improve Next
+
+If I continued developing TrackHire AI, I would focus on making the app more useful for long-term job searches.
+
+Some improvements I would prioritize include:
+
+* User authentication and cloud synchronization
+* Resume parsing and document management
+* Interview scheduling and reminders
+* Application analytics and progress tracking
+* Multi-device support
+* TestFlight distribution and App Store release
+
+I would also spend more time collecting user feedback and observing how people actually use the application. While building the project taught me a lot about mobile development, it also showed me how important user feedback is when deciding what to build next.
+
+---
+
 ## Why This Project Matters To Me
 
 TrackHire AI is meaningful to me because it came from a real problem I experienced while applying for jobs. I wanted to build something that could help students and early-career developers feel less overwhelmed during the application process.
 
-It also gave me a chance to combine several areas I have been learning: mobile development, backend APIs, databases, AI workflows, and CI/CD. More importantly, it helped me practice thinking like a developer building for an actual user, not just completing a class assignment.
+This project represents the kind of work I want to keep doing: building useful software, understanding the user problem behind it, and improving the product through both technical and product decisions.
 
 ---
 
