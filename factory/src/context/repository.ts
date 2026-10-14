@@ -1,5 +1,9 @@
 import { readdir } from "node:fs/promises";
-import { join, relative } from "node:path";
+import {
+  extname,
+  join,
+  relative,
+} from "node:path";
 
 export interface RepositoryFile {
   path: string;
@@ -16,7 +20,25 @@ const ignoredDirectories = new Set([
   "build",
   ".dart_tool",
   ".idea",
+  "Pods",
+  "coverage",
+  "dist",
 ]);
+
+const ignoredExtensions = new Set([
+    ".apk",
+    ".db",
+    ".sqlite",
+    ".sqlite3",
+    ".iml",
+    ".xcfilelist",
+  ]);
+
+function shouldIgnoreFile(fileName: string): boolean {
+  const extension = extname(fileName).toLowerCase();
+
+  return ignoredExtensions.has(extension);
+}
 
 export async function scanRepository(
   root: string,
@@ -36,14 +58,20 @@ export async function scanRepository(
         continue;
       }
 
-      const absolutePath = join(directory, entry.name);
+      const absolutePath = join(
+        directory,
+        entry.name,
+      );
 
       if (entry.isDirectory()) {
         await walk(absolutePath);
         continue;
       }
 
-      if (entry.isFile()) {
+      if (
+        entry.isFile() &&
+        !shouldIgnoreFile(entry.name)
+      ) {
         files.push({
           path: relative(root, absolutePath),
         });

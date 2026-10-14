@@ -25,6 +25,7 @@ const stopWords = new Set([
   "must",
   "continue",
   "existing",
+  "work",
 ]);
 
 function extractTerms(task: EngineeringTask): string[] {
@@ -47,21 +48,32 @@ function extractTerms(task: EngineeringTask): string[] {
   ];
 }
 
+function extractPathTerms(path: string): string[] {
+  return path
+    .replaceAll("\\", "/")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length > 0);
+}
+
 export function selectRelevantFiles(
   task: EngineeringTask,
   snapshot: RepositorySnapshot,
   limit = 20,
 ): RelevantFile[] {
-  const terms = extractTerms(task);
+  const taskTerms = extractTerms(task);
 
   return snapshot.files
     .map((file) => {
-      const normalizedPath = file.path
-        .replaceAll("\\", "/")
-        .toLowerCase();
+      const pathTerms = extractPathTerms(file.path);
 
-      const matchedTerms = terms.filter((term) =>
-        normalizedPath.includes(term),
+      const matchedTerms = taskTerms.filter((taskTerm) =>
+        pathTerms.some(
+          (pathTerm) =>
+            pathTerm === taskTerm ||
+            pathTerm.startsWith(`${taskTerm}_`) ||
+            pathTerm.endsWith(`_${taskTerm}`),
+        ),
       );
 
       return {
