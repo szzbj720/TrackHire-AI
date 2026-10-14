@@ -37,6 +37,9 @@ import type {
   Reviewer,
   ReviewerInput,
 } from "../agents/reviewer.js";
+import {
+  RunArtifactStore,
+} from "../artifact/run-artifact-store.js";
 import type {
   RepositoryContext,
 } from "../context/context-builder.js";
@@ -1231,7 +1234,7 @@ describe("SequentialFactory", () => {
     );
 
     const completedResult =
-      factory.resumeAfterFinalApproval(
+      await factory.resumeAfterFinalApproval(
         finalApprovalResult.run,
       );
 
@@ -1270,7 +1273,223 @@ describe("SequentialFactory", () => {
     ).toBeDefined();
   });
 
-  it("rejects final approval when final approval is not pending", () => {
+  it("persists evidence across a complete sequential factory run", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const artifactRoot =
+      await mkdtemp(
+        join(
+          tmpdir(),
+          "factory-run-artifacts-",
+        ),
+      );
+
+    const artifactStore =
+      new RunArtifactStore(
+        artifactRoot,
+      );
+
+    const planningWorkflow =
+      new PlanningWorkflow(
+        new FakeAnalyzer(
+          createAnalysis(),
+        ),
+        new FakePlanner(
+          createPlan(),
+        ),
+      );
+
+    const implementationWorkflow =
+      new ImplementationWorkflow(
+        new FakeBuilder(),
+        new FakeValidator(true),
+      );
+
+    const reviewWorkflow =
+      new ReviewWorkflow(
+        new FakeReviewer(),
+      );
+
+    const factory =
+      new SequentialFactory(
+        planningWorkflow,
+        implementationWorkflow,
+        undefined,
+        undefined,
+        reviewWorkflow,
+        artifactStore,
+      );
+
+    const planningResult =
+      await factory.start(
+        createTask(),
+        repositoryRoot,
+      );
+
+    expect(
+      planningResult.stopReason,
+    ).toBe(
+      "PLAN_APPROVAL_REQUIRED",
+    );
+
+    const persistedPlanningTask =
+      await artifactStore.readJson<
+        EngineeringTask
+      >(
+        "TH-001",
+        "task",
+      );
+
+    expect(
+      persistedPlanningTask.status,
+    ).toBe(
+      "AWAITING_PLAN_APPROVAL",
+    );
+
+    expect(
+      await artifactStore.readJson<
+        TaskAnalysis
+      >(
+        "TH-001",
+        "analysis",
+      ),
+    ).toEqual(
+      createAnalysis(),
+    );
+
+    expect(
+      await artifactStore.readJson<
+        ImplementationPlan
+      >(
+        "TH-001",
+        "plan",
+      ),
+    ).toEqual(
+      createPlan(),
+    );
+
+    const finalApprovalResult =
+      await factory.resumeAfterPlanApproval(
+        planningResult.run,
+        repositoryRoot,
+        "main",
+      );
+
+    expect(
+      finalApprovalResult.stopReason,
+    ).toBe(
+      "FINAL_APPROVAL_REQUIRED",
+    );
+
+    const persistedImplementation =
+      await artifactStore.readJson<
+        ImplementationResult
+      >(
+        "TH-001",
+        "implementation",
+      );
+
+    expect(
+      persistedImplementation
+        .changedFiles[0]?.path,
+    ).toBe(
+      "lib/models/job_application.dart",
+    );
+
+    const persistedValidation =
+      await artifactStore.readJson<
+        ValidationResult
+      >(
+        "TH-001",
+        "validation",
+      );
+
+    expect(
+      persistedValidation.passed,
+    ).toBe(true);
+
+    const persistedReview =
+      await artifactStore.readJson<
+        ReviewResult
+      >(
+        "TH-001",
+        "review",
+      );
+
+    expect(
+      persistedReview.approved,
+    ).toBe(true);
+
+    const persistedChangeEvidence =
+      await artifactStore.readJson<{
+        withinApprovedScope: boolean;
+        reportMatchesObserved: boolean;
+      }>(
+        "TH-001",
+        "change-evidence",
+      );
+
+    expect(
+      persistedChangeEvidence
+        .withinApprovedScope,
+    ).toBe(true);
+
+    expect(
+      persistedChangeEvidence
+        .reportMatchesObserved,
+    ).toBe(true);
+
+    const completedResult =
+      await factory.resumeAfterFinalApproval(
+        finalApprovalResult.run,
+      );
+
+    expect(
+      completedResult.stopReason,
+    ).toBe("COMPLETE");
+
+    const persistedFinalTask =
+      await artifactStore.readJson<
+        EngineeringTask
+      >(
+        "TH-001",
+        "task",
+      );
+
+    expect(
+      persistedFinalTask.status,
+    ).toBe("COMPLETE");
+
+    const persistedRun =
+      await artifactStore.readJson<{
+        task: EngineeringTask;
+        repairs: ImplementationResult[];
+        review?: ReviewResult;
+        validation?: ValidationResult;
+      }>(
+        "TH-001",
+        "run",
+      );
+
+    expect(
+      persistedRun.task.status,
+    ).toBe("COMPLETE");
+
+    expect(
+      persistedRun.repairs,
+    ).toEqual([]);
+
+    expect(
+      persistedRun.review?.approved,
+    ).toBe(true);
+
+    expect(
+      persistedRun.validation?.passed,
+    ).toBe(true);
+  });
+
+  it("rejects final approval when final approval is not pending", async () => {
     const factory = createFactory();
 
     const run = {
@@ -1278,11 +1497,11 @@ describe("SequentialFactory", () => {
       repairs: [],
     };
 
-    expect(() =>
+    await expect(
       factory.resumeAfterFinalApproval(
         run,
       ),
-    ).toThrow(
+    ).rejects.toThrow(
       "Cannot approve final result while task is in state TASK_CREATED",
     );
   });

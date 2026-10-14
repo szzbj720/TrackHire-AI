@@ -19,6 +19,9 @@ import type {
   import type {
     Worktree,
   } from "../tools/git-worktree.js";
+  import type {
+    RunArtifactStore,
+  } from "../artifact/run-artifact-store.js";
   import {
     combineImplementationEvidence,
   } from "../evidence/implementation-evidence.js";
@@ -76,6 +79,8 @@ import type {
         RepairWorkflow,
       private readonly reviewWorkflow?:
         ReviewWorkflow,
+      private readonly artifactStore?:
+        RunArtifactStore,
     ) {}
   
     async start(
@@ -101,6 +106,8 @@ import type {
         task: plannedTask,
         repairs: [],
       };
+  
+      await this.persistRun(run);
   
       if (
         plannedTask.status ===
@@ -181,14 +188,16 @@ import type {
           implementationResult.validation,
       };
   
+      await this.persistRun(nextRun);
+  
       return this.continueAfterValidation(
         nextRun,
       );
     }
   
-    resumeAfterFinalApproval(
+    async resumeAfterFinalApproval(
       run: SequentialFactoryRun,
-    ): SequentialFactoryResult {
+    ): Promise<SequentialFactoryResult> {
       if (
         run.task.status !==
         "AWAITING_FINAL_APPROVAL"
@@ -207,6 +216,8 @@ import type {
         ...run,
         task: orchestrator.getTask(),
       };
+  
+      await this.persistRun(completedRun);
   
       return {
         run: completedRun,
@@ -381,12 +392,16 @@ import type {
           worktreePath: run.worktree.path,
         });
   
-      return {
+      const nextRun: SequentialFactoryRun = {
         ...run,
         task: diagnosisResult.task,
         diagnosis:
           diagnosisResult.diagnosis,
       };
+  
+      await this.persistRun(nextRun);
+  
+      return nextRun;
     }
   
     private async repairFailure(
@@ -438,13 +453,17 @@ import type {
         repairs.push(repairResult.repair);
       }
   
-      return {
+      const nextRun: SequentialFactoryRun = {
         ...run,
         task: repairResult.task,
         validation:
           repairResult.validation,
         repairs,
       };
+  
+      await this.persistRun(nextRun);
+  
+      return nextRun;
     }
   
     private async reviewImplementation(
@@ -502,6 +521,8 @@ import type {
           : {}),
       };
   
+      await this.persistRun(nextRun);
+  
       if (
         nextRun.task.status ===
         "AWAITING_FINAL_APPROVAL"
@@ -535,6 +556,92 @@ import type {
   
       throw new Error(
         `Review stopped in unexpected state ${nextRun.task.status}`,
+      );
+    }
+  
+    private async persistRun(
+      run: SequentialFactoryRun,
+    ): Promise<void> {
+      if (!this.artifactStore) {
+        return;
+      }
+  
+      const runId = run.task.id;
+  
+      await this.artifactStore.writeJson(
+        runId,
+        "task",
+        run.task,
+      );
+  
+      if (run.task.analysis) {
+        await this.artifactStore.writeJson(
+          runId,
+          "analysis",
+          run.task.analysis,
+        );
+      }
+  
+      if (run.task.plan) {
+        await this.artifactStore.writeJson(
+          runId,
+          "plan",
+          run.task.plan,
+        );
+      }
+  
+      if (run.implementation) {
+        await this.artifactStore.writeJson(
+          runId,
+          "implementation",
+          run.implementation,
+        );
+      }
+  
+      if (run.validation) {
+        await this.artifactStore.writeJson(
+          runId,
+          "validation",
+          run.validation,
+        );
+      }
+  
+      if (run.diagnosis) {
+        await this.artifactStore.writeJson(
+          runId,
+          "diagnosis",
+          run.diagnosis,
+        );
+      }
+  
+      if (run.repairs.length > 0) {
+        await this.artifactStore.writeJson(
+          runId,
+          "repairs",
+          run.repairs,
+        );
+      }
+  
+      if (run.review) {
+        await this.artifactStore.writeJson(
+          runId,
+          "review",
+          run.review,
+        );
+      }
+  
+      if (run.changeEvidence) {
+        await this.artifactStore.writeJson(
+          runId,
+          "change-evidence",
+          run.changeEvidence,
+        );
+      }
+  
+      await this.artifactStore.writeJson(
+        runId,
+        "run",
+        run,
       );
     }
   }
