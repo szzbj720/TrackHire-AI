@@ -31,6 +31,9 @@ import type {
   import type {
     PlanningWorkflow,
   } from "./planning-workflow.js";
+  import type {
+    RepairWorkflow,
+  } from "./repair-workflow.js";
   
   export interface SequentialFactoryRun {
     task: EngineeringTask;
@@ -47,7 +50,6 @@ import type {
     | "PLAN_APPROVAL_REQUIRED"
     | "FINAL_APPROVAL_REQUIRED"
     | "HUMAN_INPUT_REQUIRED"
-    | "READY_FOR_REPAIR"
     | "READY_FOR_REVIEW"
     | "COMPLETE"
     | "FAILED";
@@ -65,6 +67,8 @@ import type {
         ImplementationWorkflow,
       private readonly diagnosisWorkflow?:
         DiagnosisWorkflow,
+      private readonly repairWorkflow?:
+        RepairWorkflow,
     ) {}
   
     async start(
@@ -170,54 +174,146 @@ import type {
           implementationResult.validation,
       };
   
-      if (
-        implementationResult.task.status ===
-        "REVIEWING"
-      ) {
+      return this.continueAfterValidation(
+        nextRun,
+      );
+    }
+  
+    private async continueAfterValidation(
+      run: SequentialFactoryRun,
+    ): Promise<SequentialFactoryResult> {
+      if (run.task.status === "REVIEWING") {
         return {
-          run: nextRun,
+          run,
           stopReason: "READY_FOR_REVIEW",
         };
       }
   
       if (
-        implementationResult.task.status ===
+        run.task.status ===
         "DIAGNOSING_FAILURE"
       ) {
-        return this.diagnoseFailure(
-          nextRun,
-        );
+        return this.handleFailure(run);
       }
   
       if (
-        implementationResult.task.status ===
-        "NEEDS_HUMAN"
+        run.task.status === "NEEDS_HUMAN"
       ) {
         return {
-          run: nextRun,
+          run,
           stopReason:
             "HUMAN_INPUT_REQUIRED",
         };
       }
   
-      if (
-        implementationResult.task.status ===
-        "FAILED"
-      ) {
+      if (run.task.status === "FAILED") {
         return {
-          run: nextRun,
+          run,
           stopReason: "FAILED",
         };
       }
   
       throw new Error(
-        `Implementation stopped in unexpected state ${implementationResult.task.status}`,
+        `Validation stopped in unexpected state ${run.task.status}`,
+      );
+    }
+  
+    private async handleFailure(
+      run: SequentialFactoryRun,
+    ): Promise<SequentialFactoryResult> {
+      let currentRun = run;
+  
+      while (
+        currentRun.task.status ===
+        "DIAGNOSING_FAILURE"
+      ) {
+        currentRun =
+          await this.diagnoseFailure(
+            currentRun,
+          );
+  
+        if (
+          currentRun.task.status ===
+          "NEEDS_HUMAN"
+        ) {
+          return {
+            run: currentRun,
+            stopReason:
+              "HUMAN_INPUT_REQUIRED",
+          };
+        }
+  
+        if (
+          currentRun.task.status === "FAILED"
+        ) {
+          return {
+            run: currentRun,
+            stopReason: "FAILED",
+          };
+        }
+  
+        if (
+          currentRun.task.status !==
+          "REPAIRING"
+        ) {
+          throw new Error(
+            `Diagnosis stopped in unexpected state ${currentRun.task.status}`,
+          );
+        }
+  
+        currentRun =
+          await this.repairFailure(
+            currentRun,
+          );
+  
+        if (
+          currentRun.task.status ===
+          "REVIEWING"
+        ) {
+          return {
+            run: currentRun,
+            stopReason: "READY_FOR_REVIEW",
+          };
+        }
+  
+        if (
+          currentRun.task.status ===
+          "NEEDS_HUMAN"
+        ) {
+          return {
+            run: currentRun,
+            stopReason:
+              "HUMAN_INPUT_REQUIRED",
+          };
+        }
+  
+        if (
+          currentRun.task.status === "FAILED"
+        ) {
+          return {
+            run: currentRun,
+            stopReason: "FAILED",
+          };
+        }
+  
+        if (
+          currentRun.task.status !==
+          "DIAGNOSING_FAILURE"
+        ) {
+          throw new Error(
+            `Repair stopped in unexpected state ${currentRun.task.status}`,
+          );
+        }
+      }
+  
+      throw new Error(
+        `Failure recovery stopped in unexpected state ${currentRun.task.status}`,
       );
     }
   
     private async diagnoseFailure(
       run: SequentialFactoryRun,
-    ): Promise<SequentialFactoryResult> {
+    ): Promise<SequentialFactoryRun> {
       if (!this.diagnosisWorkflow) {
         throw new Error(
           "Sequential factory does not have a diagnosis workflow.",
@@ -251,46 +347,69 @@ import type {
           worktreePath: run.worktree.path,
         });
   
-      const nextRun: SequentialFactoryRun = {
+      return {
         ...run,
         task: diagnosisResult.task,
         diagnosis:
           diagnosisResult.diagnosis,
       };
+    }
   
-      if (
-        diagnosisResult.task.status ===
-        "REPAIRING"
-      ) {
-        return {
-          run: nextRun,
-          stopReason: "READY_FOR_REPAIR",
-        };
+    private async repairFailure(
+      run: SequentialFactoryRun,
+    ): Promise<SequentialFactoryRun> {
+      if (!this.repairWorkflow) {
+        throw new Error(
+          "Sequential factory does not have a repair workflow.",
+        );
       }
   
-      if (
-        diagnosisResult.task.status ===
-        "NEEDS_HUMAN"
-      ) {
-        return {
-          run: nextRun,
-          stopReason:
-            "HUMAN_INPUT_REQUIRED",
-        };
+      if (!run.worktree) {
+        throw new Error(
+          "Cannot repair failure without a worktree.",
+        );
       }
   
-      if (
-        diagnosisResult.task.status ===
-        "FAILED"
-      ) {
-        return {
-          run: nextRun,
-          stopReason: "FAILED",
-        };
+      if (!run.implementation) {
+        throw new Error(
+          "Cannot repair failure without an implementation result.",
+        );
       }
   
-      throw new Error(
-        `Diagnosis stopped in unexpected state ${diagnosisResult.task.status}`,
-      );
+      if (!run.validation) {
+        throw new Error(
+          "Cannot repair failure without validation evidence.",
+        );
+      }
+  
+      if (!run.diagnosis) {
+        throw new Error(
+          "Cannot repair failure without a diagnosis.",
+        );
+      }
+  
+      const repairResult =
+        await this.repairWorkflow.run({
+          task: run.task,
+          implementation:
+            run.implementation,
+          validation: run.validation,
+          diagnosis: run.diagnosis,
+          worktreePath: run.worktree.path,
+        });
+  
+      const repairs = [...run.repairs];
+  
+      if (repairResult.repair) {
+        repairs.push(repairResult.repair);
+      }
+  
+      return {
+        ...run,
+        task: repairResult.task,
+        validation:
+          repairResult.validation,
+        repairs,
+      };
     }
   }

@@ -30,6 +30,10 @@ import type {
   Planner,
 } from "../agents/planner.js";
 import type {
+  Repairer,
+  RepairerInput,
+} from "../agents/repairer.js";
+import type {
   RepositoryContext,
 } from "../context/context-builder.js";
 import type {
@@ -63,6 +67,9 @@ import {
 import {
   PlanningWorkflow,
 } from "./planning-workflow.js";
+import {
+  RepairWorkflow,
+} from "./repair-workflow.js";
 import {
   SequentialFactory,
 } from "./sequential-factory.js";
@@ -140,33 +147,36 @@ class FakeValidator implements Validator {
   async validate(
     _worktreePath: string,
   ): Promise<ValidationResult> {
-    return {
-      passed: this.passed,
-      checks: [
-        {
-          name: "Flutter tests",
-          command: "flutter",
-          args: ["test"],
-          exitCode:
-            this.passed ? 0 : 1,
-          stdout:
-            this.passed
-              ? "All tests passed."
-              : "",
-          stderr:
-            this.passed
-              ? ""
-              : "Tests failed.",
-          durationMs: 100,
-          passed: this.passed,
-        },
-      ],
-      failedChecks:
-        this.passed
-          ? []
-          : ["Flutter tests"],
-      durationMs: 100,
-    };
+    return createValidation(
+      this.passed,
+    );
+  }
+}
+
+class SequenceValidator
+  implements Validator {
+  private index = 0;
+
+  constructor(
+    private readonly results:
+      ValidationResult[],
+  ) {}
+
+  async validate(
+    _worktreePath: string,
+  ): Promise<ValidationResult> {
+    const result =
+      this.results[this.index];
+
+    if (!result) {
+      throw new Error(
+        "SequenceValidator ran out of validation results.",
+      );
+    }
+
+    this.index += 1;
+
+    return result;
   }
 }
 
@@ -181,6 +191,20 @@ class FakeDiagnostician
     _input: DiagnosticianInput,
   ): Promise<FailureDiagnosis> {
     return this.diagnosis;
+  }
+}
+
+class FakeRepairer implements Repairer {
+  constructor(
+    private readonly result:
+      ImplementationResult =
+        createRepair(),
+  ) {}
+
+  async repair(
+    _input: RepairerInput,
+  ): Promise<ImplementationResult> {
+    return this.result;
   }
 }
 
@@ -305,11 +329,70 @@ function createHumanDiagnosis():
   };
 }
 
+function createRepair(
+  requiresHumanInput = false,
+): ImplementationResult {
+  return {
+    summary:
+      requiresHumanInput
+        ? "Repair requires clarification."
+        : "Repaired the implementation.",
+    changedFiles:
+      requiresHumanInput
+        ? []
+        : [
+            {
+              path:
+                "lib/models/job_application.dart",
+              changeType: "modified",
+              summary:
+                "Repaired the application model.",
+            },
+          ],
+    commandsRun: [],
+    assumptions: [],
+    warnings: [],
+    requiresHumanInput,
+  };
+}
+
+function createValidation(
+  passed: boolean,
+): ValidationResult {
+  return {
+    passed,
+    checks: [
+      {
+        name: "Flutter tests",
+        command: "flutter",
+        args: ["test"],
+        exitCode: passed ? 0 : 1,
+        stdout:
+          passed
+            ? "All tests passed."
+            : "",
+        stderr:
+          passed
+            ? ""
+            : "Tests failed.",
+        durationMs: 100,
+        passed,
+      },
+    ],
+    failedChecks:
+      passed
+        ? []
+        : ["Flutter tests"],
+    durationMs: 100,
+  };
+}
+
 function createFactory(
   analysis = createAnalysis(),
   plan = createPlan(),
   validator?: Validator,
   diagnostician?: Diagnostician,
+  repairer?: Repairer,
 ): SequentialFactory {
   const planningWorkflow =
     new PlanningWorkflow(
@@ -332,10 +415,19 @@ function createFactory(
         )
       : undefined;
 
+  const repairWorkflow =
+    repairer && validator
+      ? new RepairWorkflow(
+          repairer,
+          validator,
+        )
+      : undefined;
+
   return new SequentialFactory(
     planningWorkflow,
     implementationWorkflow,
     diagnosisWorkflow,
+    repairWorkflow,
   );
 }
 
@@ -578,6 +670,10 @@ describe("SequentialFactory", () => {
       result.run.validation?.passed,
     ).toBe(true);
 
+    expect(result.run.repairs).toEqual(
+      [],
+    );
+
     const worktreePath =
       result.run.worktree?.path;
 
@@ -620,17 +716,24 @@ describe("SequentialFactory", () => {
     );
   });
 
-  it("diagnoses a failed validation and routes a repairable failure to repair", async () => {
+  it("repairs a failed implementation and reaches review when revalidation passes", async () => {
     const repositoryRoot =
       await createTemporaryRepository();
+
+    const validator =
+      new SequenceValidator([
+        createValidation(false),
+        createValidation(true),
+      ]);
 
     const factory = createFactory(
       createAnalysis(),
       createPlan(),
-      new FakeValidator(false),
+      validator,
       new FakeDiagnostician(
         createRepairableDiagnosis(),
       ),
+      new FakeRepairer(),
     );
 
     const planningResult =
@@ -647,26 +750,140 @@ describe("SequentialFactory", () => {
       );
 
     expect(result.stopReason).toBe(
-      "READY_FOR_REPAIR",
+      "READY_FOR_REVIEW",
     );
 
     expect(result.run.task.status).toBe(
-      "REPAIRING",
+      "REVIEWING",
     );
 
     expect(
       result.run.validation?.passed,
-    ).toBe(false);
+    ).toBe(true);
+
+    expect(
+      result.run.task.repairAttempts,
+    ).toBe(1);
+
+    expect(result.run.repairs).toHaveLength(
+      1,
+    );
 
     expect(
       result.run.diagnosis,
     ).toEqual(
       createRepairableDiagnosis(),
     );
+  });
+
+  it("diagnoses again and performs a second repair when the first repair still fails", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const validator =
+      new SequenceValidator([
+        createValidation(false),
+        createValidation(false),
+        createValidation(true),
+      ]);
+
+    const factory = createFactory(
+      createAnalysis(),
+      createPlan(),
+      validator,
+      new FakeDiagnostician(
+        createRepairableDiagnosis(),
+      ),
+      new FakeRepairer(),
+    );
+
+    const planningResult =
+      await factory.start(
+        createTask(),
+        repositoryRoot,
+      );
+
+    const result =
+      await factory.resumeAfterPlanApproval(
+        planningResult.run,
+        repositoryRoot,
+        "main",
+      );
+
+    expect(result.stopReason).toBe(
+      "READY_FOR_REVIEW",
+    );
+
+    expect(result.run.task.status).toBe(
+      "REVIEWING",
+    );
 
     expect(
-      result.run.worktree,
-    ).toBeDefined();
+      result.run.validation?.passed,
+    ).toBe(true);
+
+    expect(
+      result.run.task.repairAttempts,
+    ).toBe(2);
+
+    expect(result.run.repairs).toHaveLength(
+      2,
+    );
+  });
+
+  it("escalates to human input when the repair budget is exhausted", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const validator =
+      new SequenceValidator([
+        createValidation(false),
+        createValidation(false),
+        createValidation(false),
+      ]);
+
+    const factory = createFactory(
+      createAnalysis(),
+      createPlan(),
+      validator,
+      new FakeDiagnostician(
+        createRepairableDiagnosis(),
+      ),
+      new FakeRepairer(),
+    );
+
+    const planningResult =
+      await factory.start(
+        createTask(),
+        repositoryRoot,
+      );
+
+    const result =
+      await factory.resumeAfterPlanApproval(
+        planningResult.run,
+        repositoryRoot,
+        "main",
+      );
+
+    expect(result.stopReason).toBe(
+      "HUMAN_INPUT_REQUIRED",
+    );
+
+    expect(result.run.task.status).toBe(
+      "NEEDS_HUMAN",
+    );
+
+    expect(
+      result.run.task.repairAttempts,
+    ).toBe(2);
+
+    expect(result.run.repairs).toHaveLength(
+      2,
+    );
+
+    expect(
+      result.run.validation?.passed,
+    ).toBe(false);
   });
 
   it("diagnoses a failed validation and stops when human input is required", async () => {
@@ -712,6 +929,70 @@ describe("SequentialFactory", () => {
     expect(
       result.run.task.repairAttempts,
     ).toBe(0);
+
+    expect(result.run.repairs).toEqual(
+      [],
+    );
+  });
+
+  it("routes a repair requiring human input to human escalation without consuming an attempt", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const validator =
+      new SequenceValidator([
+        createValidation(false),
+      ]);
+
+    const factory = createFactory(
+      createAnalysis(),
+      createPlan(),
+      validator,
+      new FakeDiagnostician(
+        createRepairableDiagnosis(),
+      ),
+      new FakeRepairer(
+        createRepair(true),
+      ),
+    );
+
+    const planningResult =
+      await factory.start(
+        createTask(),
+        repositoryRoot,
+      );
+
+    const result =
+      await factory.resumeAfterPlanApproval(
+        planningResult.run,
+        repositoryRoot,
+        "main",
+      );
+
+    expect(result.stopReason).toBe(
+      "HUMAN_INPUT_REQUIRED",
+    );
+
+    expect(result.run.task.status).toBe(
+      "NEEDS_HUMAN",
+    );
+
+    expect(
+      result.run.task.repairAttempts,
+    ).toBe(0);
+
+    expect(result.run.repairs).toHaveLength(
+      1,
+    );
+
+    expect(
+      result.run.repairs[0]
+        ?.requiresHumanInput,
+    ).toBe(true);
+
+    expect(
+      result.run.validation?.passed,
+    ).toBe(false);
   });
 
   it("rejects resume when plan approval is not pending", async () => {
