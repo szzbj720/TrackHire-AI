@@ -1189,6 +1189,104 @@ describe("SequentialFactory", () => {
     expect(reviewer.calls).toBe(1);
   });
 
+  it("completes the sequential factory after final human approval", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const reviewer =
+      new FakeReviewer();
+
+    const factory = createFactory(
+      createAnalysis(),
+      createPlan(),
+      new FakeValidator(true),
+      undefined,
+      undefined,
+      reviewer,
+    );
+
+    const planningResult =
+      await factory.start(
+        createTask(),
+        repositoryRoot,
+      );
+
+    const finalApprovalResult =
+      await factory.resumeAfterPlanApproval(
+        planningResult.run,
+        repositoryRoot,
+        "main",
+      );
+
+    expect(
+      finalApprovalResult.stopReason,
+    ).toBe(
+      "FINAL_APPROVAL_REQUIRED",
+    );
+
+    expect(
+      finalApprovalResult.run.task.status,
+    ).toBe(
+      "AWAITING_FINAL_APPROVAL",
+    );
+
+    const completedResult =
+      factory.resumeAfterFinalApproval(
+        finalApprovalResult.run,
+      );
+
+    expect(
+      completedResult.stopReason,
+    ).toBe("COMPLETE");
+
+    expect(
+      completedResult.run.task.status,
+    ).toBe("COMPLETE");
+
+    expect(
+      completedResult.run.review?.approved,
+    ).toBe(true);
+
+    expect(
+      completedResult.run.validation?.passed,
+    ).toBe(true);
+
+    expect(
+      completedResult.run.changeEvidence
+        ?.withinApprovedScope,
+    ).toBe(true);
+
+    expect(
+      completedResult.run.changeEvidence
+        ?.reportMatchesObserved,
+    ).toBe(true);
+
+    expect(
+      completedResult.run.worktree,
+    ).toBeDefined();
+
+    expect(
+      completedResult.run.implementation,
+    ).toBeDefined();
+  });
+
+  it("rejects final approval when final approval is not pending", () => {
+    const factory = createFactory();
+
+    const run = {
+      task: createTask(),
+      repairs: [],
+    };
+
+    expect(() =>
+      factory.resumeAfterFinalApproval(
+        run,
+      ),
+    ).toThrow(
+      "Cannot approve final result while task is in state TASK_CREATED",
+    );
+  });
+
   it("rejects resume when plan approval is not pending", async () => {
     const factory = createFactory(
       createAnalysis(),

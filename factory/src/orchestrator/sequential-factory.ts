@@ -186,6 +186,34 @@ import type {
       );
     }
   
+    resumeAfterFinalApproval(
+      run: SequentialFactoryRun,
+    ): SequentialFactoryResult {
+      if (
+        run.task.status !==
+        "AWAITING_FINAL_APPROVAL"
+      ) {
+        throw new Error(
+          `Cannot approve final result while task is in state ${run.task.status}`,
+        );
+      }
+  
+      const orchestrator =
+        new Orchestrator(run.task);
+  
+      orchestrator.approveFinal();
+  
+      const completedRun: SequentialFactoryRun = {
+        ...run,
+        task: orchestrator.getTask(),
+      };
+  
+      return {
+        run: completedRun,
+        stopReason: "COMPLETE",
+      };
+    }
+  
     private async continueAfterValidation(
       run: SequentialFactoryRun,
     ): Promise<SequentialFactoryResult> {
