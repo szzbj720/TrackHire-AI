@@ -18,6 +18,8 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "dotenv": "^18.0.7",
+    "openai": "^6.49.0",
     "zod": "^4.6.7"
   }
 }
