@@ -119,4 +119,58 @@ describe("Orchestrator", () => {
 
     expect(orchestrator.getTask().plan).toEqual(plan);
   });
+
+  it("allows a human to approve a plan", () => {
+    const orchestrator = new Orchestrator(createTask());
+
+    orchestrator.transition("ANALYZING");
+    orchestrator.transition("PLANNING");
+    orchestrator.transition(
+      "AWAITING_PLAN_APPROVAL",
+    );
+
+    orchestrator.approvePlan();
+
+    expect(orchestrator.getTask().status).toBe(
+      "IMPLEMENTING",
+    );
+
+    expect(
+      orchestrator
+        .getEvents()
+        .some(
+          (event) =>
+            event.type ===
+            "HUMAN_APPROVAL_RECEIVED",
+        ),
+    ).toBe(true);
+  });
+
+  it("allows a human to reject a plan and return to planning", () => {
+    const orchestrator = new Orchestrator(createTask());
+
+    orchestrator.transition("ANALYZING");
+    orchestrator.transition("PLANNING");
+    orchestrator.transition(
+      "AWAITING_PLAN_APPROVAL",
+    );
+
+    orchestrator.rejectPlan();
+
+    expect(orchestrator.getTask().status).toBe(
+      "PLANNING",
+    );
+  });
+
+  it("rejects plan approval outside the approval state", () => {
+    const orchestrator = new Orchestrator(createTask());
+
+    expect(() => orchestrator.approvePlan()).toThrow(
+      "Cannot approve plan while task is in state TASK_CREATED",
+    );
+
+    expect(orchestrator.getTask().status).toBe(
+      "TASK_CREATED",
+    );
+  });
 });
