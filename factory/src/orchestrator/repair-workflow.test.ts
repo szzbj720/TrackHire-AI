@@ -290,17 +290,23 @@ import {
         worktreePath: workspacePath,
       });
   
-      expect(result.task.repairAttempts).toBe(
-        1,
-      );
+      expect(
+        result.task.repairAttempts,
+      ).toBe(1);
   
-      expect(result.validation.passed).toBe(
-        true,
-      );
+      expect(
+        result.validation.passed,
+      ).toBe(true);
   
       expect(result.task.status).toBe(
         "REVIEWING",
       );
+  
+      expect(result.repair).toBeDefined();
+  
+      expect(
+        result.repair?.requiresHumanInput,
+      ).toBe(false);
     });
   
     it("routes a failed repair back to DIAGNOSING_FAILURE", async () => {
@@ -328,17 +334,19 @@ import {
         worktreePath: workspacePath,
       });
   
-      expect(result.task.repairAttempts).toBe(
-        1,
-      );
+      expect(
+        result.task.repairAttempts,
+      ).toBe(1);
   
-      expect(result.validation.passed).toBe(
-        false,
-      );
+      expect(
+        result.validation.passed,
+      ).toBe(false);
   
       expect(result.task.status).toBe(
         "DIAGNOSING_FAILURE",
       );
+  
+      expect(result.repair).toBeDefined();
     });
   
     it("routes a repair requiring human input to NEEDS_HUMAN without consuming an attempt", async () => {
@@ -370,16 +378,22 @@ import {
         "NEEDS_HUMAN",
       );
   
-      expect(result.task.repairAttempts).toBe(
-        0,
-      );
+      expect(
+        result.task.repairAttempts,
+      ).toBe(0);
+  
+      expect(result.repair).toBeDefined();
   
       expect(
-        result.repair.requiresHumanInput,
+        result.repair?.requiresHumanInput,
       ).toBe(true);
+  
+      expect(
+        result.validation.passed,
+      ).toBe(false);
     });
   
-    it("blocks another repair when the repair budget is exhausted", async () => {
+    it("escalates to NEEDS_HUMAN when the repair budget is exhausted", async () => {
       const workspacePath =
         await createTemporaryWorkspace();
   
@@ -394,19 +408,29 @@ import {
           2,
         );
   
-      await expect(
-        workflow.run({
-          task: createTask(2),
-          implementation:
-            createImplementation(),
-          validation:
-            createFailedValidation(),
-          diagnosis:
-            createDiagnosis(),
-          worktreePath: workspacePath,
-        }),
-      ).rejects.toThrow(
-        "Maximum repair attempts reached: 2",
+      const result = await workflow.run({
+        task: createTask(2),
+        implementation:
+          createImplementation(),
+        validation:
+          createFailedValidation(),
+        diagnosis:
+          createDiagnosis(),
+        worktreePath: workspacePath,
+      });
+  
+      expect(result.task.status).toBe(
+        "NEEDS_HUMAN",
       );
+  
+      expect(
+        result.task.repairAttempts,
+      ).toBe(2);
+  
+      expect(result.repair).toBeUndefined();
+  
+      expect(
+        result.validation.passed,
+      ).toBe(false);
     });
   });

@@ -33,7 +33,7 @@ import type {
   
   export interface RepairWorkflowResult {
     task: EngineeringTask;
-    repair: ImplementationResult;
+    repair?: ImplementationResult;
     validation: ValidationResult;
   }
   
@@ -88,9 +88,10 @@ import type {
           "NEEDS_HUMAN",
         );
   
-        throw new Error(
-          `Maximum repair attempts reached: ${this.maxRepairAttempts}`,
-        );
+        return {
+          task: orchestrator.getTask(),
+          validation: input.validation,
+        };
       }
   
       const workspace = new Workspace(
@@ -144,13 +145,6 @@ import type {
       if (validation.passed) {
         orchestrator.transition(
           "REVIEWING",
-        );
-      } else if (
-        input.task.repairAttempts >=
-        this.maxRepairAttempts
-      ) {
-        orchestrator.transition(
-          "DIAGNOSING_FAILURE",
         );
       } else {
         orchestrator.transition(
