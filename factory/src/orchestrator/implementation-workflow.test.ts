@@ -80,6 +80,30 @@ class FakeValidator implements Validator {
   }
 }
 
+class FailingFakeValidator implements Validator {
+  async validate(
+    _worktreePath: string,
+  ): Promise<ValidationResult> {
+    return {
+      passed: false,
+      checks: [
+        {
+          name: "Flutter tests",
+          command: "flutter",
+          args: ["test"],
+          exitCode: 1,
+          stdout: "",
+          stderr: "Tests failed.",
+          durationMs: 100,
+          passed: false,
+        },
+      ],
+      failedChecks: ["Flutter tests"],
+      durationMs: 100,
+    };
+  }
+}
+
 function createPlan(): ImplementationPlan {
   return {
     summary: "Add interview date support.",
@@ -134,7 +158,10 @@ function createTask(): EngineeringTask {
 
 async function createTemporaryRepository(): Promise<string> {
   const repositoryRoot = await mkdtemp(
-    join(tmpdir(), "factory-implementation-test-"),
+    join(
+      tmpdir(),
+      "factory-implementation-test-",
+    ),
   );
 
   await execFileAsync("git", ["init"], {
@@ -143,7 +170,11 @@ async function createTemporaryRepository(): Promise<string> {
 
   await execFileAsync(
     "git",
-    ["config", "user.email", "factory@example.com"],
+    [
+      "config",
+      "user.email",
+      "factory@example.com",
+    ],
     {
       cwd: repositoryRoot,
     },
@@ -151,7 +182,11 @@ async function createTemporaryRepository(): Promise<string> {
 
   await execFileAsync(
     "git",
-    ["config", "user.name", "Factory Test"],
+    [
+      "config",
+      "user.name",
+      "Factory Test",
+    ],
     {
       cwd: repositoryRoot,
     },
@@ -176,13 +211,9 @@ async function createTemporaryRepository(): Promise<string> {
     "utf8",
   );
 
-  await execFileAsync("git", ["add", "."], {
-    cwd: repositoryRoot,
-  });
-
   await execFileAsync(
     "git",
-    ["commit", "-m", "Initial commit"],
+    ["add", "."],
     {
       cwd: repositoryRoot,
     },
@@ -190,7 +221,23 @@ async function createTemporaryRepository(): Promise<string> {
 
   await execFileAsync(
     "git",
-    ["branch", "-M", "main"],
+    [
+      "commit",
+      "-m",
+      "Initial commit",
+    ],
+    {
+      cwd: repositoryRoot,
+    },
+  );
+
+  await execFileAsync(
+    "git",
+    [
+      "branch",
+      "-M",
+      "main",
+    ],
     {
       cwd: repositoryRoot,
     },
@@ -259,8 +306,68 @@ describe("ImplementationWorkflow", () => {
       true,
     );
 
-    expect(result.validation.checks).toHaveLength(
-      1,
+    expect(
+      result.validation.checks,
+    ).toHaveLength(1);
+
+    expect(result.task.status).toBe(
+      "REVIEWING",
+    );
+  });
+
+  it("routes successful validation to review", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const workflow =
+      new ImplementationWorkflow(
+        new FakeBuilder(),
+        new FakeValidator(),
+      );
+
+    const result = await workflow.run(
+      createTask(),
+      repositoryRoot,
+      "main",
+    );
+
+    expect(result.validation.passed).toBe(
+      true,
+    );
+
+    expect(result.task.status).toBe(
+      "REVIEWING",
+    );
+  });
+
+  it("routes failed validation to failure diagnosis", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const workflow =
+      new ImplementationWorkflow(
+        new FakeBuilder(),
+        new FailingFakeValidator(),
+      );
+
+    const result = await workflow.run(
+      createTask(),
+      repositoryRoot,
+      "main",
+    );
+
+    expect(result.validation.passed).toBe(
+      false,
+    );
+
+    expect(
+      result.validation.failedChecks,
+    ).toEqual([
+      "Flutter tests",
+    ]);
+
+    expect(result.task.status).toBe(
+      "DIAGNOSING_FAILURE",
     );
   });
 
@@ -269,7 +376,9 @@ describe("ImplementationWorkflow", () => {
       await createTemporaryRepository();
 
     const task = createTask();
-    task.status = "AWAITING_PLAN_APPROVAL";
+
+    task.status =
+      "AWAITING_PLAN_APPROVAL";
 
     const workflow = createWorkflow();
 
@@ -290,8 +399,10 @@ describe("ImplementationWorkflow", () => {
 
     const taskWithPlan = createTask();
 
-    const { plan: _plan, ...task } =
-      taskWithPlan;
+    const {
+      plan: _plan,
+      ...task
+    } = taskWithPlan;
 
     const workflow = createWorkflow();
 
