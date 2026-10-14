@@ -7,6 +7,7 @@ import {
   type Worktree,
 } from "../tools/git-worktree.js";
 import type { Validator } from "../validation/validator.js";
+import { Orchestrator } from "./orchestrator.js";
 
 export interface ImplementationWorkflowResult {
   task: EngineeringTask;
@@ -44,6 +45,8 @@ export class ImplementationWorkflow {
       );
     }
 
+    const orchestrator = new Orchestrator(task);
+
     const worktree = await createTaskWorktree({
       repositoryRoot,
       taskId: task.id,
@@ -58,18 +61,30 @@ export class ImplementationWorkflow {
       });
 
     if (implementation.requiresHumanInput) {
+      orchestrator.transition("NEEDS_HUMAN");
+
       throw new Error(
         "Builder requires human input before validation can begin.",
       );
     }
+
+    orchestrator.transition("VALIDATING");
 
     const validation =
       await this.validator.validate(
         worktree.path,
       );
 
+    if (validation.passed) {
+      orchestrator.transition("REVIEWING");
+    } else {
+      orchestrator.transition(
+        "DIAGNOSING_FAILURE",
+      );
+    }
+
     return {
-      task,
+      task: orchestrator.getTask(),
       worktree,
       implementation,
       validation,
