@@ -6,7 +6,8 @@
   "scripts": {
     "test": "vitest run",
     "start": "tsx src/index.ts",
-    "inspect": "tsx src/context/inspect-repository.ts"
+    "inspect": "tsx src/context/inspect-repository.ts",
+    "plan": "tsx src/run-planning-demo.ts"
   },
   "keywords": [],
   "author": "",
