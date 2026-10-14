@@ -20,6 +20,12 @@ import type {
     Worktree,
   } from "../tools/git-worktree.js";
   import type {
+    ImplementationWorkflow,
+  } from "./implementation-workflow.js";
+  import {
+    Orchestrator,
+  } from "./orchestrator.js";
+  import type {
     PlanningWorkflow,
   } from "./planning-workflow.js";
   
@@ -38,6 +44,8 @@ import type {
     | "PLAN_APPROVAL_REQUIRED"
     | "FINAL_APPROVAL_REQUIRED"
     | "HUMAN_INPUT_REQUIRED"
+    | "READY_FOR_DIAGNOSIS"
+    | "READY_FOR_REVIEW"
     | "COMPLETE"
     | "FAILED";
   
@@ -50,6 +58,8 @@ import type {
     constructor(
       private readonly planningWorkflow:
         PlanningWorkflow,
+      private readonly implementationWorkflow?:
+        ImplementationWorkflow,
     ) {}
   
     async start(
@@ -109,6 +119,96 @@ import type {
   
       throw new Error(
         `Planning stopped in unexpected state ${plannedTask.status}`,
+      );
+    }
+  
+    async resumeAfterPlanApproval(
+      run: SequentialFactoryRun,
+      repositoryRoot: string,
+      baseBranch: string,
+    ): Promise<SequentialFactoryResult> {
+      if (
+        run.task.status !==
+        "AWAITING_PLAN_APPROVAL"
+      ) {
+        throw new Error(
+          `Cannot approve plan while task is in state ${run.task.status}`,
+        );
+      }
+  
+      if (!this.implementationWorkflow) {
+        throw new Error(
+          "Sequential factory does not have an implementation workflow.",
+        );
+      }
+  
+      const orchestrator =
+        new Orchestrator(run.task);
+  
+      orchestrator.approvePlan();
+  
+      const implementationResult =
+        await this.implementationWorkflow.run(
+          orchestrator.getTask(),
+          repositoryRoot,
+          baseBranch,
+        );
+  
+      const nextRun: SequentialFactoryRun = {
+        ...run,
+        task: implementationResult.task,
+        worktree:
+          implementationResult.worktree,
+        implementation:
+          implementationResult.implementation,
+        validation:
+          implementationResult.validation,
+      };
+  
+      if (
+        implementationResult.task.status ===
+        "REVIEWING"
+      ) {
+        return {
+          run: nextRun,
+          stopReason: "READY_FOR_REVIEW",
+        };
+      }
+  
+      if (
+        implementationResult.task.status ===
+        "DIAGNOSING_FAILURE"
+      ) {
+        return {
+          run: nextRun,
+          stopReason:
+            "READY_FOR_DIAGNOSIS",
+        };
+      }
+  
+      if (
+        implementationResult.task.status ===
+        "NEEDS_HUMAN"
+      ) {
+        return {
+          run: nextRun,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+      }
+  
+      if (
+        implementationResult.task.status ===
+        "FAILED"
+      ) {
+        return {
+          run: nextRun,
+          stopReason: "FAILED",
+        };
+      }
+  
+      throw new Error(
+        `Implementation stopped in unexpected state ${implementationResult.task.status}`,
       );
     }
   }
