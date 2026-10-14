@@ -50,4 +50,22 @@ describe("ModelTaskAnalyzer", () => {
     expect(analysis.confidence).toBe(0.9);
     expect(analysis.requiresHumanInput).toBe(false);
   });
+
+  it("rejects invalid analysis returned by the model", async () => {
+    const invalidProvider: ModelProvider = {
+      async generate() {
+        return {
+          model: "fake-model",
+          content: JSON.stringify({
+            complexity: "super-hard",
+            confidence: 42,
+          }),
+        };
+      },
+    };
+
+    const analyzer = new ModelTaskAnalyzer(invalidProvider);
+
+    await expect(analyzer.analyze(createTask())).rejects.toThrow();
+  });
 });
