@@ -18,7 +18,9 @@ import type {
 import type { ImplementationResult } from "../schemas/implementation.js";
 import type { ImplementationPlan } from "../schemas/plan.js";
 import type { EngineeringTask } from "../schemas/task.js";
+import type { ValidationResult } from "../schemas/validation.js";
 import { Workspace } from "../tools/workspace.js";
+import type { Validator } from "../validation/validator.js";
 import { ImplementationWorkflow } from "./implementation-workflow.js";
 
 const execFileAsync = promisify(execFile);
@@ -50,6 +52,30 @@ class FakeBuilder implements Builder {
       assumptions: [],
       warnings: [],
       requiresHumanInput: false,
+    };
+  }
+}
+
+class FakeValidator implements Validator {
+  async validate(
+    _worktreePath: string,
+  ): Promise<ValidationResult> {
+    return {
+      passed: true,
+      checks: [
+        {
+          name: "Flutter tests",
+          command: "flutter",
+          args: ["test"],
+          exitCode: 0,
+          stdout: "All tests passed.",
+          stderr: "",
+          durationMs: 100,
+          passed: true,
+        },
+      ],
+      failedChecks: [],
+      durationMs: 100,
     };
   }
 }
@@ -173,14 +199,19 @@ async function createTemporaryRepository(): Promise<string> {
   return repositoryRoot;
 }
 
+function createWorkflow(): ImplementationWorkflow {
+  return new ImplementationWorkflow(
+    new FakeBuilder(),
+    new FakeValidator(),
+  );
+}
+
 describe("ImplementationWorkflow", () => {
-  it("implements a task inside an isolated Git worktree", async () => {
+  it("implements and validates a task inside an isolated Git worktree", async () => {
     const repositoryRoot =
       await createTemporaryRepository();
 
-    const workflow = new ImplementationWorkflow(
-      new FakeBuilder(),
-    );
+    const workflow = createWorkflow();
 
     const result = await workflow.run(
       createTask(),
@@ -223,6 +254,14 @@ describe("ImplementationWorkflow", () => {
     expect(
       result.implementation.changedFiles,
     ).toHaveLength(1);
+
+    expect(result.validation.passed).toBe(
+      true,
+    );
+
+    expect(result.validation.checks).toHaveLength(
+      1,
+    );
   });
 
   it("rejects implementation before human approval", async () => {
@@ -232,9 +271,7 @@ describe("ImplementationWorkflow", () => {
     const task = createTask();
     task.status = "AWAITING_PLAN_APPROVAL";
 
-    const workflow = new ImplementationWorkflow(
-      new FakeBuilder(),
-    );
+    const workflow = createWorkflow();
 
     await expect(
       workflow.run(
@@ -251,13 +288,12 @@ describe("ImplementationWorkflow", () => {
     const repositoryRoot =
       await createTemporaryRepository();
 
-      const taskWithPlan = createTask();
+    const taskWithPlan = createTask();
 
-      const { plan: _plan, ...task } = taskWithPlan;;
+    const { plan: _plan, ...task } =
+      taskWithPlan;
 
-    const workflow = new ImplementationWorkflow(
-      new FakeBuilder(),
-    );
+    const workflow = createWorkflow();
 
     await expect(
       workflow.run(
@@ -281,9 +317,7 @@ describe("ImplementationWorkflow", () => {
       requiresHumanInput: true,
     };
 
-    const workflow = new ImplementationWorkflow(
-      new FakeBuilder(),
-    );
+    const workflow = createWorkflow();
 
     await expect(
       workflow.run(
