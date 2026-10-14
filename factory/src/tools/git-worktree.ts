@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -24,6 +24,15 @@ function sanitizeTaskId(taskId: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function sanitizeRepositoryName(
+  repositoryRoot: string,
+): string {
+  return basename(repositoryRoot)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export async function createTaskWorktree(
   options: WorktreeOptions,
 ): Promise<Worktree> {
@@ -35,12 +44,22 @@ export async function createTaskWorktree(
     );
   }
 
+  const repositoryName =
+    sanitizeRepositoryName(options.repositoryRoot);
+
+  if (!repositoryName) {
+    throw new Error(
+      "Cannot determine repository name.",
+    );
+  }
+
   const branch = `factory/${taskName}`;
 
   const worktreePath = resolve(
     options.repositoryRoot,
     "..",
     ".factory-worktrees",
+    repositoryName,
     taskName,
   );
 
