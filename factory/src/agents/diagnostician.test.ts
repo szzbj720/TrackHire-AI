@@ -38,6 +38,7 @@ import {
     ): Promise<ModelResponse> {
       return {
         content: this.content,
+        model: "fake-model",
       };
     }
   }
