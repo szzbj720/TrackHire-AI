@@ -22,12 +22,24 @@ export type ExecutionMode =
   | "sequential"
   | "parallel";
 
-export interface TaskAnalysis {
-  complexity: TaskComplexity;
-  risk: TaskRisk;
-  affectedAreas: string[];
-  confidence: number;
-}
+  export interface TaskAnalysis {
+    complexity: TaskComplexity;
+    risk: TaskRisk;
+  
+    affectedAreas: string[];
+  
+    relevantFiles: string[];
+  
+    ambiguities: string[];
+  
+    assumptions: string[];
+  
+    confidence: number;
+  
+    requiresHumanInput: boolean;
+  
+    reasoning: string;
+  }
 
 export interface ExecutionStrategy {
   mode: ExecutionMode;
