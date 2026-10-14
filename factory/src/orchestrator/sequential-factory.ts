@@ -19,6 +19,9 @@ import type {
   import type {
     Worktree,
   } from "../tools/git-worktree.js";
+  import {
+    combineImplementationEvidence,
+  } from "../evidence/implementation-evidence.js";
   import type {
     DiagnosisWorkflow,
   } from "./diagnosis-workflow.js";
@@ -34,6 +37,9 @@ import type {
   import type {
     RepairWorkflow,
   } from "./repair-workflow.js";
+  import type {
+    ReviewWorkflow,
+  } from "./review-workflow.js";
   
   export interface SequentialFactoryRun {
     task: EngineeringTask;
@@ -50,7 +56,6 @@ import type {
     | "PLAN_APPROVAL_REQUIRED"
     | "FINAL_APPROVAL_REQUIRED"
     | "HUMAN_INPUT_REQUIRED"
-    | "READY_FOR_REVIEW"
     | "COMPLETE"
     | "FAILED";
   
@@ -69,6 +74,8 @@ import type {
         DiagnosisWorkflow,
       private readonly repairWorkflow?:
         RepairWorkflow,
+      private readonly reviewWorkflow?:
+        ReviewWorkflow,
     ) {}
   
     async start(
@@ -183,10 +190,9 @@ import type {
       run: SequentialFactoryRun,
     ): Promise<SequentialFactoryResult> {
       if (run.task.status === "REVIEWING") {
-        return {
+        return this.reviewImplementation(
           run,
-          stopReason: "READY_FOR_REVIEW",
-        };
+        );
       }
   
       if (
@@ -197,7 +203,8 @@ import type {
       }
   
       if (
-        run.task.status === "NEEDS_HUMAN"
+        run.task.status ===
+        "NEEDS_HUMAN"
       ) {
         return {
           run,
@@ -270,10 +277,9 @@ import type {
           currentRun.task.status ===
           "REVIEWING"
         ) {
-          return {
-            run: currentRun,
-            stopReason: "READY_FOR_REVIEW",
-          };
+          return this.reviewImplementation(
+            currentRun,
+          );
         }
   
         if (
@@ -411,5 +417,96 @@ import type {
           repairResult.validation,
         repairs,
       };
+    }
+  
+    private async reviewImplementation(
+      run: SequentialFactoryRun,
+    ): Promise<SequentialFactoryResult> {
+      if (!this.reviewWorkflow) {
+        throw new Error(
+          "Sequential factory does not have a review workflow.",
+        );
+      }
+  
+      if (!run.worktree) {
+        throw new Error(
+          "Cannot review without a worktree.",
+        );
+      }
+  
+      if (!run.implementation) {
+        throw new Error(
+          "Cannot review without an implementation result.",
+        );
+      }
+  
+      if (!run.validation) {
+        throw new Error(
+          "Cannot review without validation evidence.",
+        );
+      }
+  
+      const implementationEvidence =
+        combineImplementationEvidence(
+          run.implementation,
+          run.repairs,
+        );
+  
+      const reviewResult =
+        await this.reviewWorkflow.run({
+          task: run.task,
+          implementation:
+            implementationEvidence,
+          validation: run.validation,
+          worktreePath: run.worktree.path,
+        });
+  
+      const nextRun: SequentialFactoryRun = {
+        ...run,
+        task: reviewResult.task,
+        changeEvidence:
+          reviewResult.changeEvidence,
+        ...(reviewResult.review
+          ? {
+              review:
+                reviewResult.review,
+            }
+          : {}),
+      };
+  
+      if (
+        nextRun.task.status ===
+        "AWAITING_FINAL_APPROVAL"
+      ) {
+        return {
+          run: nextRun,
+          stopReason:
+            "FINAL_APPROVAL_REQUIRED",
+        };
+      }
+  
+      if (
+        nextRun.task.status ===
+        "NEEDS_HUMAN"
+      ) {
+        return {
+          run: nextRun,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+      }
+  
+      if (
+        nextRun.task.status === "FAILED"
+      ) {
+        return {
+          run: nextRun,
+          stopReason: "FAILED",
+        };
+      }
+  
+      throw new Error(
+        `Review stopped in unexpected state ${nextRun.task.status}`,
+      );
     }
   }

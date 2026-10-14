@@ -34,6 +34,10 @@ import type {
   RepairerInput,
 } from "../agents/repairer.js";
 import type {
+  Reviewer,
+  ReviewerInput,
+} from "../agents/reviewer.js";
+import type {
   RepositoryContext,
 } from "../context/context-builder.js";
 import type {
@@ -45,6 +49,9 @@ import type {
 import type {
   ImplementationPlan,
 } from "../schemas/plan.js";
+import type {
+  ReviewResult,
+} from "../schemas/review.js";
 import type {
   EngineeringTask,
   TaskAnalysis,
@@ -70,6 +77,9 @@ import {
 import {
   RepairWorkflow,
 } from "./repair-workflow.js";
+import {
+  ReviewWorkflow,
+} from "./review-workflow.js";
 import {
   SequentialFactory,
 } from "./sequential-factory.js";
@@ -154,7 +164,8 @@ class FakeValidator implements Validator {
 }
 
 class SequenceValidator
-  implements Validator {
+  implements Validator
+{
   private index = 0;
 
   constructor(
@@ -181,7 +192,8 @@ class SequenceValidator
 }
 
 class FakeDiagnostician
-  implements Diagnostician {
+  implements Diagnostician
+{
   constructor(
     private readonly diagnosis:
       FailureDiagnosis,
@@ -204,6 +216,25 @@ class FakeRepairer implements Repairer {
   async repair(
     _input: RepairerInput,
   ): Promise<ImplementationResult> {
+    return this.result;
+  }
+}
+
+class FakeReviewer implements Reviewer {
+  calls = 0;
+  lastInput?: ReviewerInput;
+
+  constructor(
+    private readonly result:
+      ReviewResult = createReview(),
+  ) {}
+
+  async review(
+    input: ReviewerInput,
+  ): Promise<ReviewResult> {
+    this.calls += 1;
+    this.lastInput = input;
+
     return this.result;
   }
 }
@@ -356,6 +387,30 @@ function createRepair(
   };
 }
 
+function createReview(
+  overrides: Partial<ReviewResult> = {},
+): ReviewResult {
+  return {
+    approved: true,
+    summary:
+      "The implementation satisfies the approved task.",
+    findings: [],
+    requirementCoverage: [
+      {
+        requirement:
+          "Interview date must be optional.",
+        satisfied: true,
+        evidence: [
+          "The application model contains an optional interview date.",
+        ],
+      },
+    ],
+    requiresHumanInput: false,
+    confidence: 0.9,
+    ...overrides,
+  };
+}
+
 function createValidation(
   passed: boolean,
 ): ValidationResult {
@@ -393,6 +448,7 @@ function createFactory(
   validator?: Validator,
   diagnostician?: Diagnostician,
   repairer?: Repairer,
+  reviewer?: Reviewer,
 ): SequentialFactory {
   const planningWorkflow =
     new PlanningWorkflow(
@@ -423,11 +479,19 @@ function createFactory(
         )
       : undefined;
 
+  const reviewWorkflow =
+    reviewer
+      ? new ReviewWorkflow(
+          reviewer,
+        )
+      : undefined;
+
   return new SequentialFactory(
     planningWorkflow,
     implementationWorkflow,
     diagnosisWorkflow,
     repairWorkflow,
+    reviewWorkflow,
   );
 }
 
@@ -627,14 +691,20 @@ describe("SequentialFactory", () => {
     );
   });
 
-  it("resumes after plan approval and reaches review when validation passes", async () => {
+  it("resumes after plan approval, performs review, and waits for final approval when validation passes", async () => {
     const repositoryRoot =
       await createTemporaryRepository();
+
+    const reviewer =
+      new FakeReviewer();
 
     const factory = createFactory(
       createAnalysis(),
       createPlan(),
       new FakeValidator(true),
+      undefined,
+      undefined,
+      reviewer,
     );
 
     const planningResult =
@@ -651,11 +721,11 @@ describe("SequentialFactory", () => {
       );
 
     expect(result.stopReason).toBe(
-      "READY_FOR_REVIEW",
+      "FINAL_APPROVAL_REQUIRED",
     );
 
     expect(result.run.task.status).toBe(
-      "REVIEWING",
+      "AWAITING_FINAL_APPROVAL",
     );
 
     expect(
@@ -673,6 +743,26 @@ describe("SequentialFactory", () => {
     expect(result.run.repairs).toEqual(
       [],
     );
+
+    expect(
+      result.run.review,
+    ).toBeDefined();
+
+    expect(
+      result.run.review?.approved,
+    ).toBe(true);
+
+    expect(
+      result.run.changeEvidence
+        ?.withinApprovedScope,
+    ).toBe(true);
+
+    expect(
+      result.run.changeEvidence
+        ?.reportMatchesObserved,
+    ).toBe(true);
+
+    expect(reviewer.calls).toBe(1);
 
     const worktreePath =
       result.run.worktree?.path;
@@ -716,7 +806,7 @@ describe("SequentialFactory", () => {
     );
   });
 
-  it("repairs a failed implementation and reaches review when revalidation passes", async () => {
+  it("repairs a failed implementation, reviews the final evidence, and waits for final approval", async () => {
     const repositoryRoot =
       await createTemporaryRepository();
 
@@ -726,6 +816,9 @@ describe("SequentialFactory", () => {
         createValidation(true),
       ]);
 
+    const reviewer =
+      new FakeReviewer();
+
     const factory = createFactory(
       createAnalysis(),
       createPlan(),
@@ -734,6 +827,7 @@ describe("SequentialFactory", () => {
         createRepairableDiagnosis(),
       ),
       new FakeRepairer(),
+      reviewer,
     );
 
     const planningResult =
@@ -750,11 +844,11 @@ describe("SequentialFactory", () => {
       );
 
     expect(result.stopReason).toBe(
-      "READY_FOR_REVIEW",
+      "FINAL_APPROVAL_REQUIRED",
     );
 
     expect(result.run.task.status).toBe(
-      "REVIEWING",
+      "AWAITING_FINAL_APPROVAL",
     );
 
     expect(
@@ -765,18 +859,37 @@ describe("SequentialFactory", () => {
       result.run.task.repairAttempts,
     ).toBe(1);
 
-    expect(result.run.repairs).toHaveLength(
-      1,
-    );
+    expect(
+      result.run.repairs,
+    ).toHaveLength(1);
 
     expect(
       result.run.diagnosis,
     ).toEqual(
       createRepairableDiagnosis(),
     );
+
+    expect(reviewer.calls).toBe(1);
+
+    expect(
+      reviewer.lastInput?.implementation
+        .changedFiles,
+    ).toHaveLength(1);
+
+    expect(
+      reviewer.lastInput?.implementation
+        .changedFiles[0]?.summary,
+    ).toBe(
+      "Repaired the application model.",
+    );
+
+    expect(
+      result.run.changeEvidence
+        ?.reportMatchesObserved,
+    ).toBe(true);
   });
 
-  it("diagnoses again and performs a second repair when the first repair still fails", async () => {
+  it("diagnoses again, performs a second repair, and reviews when the second repair passes", async () => {
     const repositoryRoot =
       await createTemporaryRepository();
 
@@ -787,6 +900,9 @@ describe("SequentialFactory", () => {
         createValidation(true),
       ]);
 
+    const reviewer =
+      new FakeReviewer();
+
     const factory = createFactory(
       createAnalysis(),
       createPlan(),
@@ -795,6 +911,7 @@ describe("SequentialFactory", () => {
         createRepairableDiagnosis(),
       ),
       new FakeRepairer(),
+      reviewer,
     );
 
     const planningResult =
@@ -811,11 +928,11 @@ describe("SequentialFactory", () => {
       );
 
     expect(result.stopReason).toBe(
-      "READY_FOR_REVIEW",
+      "FINAL_APPROVAL_REQUIRED",
     );
 
     expect(result.run.task.status).toBe(
-      "REVIEWING",
+      "AWAITING_FINAL_APPROVAL",
     );
 
     expect(
@@ -826,9 +943,20 @@ describe("SequentialFactory", () => {
       result.run.task.repairAttempts,
     ).toBe(2);
 
-    expect(result.run.repairs).toHaveLength(
-      2,
-    );
+    expect(
+      result.run.repairs,
+    ).toHaveLength(2);
+
+    expect(reviewer.calls).toBe(1);
+
+    expect(
+      result.run.review?.approved,
+    ).toBe(true);
+
+    expect(
+      result.run.changeEvidence
+        ?.reportMatchesObserved,
+    ).toBe(true);
   });
 
   it("escalates to human input when the repair budget is exhausted", async () => {
@@ -877,9 +1005,9 @@ describe("SequentialFactory", () => {
       result.run.task.repairAttempts,
     ).toBe(2);
 
-    expect(result.run.repairs).toHaveLength(
-      2,
-    );
+    expect(
+      result.run.repairs,
+    ).toHaveLength(2);
 
     expect(
       result.run.validation?.passed,
@@ -981,9 +1109,9 @@ describe("SequentialFactory", () => {
       result.run.task.repairAttempts,
     ).toBe(0);
 
-    expect(result.run.repairs).toHaveLength(
-      1,
-    );
+    expect(
+      result.run.repairs,
+    ).toHaveLength(1);
 
     expect(
       result.run.repairs[0]
@@ -993,6 +1121,72 @@ describe("SequentialFactory", () => {
     expect(
       result.run.validation?.passed,
     ).toBe(false);
+  });
+
+  it("escalates to human input when independent review rejects the implementation", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const reviewer =
+      new FakeReviewer(
+        createReview({
+          approved: false,
+          summary:
+            "The implementation has a regression risk.",
+          findings: [
+            {
+              severity: "HIGH",
+              summary:
+                "Existing behavior may have changed.",
+              evidence: [
+                "The implementation does not provide enough evidence of backwards compatibility.",
+              ],
+              files: [
+                "lib/models/job_application.dart",
+              ],
+              recommendation:
+                "Verify backwards compatibility before approval.",
+            },
+          ],
+          confidence: 0.9,
+        }),
+      );
+
+    const factory = createFactory(
+      createAnalysis(),
+      createPlan(),
+      new FakeValidator(true),
+      undefined,
+      undefined,
+      reviewer,
+    );
+
+    const planningResult =
+      await factory.start(
+        createTask(),
+        repositoryRoot,
+      );
+
+    const result =
+      await factory.resumeAfterPlanApproval(
+        planningResult.run,
+        repositoryRoot,
+        "main",
+      );
+
+    expect(result.stopReason).toBe(
+      "HUMAN_INPUT_REQUIRED",
+    );
+
+    expect(result.run.task.status).toBe(
+      "NEEDS_HUMAN",
+    );
+
+    expect(
+      result.run.review?.approved,
+    ).toBe(false);
+
+    expect(reviewer.calls).toBe(1);
   });
 
   it("rejects resume when plan approval is not pending", async () => {
