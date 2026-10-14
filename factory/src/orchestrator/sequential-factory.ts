@@ -19,6 +19,9 @@ import type {
   import type {
     Worktree,
   } from "../tools/git-worktree.js";
+  import type {
+    PlanningWorkflow,
+  } from "./planning-workflow.js";
   
   export interface SequentialFactoryRun {
     task: EngineeringTask;
@@ -41,4 +44,71 @@ import type {
   export interface SequentialFactoryResult {
     run: SequentialFactoryRun;
     stopReason: SequentialFactoryStopReason;
+  }
+  
+  export class SequentialFactory {
+    constructor(
+      private readonly planningWorkflow:
+        PlanningWorkflow,
+    ) {}
+  
+    async start(
+      task: EngineeringTask,
+      repositoryRoot: string,
+    ): Promise<SequentialFactoryResult> {
+      if (task.status !== "TASK_CREATED") {
+        throw new Error(
+          `Cannot start sequential factory while task is in state ${task.status}`,
+        );
+      }
+  
+      const orchestrator =
+        await this.planningWorkflow.run(
+          task,
+          repositoryRoot,
+        );
+  
+      const plannedTask =
+        orchestrator.getTask();
+  
+      const run: SequentialFactoryRun = {
+        task: plannedTask,
+        repairs: [],
+      };
+  
+      if (
+        plannedTask.status ===
+        "AWAITING_PLAN_APPROVAL"
+      ) {
+        return {
+          run,
+          stopReason:
+            "PLAN_APPROVAL_REQUIRED",
+        };
+      }
+  
+      if (
+        plannedTask.status ===
+        "NEEDS_HUMAN"
+      ) {
+        return {
+          run,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+      }
+  
+      if (
+        plannedTask.status === "FAILED"
+      ) {
+        return {
+          run,
+          stopReason: "FAILED",
+        };
+      }
+  
+      throw new Error(
+        `Planning stopped in unexpected state ${plannedTask.status}`,
+      );
+    }
   }
