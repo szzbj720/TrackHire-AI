@@ -1,6 +1,7 @@
 import {
     mkdtemp,
     readFile,
+    symlink,
     writeFile,
   } from "node:fs/promises";
   import { tmpdir } from "node:os";
@@ -109,5 +110,54 @@ import {
       ).rejects.toThrow(
         "Workspace path cannot be empty.",
       );
+    });
+  
+    it("rejects symlinks that escape the workspace", async () => {
+      const { root, workspace } =
+        await createWorkspace();
+  
+      const outsideRoot = await mkdtemp(
+        join(tmpdir(), "factory-outside-test-"),
+      );
+  
+      await writeFile(
+        join(outsideRoot, "secret.txt"),
+        "outside workspace",
+        "utf8",
+      );
+  
+      await symlink(
+        outsideRoot,
+        join(root, "outside-link"),
+      );
+  
+      await expect(
+        workspace.read(
+          "outside-link/secret.txt",
+        ),
+      ).rejects.toThrow(
+        "Symlink escapes workspace: outside-link/secret.txt",
+      );
+    });
+  
+    it("allows symlinks that remain inside the workspace", async () => {
+      const { root, workspace } =
+        await createWorkspace();
+  
+      await writeFile(
+        join(root, "real-file.txt"),
+        "safe content",
+        "utf8",
+      );
+  
+      await symlink(
+        join(root, "real-file.txt"),
+        join(root, "safe-link.txt"),
+      );
+  
+      const content =
+        await workspace.read("safe-link.txt");
+  
+      expect(content).toBe("safe content");
     });
   });
