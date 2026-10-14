@@ -1,6 +1,12 @@
 import type {
     Reviewer,
   } from "../agents/reviewer.js";
+  import {
+    buildChangeEvidence,
+  } from "../evidence/change-evidence.js";
+  import type {
+    ChangeEvidence,
+  } from "../schemas/change-evidence.js";
   import type {
     ImplementationResult,
   } from "../schemas/implementation.js";
@@ -13,6 +19,9 @@ import type {
   import type {
     ValidationResult,
   } from "../schemas/validation.js";
+  import {
+    getGitDiffEvidence,
+  } from "../tools/git-diff.js";
   import {
     Workspace,
   } from "../tools/workspace.js";
@@ -29,7 +38,8 @@ import type {
   
   export interface ReviewWorkflowResult {
     task: EngineeringTask;
-    review: ReviewResult;
+    review?: ReviewResult;
+    changeEvidence: ChangeEvidence;
   }
   
   export class ReviewWorkflow {
@@ -59,6 +69,35 @@ import type {
         );
       }
   
+      const gitDiff =
+        await getGitDiffEvidence(
+          input.worktreePath,
+        );
+  
+      const changeEvidence =
+        buildChangeEvidence(
+          input.task.plan,
+          input.implementation,
+          gitDiff,
+        );
+  
+      const orchestrator =
+        new Orchestrator(input.task);
+  
+      if (
+        !changeEvidence.withinApprovedScope ||
+        !changeEvidence.reportMatchesObserved
+      ) {
+        orchestrator.transition(
+          "NEEDS_HUMAN",
+        );
+  
+        return {
+          task: orchestrator.getTask(),
+          changeEvidence,
+        };
+      }
+  
       const workspace = new Workspace(
         input.worktreePath,
       );
@@ -79,9 +118,6 @@ import type {
           relevantFiles,
         });
   
-      const orchestrator =
-        new Orchestrator(input.task);
-  
       if (
         review.approved &&
         !review.requiresHumanInput &&
@@ -100,6 +136,7 @@ import type {
       return {
         task: orchestrator.getTask(),
         review,
+        changeEvidence,
       };
     }
   
