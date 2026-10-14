@@ -7,7 +7,8 @@
     "test": "vitest run",
     "start": "tsx src/index.ts",
     "inspect": "tsx src/context/inspect-repository.ts",
-    "plan": "tsx src/run-planning-demo.ts"
+    "plan": "tsx src/run-planning-demo.ts",
+    "factory:demo": "tsx src/run-sequential-demo.ts"
   },
   "keywords": [],
   "author": "",

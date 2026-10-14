@@ -50,3 +50,6 @@ node_modules/
 ### Environment Files ###
 .env
 backend/.env
+
+### AI Software Factory Runtime ###
+.factory/
