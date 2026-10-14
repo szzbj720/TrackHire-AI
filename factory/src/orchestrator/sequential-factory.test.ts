@@ -23,11 +23,18 @@ import type {
   BuilderInput,
 } from "../agents/builder.js";
 import type {
+  Diagnostician,
+  DiagnosticianInput,
+} from "../agents/diagnostician.js";
+import type {
   Planner,
 } from "../agents/planner.js";
 import type {
   RepositoryContext,
 } from "../context/context-builder.js";
+import type {
+  FailureDiagnosis,
+} from "../schemas/diagnosis.js";
 import type {
   ImplementationResult,
 } from "../schemas/implementation.js";
@@ -47,6 +54,9 @@ import {
 import type {
   Validator,
 } from "../validation/validator.js";
+import {
+  DiagnosisWorkflow,
+} from "./diagnosis-workflow.js";
 import {
   ImplementationWorkflow,
 } from "./implementation-workflow.js";
@@ -160,6 +170,20 @@ class FakeValidator implements Validator {
   }
 }
 
+class FakeDiagnostician
+  implements Diagnostician {
+  constructor(
+    private readonly diagnosis:
+      FailureDiagnosis,
+  ) {}
+
+  async diagnose(
+    _input: DiagnosticianInput,
+  ): Promise<FailureDiagnosis> {
+    return this.diagnosis;
+  }
+}
+
 function createTask(): EngineeringTask {
   const now = new Date().toISOString();
 
@@ -240,10 +264,52 @@ function createPlan(
   };
 }
 
+function createRepairableDiagnosis():
+  FailureDiagnosis {
+  return {
+    category: "TEST_REGRESSION",
+    summary:
+      "The implementation caused a test regression.",
+    evidence: [
+      "Flutter tests exited with code 1.",
+    ],
+    suspectedFiles: [
+      "lib/models/job_application.dart",
+    ],
+    recommendedAction:
+      "Repair the implementation and rerun validation.",
+    repairable: true,
+    confidence: 0.9,
+    requiresHumanInput: false,
+  };
+}
+
+function createHumanDiagnosis():
+  FailureDiagnosis {
+  return {
+    category:
+      "REQUIREMENT_AMBIGUITY",
+    summary:
+      "The failure cannot be repaired safely without clarification.",
+    evidence: [
+      "The expected behavior is ambiguous.",
+    ],
+    suspectedFiles: [
+      "lib/models/job_application.dart",
+    ],
+    recommendedAction:
+      "Ask a human to clarify the requirement.",
+    repairable: false,
+    confidence: 0.8,
+    requiresHumanInput: true,
+  };
+}
+
 function createFactory(
   analysis = createAnalysis(),
   plan = createPlan(),
   validator?: Validator,
+  diagnostician?: Diagnostician,
 ): SequentialFactory {
   const planningWorkflow =
     new PlanningWorkflow(
@@ -259,9 +325,17 @@ function createFactory(
         )
       : undefined;
 
+  const diagnosisWorkflow =
+    diagnostician
+      ? new DiagnosisWorkflow(
+          diagnostician,
+        )
+      : undefined;
+
   return new SequentialFactory(
     planningWorkflow,
     implementationWorkflow,
+    diagnosisWorkflow,
   );
 }
 
@@ -546,7 +620,7 @@ describe("SequentialFactory", () => {
     );
   });
 
-  it("resumes after plan approval and reaches diagnosis when validation fails", async () => {
+  it("diagnoses a failed validation and routes a repairable failure to repair", async () => {
     const repositoryRoot =
       await createTemporaryRepository();
 
@@ -554,6 +628,9 @@ describe("SequentialFactory", () => {
       createAnalysis(),
       createPlan(),
       new FakeValidator(false),
+      new FakeDiagnostician(
+        createRepairableDiagnosis(),
+      ),
     );
 
     const planningResult =
@@ -570,11 +647,11 @@ describe("SequentialFactory", () => {
       );
 
     expect(result.stopReason).toBe(
-      "READY_FOR_DIAGNOSIS",
+      "READY_FOR_REPAIR",
     );
 
     expect(result.run.task.status).toBe(
-      "DIAGNOSING_FAILURE",
+      "REPAIRING",
     );
 
     expect(
@@ -582,15 +659,59 @@ describe("SequentialFactory", () => {
     ).toBe(false);
 
     expect(
-      result.run.validation
-        ?.failedChecks,
-    ).toEqual([
-      "Flutter tests",
-    ]);
+      result.run.diagnosis,
+    ).toEqual(
+      createRepairableDiagnosis(),
+    );
 
     expect(
       result.run.worktree,
     ).toBeDefined();
+  });
+
+  it("diagnoses a failed validation and stops when human input is required", async () => {
+    const repositoryRoot =
+      await createTemporaryRepository();
+
+    const factory = createFactory(
+      createAnalysis(),
+      createPlan(),
+      new FakeValidator(false),
+      new FakeDiagnostician(
+        createHumanDiagnosis(),
+      ),
+    );
+
+    const planningResult =
+      await factory.start(
+        createTask(),
+        repositoryRoot,
+      );
+
+    const result =
+      await factory.resumeAfterPlanApproval(
+        planningResult.run,
+        repositoryRoot,
+        "main",
+      );
+
+    expect(result.stopReason).toBe(
+      "HUMAN_INPUT_REQUIRED",
+    );
+
+    expect(result.run.task.status).toBe(
+      "NEEDS_HUMAN",
+    );
+
+    expect(
+      result.run.diagnosis,
+    ).toEqual(
+      createHumanDiagnosis(),
+    );
+
+    expect(
+      result.run.task.repairAttempts,
+    ).toBe(0);
   });
 
   it("rejects resume when plan approval is not pending", async () => {

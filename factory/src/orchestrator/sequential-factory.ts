@@ -20,6 +20,9 @@ import type {
     Worktree,
   } from "../tools/git-worktree.js";
   import type {
+    DiagnosisWorkflow,
+  } from "./diagnosis-workflow.js";
+  import type {
     ImplementationWorkflow,
   } from "./implementation-workflow.js";
   import {
@@ -44,7 +47,7 @@ import type {
     | "PLAN_APPROVAL_REQUIRED"
     | "FINAL_APPROVAL_REQUIRED"
     | "HUMAN_INPUT_REQUIRED"
-    | "READY_FOR_DIAGNOSIS"
+    | "READY_FOR_REPAIR"
     | "READY_FOR_REVIEW"
     | "COMPLETE"
     | "FAILED";
@@ -60,6 +63,8 @@ import type {
         PlanningWorkflow,
       private readonly implementationWorkflow?:
         ImplementationWorkflow,
+      private readonly diagnosisWorkflow?:
+        DiagnosisWorkflow,
     ) {}
   
     async start(
@@ -179,11 +184,9 @@ import type {
         implementationResult.task.status ===
         "DIAGNOSING_FAILURE"
       ) {
-        return {
-          run: nextRun,
-          stopReason:
-            "READY_FOR_DIAGNOSIS",
-        };
+        return this.diagnoseFailure(
+          nextRun,
+        );
       }
   
       if (
@@ -209,6 +212,85 @@ import type {
   
       throw new Error(
         `Implementation stopped in unexpected state ${implementationResult.task.status}`,
+      );
+    }
+  
+    private async diagnoseFailure(
+      run: SequentialFactoryRun,
+    ): Promise<SequentialFactoryResult> {
+      if (!this.diagnosisWorkflow) {
+        throw new Error(
+          "Sequential factory does not have a diagnosis workflow.",
+        );
+      }
+  
+      if (!run.worktree) {
+        throw new Error(
+          "Cannot diagnose failure without a worktree.",
+        );
+      }
+  
+      if (!run.implementation) {
+        throw new Error(
+          "Cannot diagnose failure without an implementation result.",
+        );
+      }
+  
+      if (!run.validation) {
+        throw new Error(
+          "Cannot diagnose failure without validation evidence.",
+        );
+      }
+  
+      const diagnosisResult =
+        await this.diagnosisWorkflow.run({
+          task: run.task,
+          implementation:
+            run.implementation,
+          validation: run.validation,
+          worktreePath: run.worktree.path,
+        });
+  
+      const nextRun: SequentialFactoryRun = {
+        ...run,
+        task: diagnosisResult.task,
+        diagnosis:
+          diagnosisResult.diagnosis,
+      };
+  
+      if (
+        diagnosisResult.task.status ===
+        "REPAIRING"
+      ) {
+        return {
+          run: nextRun,
+          stopReason: "READY_FOR_REPAIR",
+        };
+      }
+  
+      if (
+        diagnosisResult.task.status ===
+        "NEEDS_HUMAN"
+      ) {
+        return {
+          run: nextRun,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+      }
+  
+      if (
+        diagnosisResult.task.status ===
+        "FAILED"
+      ) {
+        return {
+          run: nextRun,
+          stopReason: "FAILED",
+        };
+      }
+  
+      throw new Error(
+        `Diagnosis stopped in unexpected state ${diagnosisResult.task.status}`,
       );
     }
   }
