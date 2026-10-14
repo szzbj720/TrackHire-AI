@@ -173,4 +173,82 @@ describe("Orchestrator", () => {
       "TASK_CREATED",
     );
   });
+
+  it("allows a human to approve the final implementation", () => {
+    const task = createTask();
+
+    task.status = "AWAITING_FINAL_APPROVAL";
+
+    const orchestrator = new Orchestrator(task);
+
+    orchestrator.approveFinal();
+
+    expect(orchestrator.getTask().status).toBe(
+      "COMPLETE",
+    );
+
+    const events = orchestrator.getEvents();
+
+    expect(
+      events.some(
+        (event) =>
+          event.type ===
+            "HUMAN_APPROVAL_RECEIVED" &&
+          event.stage === "COMPLETE",
+      ),
+    ).toBe(true);
+  });
+
+  it("allows a human to reject the final implementation", () => {
+    const task = createTask();
+
+    task.status = "AWAITING_FINAL_APPROVAL";
+
+    const orchestrator = new Orchestrator(task);
+
+    orchestrator.rejectFinal();
+
+    expect(orchestrator.getTask().status).toBe(
+      "FAILED",
+    );
+
+    const events = orchestrator.getEvents();
+
+    expect(
+      events.some(
+        (event) =>
+          event.type ===
+            "HUMAN_APPROVAL_RECEIVED" &&
+          event.stage === "FAILED",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects final approval outside the final approval state", () => {
+    const orchestrator = new Orchestrator(createTask());
+
+    expect(() =>
+      orchestrator.approveFinal(),
+    ).toThrow(
+      "Cannot approve final result while task is in state TASK_CREATED",
+    );
+
+    expect(orchestrator.getTask().status).toBe(
+      "TASK_CREATED",
+    );
+  });
+
+  it("rejects final rejection outside the final approval state", () => {
+    const orchestrator = new Orchestrator(createTask());
+
+    expect(() =>
+      orchestrator.rejectFinal(),
+    ).toThrow(
+      "Cannot reject final result while task is in state TASK_CREATED",
+    );
+
+    expect(orchestrator.getTask().status).toBe(
+      "TASK_CREATED",
+    );
+  });
 });

@@ -81,6 +81,48 @@ export class Orchestrator {
     });
   }
 
+  approveFinal(): void {
+    if (
+      this.task.status !== "AWAITING_FINAL_APPROVAL"
+    ) {
+      throw new Error(
+        `Cannot approve final result while task is in state ${this.task.status}`,
+      );
+    }
+
+    this.transition("COMPLETE");
+
+    this.events.push({
+      id: crypto.randomUUID(),
+      taskId: this.task.id,
+      type: "HUMAN_APPROVAL_RECEIVED",
+      timestamp: new Date().toISOString(),
+      stage: "COMPLETE",
+      message: "Final implementation approved by human.",
+    });
+  }
+
+  rejectFinal(): void {
+    if (
+      this.task.status !== "AWAITING_FINAL_APPROVAL"
+    ) {
+      throw new Error(
+        `Cannot reject final result while task is in state ${this.task.status}`,
+      );
+    }
+
+    this.transition("FAILED");
+
+    this.events.push({
+      id: crypto.randomUUID(),
+      taskId: this.task.id,
+      type: "HUMAN_APPROVAL_RECEIVED",
+      timestamp: new Date().toISOString(),
+      stage: "FAILED",
+      message: "Final implementation rejected by human.",
+    });
+  }
+
   transition(nextState: FactoryState): void {
     const previousState = this.task.status;
     const newState = transitionState(
