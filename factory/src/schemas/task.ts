@@ -1,3 +1,4 @@
+import type { ImplementationPlan } from "./plan.js";
 export type FactoryState =
   | "TASK_CREATED"
   | "ANALYZING"
@@ -56,8 +57,8 @@ export interface EngineeringTask {
   constraints: string[];
 
   analysis?: TaskAnalysis;
+  plan?: ImplementationPlan;
   strategy?: ExecutionStrategy;
-
   repairAttempts: number;
 
   createdAt: string;
