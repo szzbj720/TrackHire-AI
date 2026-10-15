@@ -1,14 +1,18 @@
-import type { EngineeringTask } from "../schemas/task.js";
-import type { WorkGraph } from "../schemas/work-graph.js";
-import { Orchestrator } from "./orchestrator.js";
 import type {
-  SequentialFactoryResult,
-  SequentialFactoryRun,
-} from "./sequential-factory.js";
+  EngineeringTask,
+} from "../schemas/task.js";
+import type {
+  WorkGraph,
+} from "../schemas/work-graph.js";
 import type {
   LightweightWorkflow,
   LightweightWorkflowResult,
 } from "./lightweight-workflow.js";
+import { Orchestrator } from "./orchestrator.js";
+import type {
+  ParallelExecutionInput,
+  ParallelExecutionResult,
+} from "./parallel-execution-workflow.js";
 import type {
   ParallelPlanningWorkflow,
 } from "./parallel-planning-workflow.js";
@@ -16,6 +20,10 @@ import {
   routeTask,
   type AdaptiveRoutingDecision,
 } from "./adaptive-routing.js";
+import type {
+  SequentialFactoryResult,
+  SequentialFactoryRun,
+} from "./sequential-factory.js";
 
 export interface SequentialFactoryAdapter {
   start(
@@ -34,10 +42,17 @@ export interface SequentialFactoryAdapter {
   ): Promise<SequentialFactoryResult>;
 }
 
+export interface ParallelExecutionWorkflowAdapter {
+  run(
+    input: ParallelExecutionInput,
+  ): Promise<ParallelExecutionResult>;
+}
+
 export type AdaptiveFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "LIGHTWEIGHT_EXECUTION_REQUIRED"
   | "PARALLEL_APPROVAL_REQUIRED"
+  | "PARALLEL_VALIDATION_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
@@ -47,27 +62,35 @@ export interface AdaptiveFactoryResult {
   run: SequentialFactoryRun;
   route?: AdaptiveRoutingDecision;
   workGraph?: WorkGraph;
+  parallelExecution?: ParallelExecutionResult;
   stopReason: AdaptiveFactoryStopReason;
 }
 
 export class AdaptiveFactory {
   constructor(
-    private readonly sequentialFactory: SequentialFactoryAdapter,
-    private readonly lightweightWorkflow?: LightweightWorkflow,
-    private readonly parallelPlanningWorkflow?: ParallelPlanningWorkflow,
+    private readonly sequentialFactory:
+      SequentialFactoryAdapter,
+    private readonly lightweightWorkflow?:
+      LightweightWorkflow,
+    private readonly parallelPlanningWorkflow?:
+      ParallelPlanningWorkflow,
+    private readonly parallelExecutionWorkflow?:
+      ParallelExecutionWorkflowAdapter,
   ) {}
 
   async start(
     task: EngineeringTask,
     repositoryRoot: string,
   ): Promise<AdaptiveFactoryResult> {
-    const result = await this.sequentialFactory.start(
-      task,
-      repositoryRoot,
-    );
+    const result =
+      await this.sequentialFactory.start(
+        task,
+        repositoryRoot,
+      );
 
     if (
-      result.stopReason === "HUMAN_INPUT_REQUIRED" ||
+      result.stopReason ===
+        "HUMAN_INPUT_REQUIRED" ||
       result.stopReason === "FAILED"
     ) {
       return {
@@ -77,14 +100,17 @@ export class AdaptiveFactory {
     }
 
     if (
-      result.stopReason !== "PLAN_APPROVAL_REQUIRED"
+      result.stopReason !==
+      "PLAN_APPROVAL_REQUIRED"
     ) {
       throw new Error(
         `Adaptive routing cannot start from sequential stop reason ${result.stopReason}.`,
       );
     }
 
-    const route = routeTask(result.run.task);
+    const route = routeTask(
+      result.run.task,
+    );
 
     switch (route.route) {
       case "LIGHTWEIGHT":
@@ -99,14 +125,16 @@ export class AdaptiveFactory {
         return {
           run: result.run,
           route,
-          stopReason: "PLAN_APPROVAL_REQUIRED",
+          stopReason:
+            "PLAN_APPROVAL_REQUIRED",
         };
 
       case "PARALLEL":
         return {
           run: result.run,
           route,
-          stopReason: "PLAN_APPROVAL_REQUIRED",
+          stopReason:
+            "PLAN_APPROVAL_REQUIRED",
         };
     }
   }
@@ -144,11 +172,93 @@ export class AdaptiveFactory {
     }
   }
 
+  async resumeAfterParallelApproval(
+    result: AdaptiveFactoryResult,
+    repositoryRoot: string,
+    baseBranch: string,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "PARALLEL_APPROVAL_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume parallel execution from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !== "PARALLEL"
+    ) {
+      throw new Error(
+        "Cannot resume parallel execution without a parallel route.",
+      );
+    }
+
+    if (!result.workGraph) {
+      throw new Error(
+        "Cannot resume parallel execution without a work graph.",
+      );
+    }
+
+    if (
+      !this.parallelExecutionWorkflow
+    ) {
+      throw new Error(
+        "Cannot resume parallel execution without a parallel execution workflow.",
+      );
+    }
+
+    const parallelExecution =
+      await this.parallelExecutionWorkflow.run({
+        task: result.run.task,
+        graph: result.workGraph,
+        repositoryRoot,
+        baseBranch,
+      });
+
+    const run: SequentialFactoryRun = {
+      ...result.run,
+      task: parallelExecution.task,
+      worktree:
+        parallelExecution.integrationWorktree,
+    };
+
+    switch (
+      parallelExecution.task.status
+    ) {
+      case "VALIDATING":
+        return {
+          run,
+          route: result.route,
+          workGraph: result.workGraph,
+          parallelExecution,
+          stopReason:
+            "PARALLEL_VALIDATION_REQUIRED",
+        };
+
+      case "NEEDS_HUMAN":
+        return {
+          run,
+          route: result.route,
+          workGraph: result.workGraph,
+          parallelExecution,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+
+      default:
+        throw new Error(
+          `Parallel execution stopped in unexpected state ${parallelExecution.task.status}.`,
+        );
+    }
+  }
+
   async resumeAfterFinalApproval(
     result: AdaptiveFactoryResult,
   ): Promise<AdaptiveFactoryResult> {
     if (
-      result.stopReason !== "FINAL_APPROVAL_REQUIRED"
+      result.stopReason !==
+      "FINAL_APPROVAL_REQUIRED"
     ) {
       throw new Error(
         `Cannot approve final result from stop reason ${result.stopReason}.`,
@@ -176,13 +286,14 @@ export class AdaptiveFactory {
         return {
           run: sequentialResult.run,
           route: result.route,
-          stopReason: sequentialResult.stopReason,
+          stopReason:
+            sequentialResult.stopReason,
         };
       }
 
       case "PARALLEL":
         throw new Error(
-          "Cannot approve final result for a parallel route before parallel execution is implemented.",
+          "Cannot approve final result for a parallel route before parallel validation and review are complete.",
         );
     }
   }
@@ -202,7 +313,8 @@ export class AdaptiveFactory {
     }
 
     if (
-      result.route?.route !== "LIGHTWEIGHT"
+      result.route?.route !==
+      "LIGHTWEIGHT"
     ) {
       throw new Error(
         "Cannot resume lightweight execution without a lightweight route.",
@@ -222,24 +334,29 @@ export class AdaptiveFactory {
         baseBranch,
       );
 
-    const run = this.mergeLightweightResult(
-      result.run,
-      lightweightResult,
-    );
+    const run =
+      this.mergeLightweightResult(
+        result.run,
+        lightweightResult,
+      );
 
-    switch (lightweightResult.task.status) {
+    switch (
+      lightweightResult.task.status
+    ) {
       case "AWAITING_FINAL_APPROVAL":
         return {
           run,
           route: result.route,
-          stopReason: "FINAL_APPROVAL_REQUIRED",
+          stopReason:
+            "FINAL_APPROVAL_REQUIRED",
         };
 
       case "NEEDS_HUMAN":
         return {
           run,
           route: result.route,
-          stopReason: "HUMAN_INPUT_REQUIRED",
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
         };
 
       default:
@@ -253,7 +370,8 @@ export class AdaptiveFactory {
     result: AdaptiveFactoryResult,
   ): Promise<AdaptiveFactoryResult> {
     if (
-      result.stopReason !== "PLAN_APPROVAL_REQUIRED"
+      result.stopReason !==
+      "PLAN_APPROVAL_REQUIRED"
     ) {
       throw new Error(
         `Cannot prepare parallel execution from stop reason ${result.stopReason}.`,
@@ -261,14 +379,17 @@ export class AdaptiveFactory {
     }
 
     if (
-      result.run.task.strategy?.mode !== "parallel"
+      result.run.task.strategy?.mode !==
+      "parallel"
     ) {
       throw new Error(
         "Parallel preparation requires a parallel execution strategy.",
       );
     }
 
-    if (!this.parallelPlanningWorkflow) {
+    if (
+      !this.parallelPlanningWorkflow
+    ) {
       throw new Error(
         "Cannot prepare parallel execution without a parallel planning workflow.",
       );
@@ -285,8 +406,10 @@ export class AdaptiveFactory {
         task: parallelResult.task,
       },
       route: result.route!,
-      workGraph: parallelResult.workGraph,
-      stopReason: "PARALLEL_APPROVAL_REQUIRED",
+      workGraph:
+        parallelResult.workGraph,
+      stopReason:
+        "PARALLEL_APPROVAL_REQUIRED",
     };
   }
 
@@ -296,7 +419,8 @@ export class AdaptiveFactory {
     baseBranch: string,
   ): Promise<AdaptiveFactoryResult> {
     if (
-      result.stopReason !== "PLAN_APPROVAL_REQUIRED"
+      result.stopReason !==
+      "PLAN_APPROVAL_REQUIRED"
     ) {
       throw new Error(
         `Cannot resume sequential execution from stop reason ${result.stopReason}.`,
@@ -315,16 +439,18 @@ export class AdaptiveFactory {
       ...(result.route
         ? { route: result.route }
         : {}),
-      stopReason: sequentialResult.stopReason,
+      stopReason:
+        sequentialResult.stopReason,
     };
   }
 
   private approveLightweightFinalResult(
     result: AdaptiveFactoryResult,
   ): AdaptiveFactoryResult {
-    const orchestrator = new Orchestrator(
-      result.run.task,
-    );
+    const orchestrator =
+      new Orchestrator(
+        result.run.task,
+      );
 
     orchestrator.approveFinal();
 
@@ -346,9 +472,13 @@ export class AdaptiveFactory {
       ...run,
       task: result.task,
       worktree: result.worktree,
-      implementation: result.implementation,
+      implementation:
+        result.implementation,
       ...(result.validation
-        ? { validation: result.validation }
+        ? {
+            validation:
+              result.validation,
+          }
         : {}),
     };
   }
