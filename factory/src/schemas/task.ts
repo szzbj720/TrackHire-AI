@@ -1,9 +1,11 @@
 import type { ImplementationPlan } from "./plan.js";
+
 export type FactoryState =
   | "TASK_CREATED"
   | "ANALYZING"
   | "PLANNING"
   | "AWAITING_PLAN_APPROVAL"
+  | "AWAITING_PARALLEL_APPROVAL"
   | "IMPLEMENTING"
   | "VALIDATING"
   | "DIAGNOSING_FAILURE"
@@ -15,7 +17,6 @@ export type FactoryState =
   | "FAILED";
 
 export type TaskComplexity = "low" | "medium" | "high";
-
 export type TaskRisk = "low" | "medium" | "high";
 
 export type ExecutionMode =
@@ -23,24 +24,17 @@ export type ExecutionMode =
   | "sequential"
   | "parallel";
 
-  export interface TaskAnalysis {
-    complexity: TaskComplexity;
-    risk: TaskRisk;
-  
-    affectedAreas: string[];
-  
-    relevantFiles: string[];
-  
-    ambiguities: string[];
-  
-    assumptions: string[];
-  
-    confidence: number;
-  
-    requiresHumanInput: boolean;
-  
-    reasoning: string;
-  }
+export interface TaskAnalysis {
+  complexity: TaskComplexity;
+  risk: TaskRisk;
+  affectedAreas: string[];
+  relevantFiles: string[];
+  ambiguities: string[];
+  assumptions: string[];
+  confidence: number;
+  requiresHumanInput: boolean;
+  reasoning: string;
+}
 
 export interface ExecutionStrategy {
   mode: ExecutionMode;
@@ -51,16 +45,13 @@ export interface EngineeringTask {
   id: string;
   request: string;
   status: FactoryState;
-
   requirements: string[];
   acceptanceCriteria: string[];
   constraints: string[];
-
   analysis?: TaskAnalysis;
   plan?: ImplementationPlan;
   strategy?: ExecutionStrategy;
   repairAttempts: number;
-
   createdAt: string;
   updatedAt: string;
 }

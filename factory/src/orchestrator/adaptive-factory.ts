@@ -1,4 +1,5 @@
 import type { EngineeringTask } from "../schemas/task.js";
+import type { WorkGraph } from "../schemas/work-graph.js";
 import { Orchestrator } from "./orchestrator.js";
 import type {
   SequentialFactoryResult,
@@ -8,6 +9,9 @@ import type {
   LightweightWorkflow,
   LightweightWorkflowResult,
 } from "./lightweight-workflow.js";
+import type {
+  ParallelPlanningWorkflow,
+} from "./parallel-planning-workflow.js";
 import {
   routeTask,
   type AdaptiveRoutingDecision,
@@ -33,6 +37,7 @@ export interface SequentialFactoryAdapter {
 export type AdaptiveFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "LIGHTWEIGHT_EXECUTION_REQUIRED"
+  | "PARALLEL_APPROVAL_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
@@ -41,6 +46,7 @@ export type AdaptiveFactoryStopReason =
 export interface AdaptiveFactoryResult {
   run: SequentialFactoryRun;
   route?: AdaptiveRoutingDecision;
+  workGraph?: WorkGraph;
   stopReason: AdaptiveFactoryStopReason;
 }
 
@@ -48,6 +54,7 @@ export class AdaptiveFactory {
   constructor(
     private readonly sequentialFactory: SequentialFactoryAdapter,
     private readonly lightweightWorkflow?: LightweightWorkflow,
+    private readonly parallelPlanningWorkflow?: ParallelPlanningWorkflow,
   ) {}
 
   async start(
@@ -84,7 +91,8 @@ export class AdaptiveFactory {
         return {
           run: result.run,
           route,
-          stopReason: "LIGHTWEIGHT_EXECUTION_REQUIRED",
+          stopReason:
+            "LIGHTWEIGHT_EXECUTION_REQUIRED",
         };
 
       case "SEQUENTIAL":
@@ -130,8 +138,8 @@ export class AdaptiveFactory {
         );
 
       case "HUMAN_ESCALATION":
-        throw new Error(
-          "Cannot resume a task that requires human escalation.",
+        return this.prepareParallelExecution(
+          result,
         );
     }
   }
@@ -174,7 +182,7 @@ export class AdaptiveFactory {
 
       case "HUMAN_ESCALATION":
         throw new Error(
-          "Cannot approve final result for a human escalation route.",
+          "Cannot approve final result for a parallel route before parallel execution is implemented.",
         );
     }
   }
@@ -239,6 +247,47 @@ export class AdaptiveFactory {
           `Lightweight execution stopped in unexpected state ${lightweightResult.task.status}.`,
         );
     }
+  }
+
+  private async prepareParallelExecution(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !== "HUMAN_INPUT_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot prepare parallel execution from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.run.task.strategy?.mode !== "parallel"
+    ) {
+      throw new Error(
+        "Parallel preparation requires a parallel execution strategy.",
+      );
+    }
+
+    if (!this.parallelPlanningWorkflow) {
+      throw new Error(
+        "Cannot prepare parallel execution without a parallel planning workflow.",
+      );
+    }
+
+    const parallelResult =
+      await this.parallelPlanningWorkflow.run(
+        result.run.task,
+      );
+
+    return {
+      run: {
+        ...result.run,
+        task: parallelResult.task,
+      },
+      route: result.route!,
+      workGraph: parallelResult.workGraph,
+      stopReason: "PARALLEL_APPROVAL_REQUIRED",
+    };
   }
 
   private async resumeSequentialAfterPlanApproval(

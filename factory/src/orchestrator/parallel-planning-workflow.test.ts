@@ -165,7 +165,12 @@ import {
   
       const result = await workflow.run(task);
   
-      expect(result.task).toBe(task);
+      expect(result.task.status).toBe(
+        "AWAITING_PARALLEL_APPROVAL",
+      );
+  
+      expect(result.task.id).toBe(task.id);
+  
       expect(result.workGraph).toEqual(
         createGraph(),
       );

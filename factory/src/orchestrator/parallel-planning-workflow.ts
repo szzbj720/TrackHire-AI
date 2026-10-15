@@ -1,6 +1,7 @@
 import type { Decomposer } from "../agents/decomposer.js";
 import type { EngineeringTask } from "../schemas/task.js";
 import type { WorkGraph } from "../schemas/work-graph.js";
+import { Orchestrator } from "./orchestrator.js";
 
 export interface ParallelPlanningResult {
   task: EngineeringTask;
@@ -47,8 +48,14 @@ export class ParallelPlanningWorkflow {
         plan: task.plan,
       });
 
+    const orchestrator = new Orchestrator(task);
+
+    orchestrator.transition(
+      "AWAITING_PARALLEL_APPROVAL",
+    );
+
     return {
-      task,
+      task: orchestrator.getTask(),
       workGraph,
     };
   }
