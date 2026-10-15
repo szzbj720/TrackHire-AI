@@ -89,7 +89,11 @@ describe("AdaptiveFactory", () => {
     expect(result.stopReason).toBe(
       "PLAN_APPROVAL_REQUIRED",
     );
-    expect(result.route?.route).toBe("SEQUENTIAL");
+
+    expect(result.route?.route).toBe(
+      "SEQUENTIAL",
+    );
+
     expect(sequentialFactory.calls).toBe(1);
   });
 
@@ -111,10 +115,13 @@ describe("AdaptiveFactory", () => {
     expect(result.stopReason).toBe(
       "LIGHTWEIGHT_EXECUTION_REQUIRED",
     );
-    expect(result.route?.route).toBe("LIGHTWEIGHT");
+
+    expect(result.route?.route).toBe(
+      "LIGHTWEIGHT",
+    );
   });
 
-  it("blocks parallel execution and escalates to a human", async () => {
+  it("routes parallel tasks toward controlled parallel planning", async () => {
     const sequentialFactory =
       new FakeSequentialFactory(
         createPlannedResult("parallel"),
@@ -130,12 +137,19 @@ describe("AdaptiveFactory", () => {
     );
 
     expect(result.stopReason).toBe(
-      "HUMAN_INPUT_REQUIRED",
+      "PLAN_APPROVAL_REQUIRED",
     );
+
     expect(result.route?.route).toBe(
-      "HUMAN_ESCALATION",
+      "PARALLEL",
     );
+
+    expect(
+      result.route?.policy.disposition,
+    ).toBe("SUPPORTED_PARALLEL");
+
     expect(result.run.worktree).toBeUndefined();
+
     expect(
       result.run.implementation,
     ).toBeUndefined();
@@ -168,6 +182,7 @@ describe("AdaptiveFactory", () => {
     expect(adaptiveResult.stopReason).toBe(
       "HUMAN_INPUT_REQUIRED",
     );
+
     expect(
       adaptiveResult.route,
     ).toBeUndefined();
@@ -200,6 +215,7 @@ describe("AdaptiveFactory", () => {
     expect(adaptiveResult.stopReason).toBe(
       "FAILED",
     );
+
     expect(
       adaptiveResult.route,
     ).toBeUndefined();

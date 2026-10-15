@@ -123,16 +123,15 @@ function createParallelResult(): AdaptiveFactoryResult {
       repairs: [],
     },
     route: {
-      route: "HUMAN_ESCALATION",
+      route: "PARALLEL",
       policy: {
         mode: "parallel",
-        disposition:
-          "UNSUPPORTED_REQUIRES_HUMAN",
+        disposition: "SUPPORTED_PARALLEL",
         reasoning:
-          "Parallel execution requires controlled decomposition.",
+          "Parallel execution is supported through controlled decomposition.",
       },
     },
-    stopReason: "HUMAN_INPUT_REQUIRED",
+    stopReason: "PLAN_APPROVAL_REQUIRED",
   };
 }
 

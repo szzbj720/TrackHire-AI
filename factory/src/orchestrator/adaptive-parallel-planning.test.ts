@@ -8,10 +8,6 @@ import {
   import type { ImplementationPlan } from "../schemas/plan.js";
   import type { EngineeringTask } from "../schemas/task.js";
   import type { WorkGraph } from "../schemas/work-graph.js";
-  import type {
-    SequentialFactoryResult,
-    SequentialFactoryRun,
-  } from "./sequential-factory.js";
   import {
     AdaptiveFactory,
     type AdaptiveFactoryResult,
@@ -116,16 +112,15 @@ import {
         repairs: [],
       },
       route: {
-        route: "HUMAN_ESCALATION",
+        route: "PARALLEL",
         policy: {
           mode: "parallel",
-          disposition:
-            "UNSUPPORTED_REQUIRES_HUMAN",
+          disposition: "SUPPORTED_PARALLEL",
           reasoning:
-            "Parallel execution is not implemented.",
+            "Parallel execution is supported through controlled decomposition.",
         },
       },
-      stopReason: "HUMAN_INPUT_REQUIRED",
+      stopReason: "PLAN_APPROVAL_REQUIRED",
     };
   }
   
@@ -195,12 +190,16 @@ import {
         );
   
       expect(result.route?.route).toBe(
-        "HUMAN_ESCALATION",
+        "PARALLEL",
       );
   
       expect(result.route?.policy.mode).toBe(
         "parallel",
       );
+  
+      expect(
+        result.route?.policy.disposition,
+      ).toBe("SUPPORTED_PARALLEL");
     });
   
     it("rejects parallel preparation when no parallel workflow is configured", async () => {

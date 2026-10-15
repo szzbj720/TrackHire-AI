@@ -102,11 +102,11 @@ export class AdaptiveFactory {
           stopReason: "PLAN_APPROVAL_REQUIRED",
         };
 
-      case "HUMAN_ESCALATION":
+      case "PARALLEL":
         return {
           run: result.run,
           route,
-          stopReason: "HUMAN_INPUT_REQUIRED",
+          stopReason: "PLAN_APPROVAL_REQUIRED",
         };
     }
   }
@@ -137,7 +137,7 @@ export class AdaptiveFactory {
           baseBranch,
         );
 
-      case "HUMAN_ESCALATION":
+      case "PARALLEL":
         return this.prepareParallelExecution(
           result,
         );
@@ -180,7 +180,7 @@ export class AdaptiveFactory {
         };
       }
 
-      case "HUMAN_ESCALATION":
+      case "PARALLEL":
         throw new Error(
           "Cannot approve final result for a parallel route before parallel execution is implemented.",
         );
@@ -253,7 +253,7 @@ export class AdaptiveFactory {
     result: AdaptiveFactoryResult,
   ): Promise<AdaptiveFactoryResult> {
     if (
-      result.stopReason !== "HUMAN_INPUT_REQUIRED"
+      result.stopReason !== "PLAN_APPROVAL_REQUIRED"
     ) {
       throw new Error(
         `Cannot prepare parallel execution from stop reason ${result.stopReason}.`,

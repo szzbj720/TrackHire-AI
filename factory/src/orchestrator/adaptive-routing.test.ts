@@ -37,7 +37,10 @@ describe("routeTask", () => {
       createTask("single-agent"),
     );
 
-    expect(decision.route).toBe("LIGHTWEIGHT");
+    expect(decision.route).toBe(
+      "LIGHTWEIGHT",
+    );
+
     expect(decision.policy.disposition).toBe(
       "SUPPORTED_LIGHTWEIGHT",
     );
@@ -48,27 +51,33 @@ describe("routeTask", () => {
       createTask("sequential"),
     );
 
-    expect(decision.route).toBe("SEQUENTIAL");
+    expect(decision.route).toBe(
+      "SEQUENTIAL",
+    );
+
     expect(decision.policy.disposition).toBe(
       "SUPPORTED_SEQUENTIAL",
     );
   });
 
-  it("routes parallel tasks to human escalation", () => {
+  it("routes parallel tasks to controlled parallel execution", () => {
     const decision = routeTask(
       createTask("parallel"),
     );
 
     expect(decision.route).toBe(
-      "HUMAN_ESCALATION",
+      "PARALLEL",
     );
+
     expect(decision.policy.disposition).toBe(
-      "UNSUPPORTED_REQUIRES_HUMAN",
+      "SUPPORTED_PARALLEL",
     );
   });
 
   it("refuses to route a task without a strategy", () => {
-    expect(() => routeTask(createTask())).toThrow(
+    expect(
+      () => routeTask(createTask()),
+    ).toThrow(
       "Cannot route task without an execution strategy.",
     );
   });

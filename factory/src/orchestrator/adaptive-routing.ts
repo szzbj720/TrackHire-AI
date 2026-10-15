@@ -7,7 +7,7 @@ import {
 export type AdaptiveRoute =
   | "LIGHTWEIGHT"
   | "SEQUENTIAL"
-  | "HUMAN_ESCALATION";
+  | "PARALLEL";
 
 export interface AdaptiveRoutingDecision {
   route: AdaptiveRoute;
@@ -40,9 +40,9 @@ export function routeTask(
         policy,
       };
 
-    case "UNSUPPORTED_REQUIRES_HUMAN":
+    case "SUPPORTED_PARALLEL":
       return {
-        route: "HUMAN_ESCALATION",
+        route: "PARALLEL",
         policy,
       };
   }

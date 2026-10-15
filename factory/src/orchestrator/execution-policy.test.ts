@@ -38,16 +38,16 @@ describe("evaluateExecutionPolicy", () => {
     });
   });
 
-  it("escalates parallel because execution is not implemented yet", () => {
+  it("supports parallel through controlled decomposition and approval", () => {
     expect(
       evaluateExecutionPolicy(
         createStrategy("parallel"),
       ),
     ).toEqual({
       mode: "parallel",
-      disposition: "UNSUPPORTED_REQUIRES_HUMAN",
+      disposition: "SUPPORTED_PARALLEL",
       reasoning:
-        "The selected parallel strategy is not implemented yet and requires human escalation.",
+        "The selected parallel strategy is supported through controlled decomposition and human approval before parallel execution.",
     });
   });
 });
