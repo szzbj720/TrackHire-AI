@@ -1,0 +1,28 @@
+{
+  "name": "factory",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "start": "tsx src/index.ts",
+    "inspect": "tsx src/context/inspect-repository.ts",
+    "plan": "tsx src/run-planning-demo.ts",
+    "factory:demo": "tsx src/run-sequential-demo.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^26.0.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.7",
+    "openai": "^6.49.0",
+    "zod": "^4.6.7"
+  }
+}
