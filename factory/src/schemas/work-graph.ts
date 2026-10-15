@@ -99,6 +99,102 @@ export interface WorkUnit {
       }
     }
   
+    if (errors.length > 0) {
+      return {
+        valid: false,
+        errors,
+      };
+    }
+  
+    const dependsTransitivelyOn = (
+      unitId: string,
+      targetId: string,
+      checked = new Set<string>(),
+    ): boolean => {
+      if (checked.has(unitId)) {
+        return false;
+      }
+  
+      checked.add(unitId);
+  
+      const unit = unitsById.get(unitId);
+  
+      if (!unit) {
+        return false;
+      }
+  
+      for (const dependency of unit.dependsOn) {
+        if (dependency === targetId) {
+          return true;
+        }
+  
+        if (
+          dependsTransitivelyOn(
+            dependency,
+            targetId,
+            checked,
+          )
+        ) {
+          return true;
+        }
+      }
+  
+      return false;
+    };
+  
+    for (
+      let firstIndex = 0;
+      firstIndex < graph.units.length;
+      firstIndex += 1
+    ) {
+      const first = graph.units[firstIndex];
+  
+      if (!first) {
+        continue;
+      }
+  
+      for (
+        let secondIndex = firstIndex + 1;
+        secondIndex < graph.units.length;
+        secondIndex += 1
+      ) {
+        const second = graph.units[secondIndex];
+  
+        if (!second) {
+          continue;
+        }
+  
+        const ordered =
+          dependsTransitivelyOn(
+            first.id,
+            second.id,
+          ) ||
+          dependsTransitivelyOn(
+            second.id,
+            first.id,
+          );
+  
+        if (ordered) {
+          continue;
+        }
+  
+        const firstFiles = new Set(
+          first.files,
+        );
+  
+        const conflictingFiles =
+          second.files.filter((file) =>
+            firstFiles.has(file),
+          );
+  
+        for (const file of conflictingFiles) {
+          errors.push(
+            `Concurrent work units ${first.id} and ${second.id} both modify ${file}.`,
+          );
+        }
+      }
+    }
+  
     return {
       valid: errors.length === 0,
       errors,

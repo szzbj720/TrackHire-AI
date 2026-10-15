@@ -148,4 +148,54 @@ import {
         "Work graph contains a dependency cycle.",
       );
     });
+  
+    it("rejects concurrent work units that modify the same file", () => {
+      const graph: WorkGraph = {
+        units: [
+          {
+            id: "model-a",
+            description: "Update one part of the model.",
+            files: ["lib/models/job_application.dart"],
+            dependsOn: [],
+          },
+          {
+            id: "model-b",
+            description: "Update another part of the model.",
+            files: ["lib/models/job_application.dart"],
+            dependsOn: [],
+          },
+        ],
+      };
+  
+      const result = validateWorkGraph(graph);
+  
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain(
+        "Concurrent work units model-a and model-b both modify lib/models/job_application.dart.",
+      );
+    });
+  
+    it("allows ordered work units to modify the same file", () => {
+      const graph: WorkGraph = {
+        units: [
+          {
+            id: "model",
+            description: "Add the model field.",
+            files: ["lib/models/job_application.dart"],
+            dependsOn: [],
+          },
+          {
+            id: "serialization",
+            description: "Update model serialization.",
+            files: ["lib/models/job_application.dart"],
+            dependsOn: ["model"],
+          },
+        ],
+      };
+  
+      expect(validateWorkGraph(graph)).toEqual({
+        valid: true,
+        errors: [],
+      });
+    });
   });
