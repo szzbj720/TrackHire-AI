@@ -1359,4 +1359,249 @@ describe("AdaptiveFactory", () => {
       "NEEDS_HUMAN",
     );
   });
+
+  it("completes the full adaptive parallel recovery lifecycle", async () => {
+    const diagnosis =
+      createRepairableDiagnosis();
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const validationWorkflow =
+      new FakeParallelValidationWorkflow(
+        createParallelValidation(
+          "DIAGNOSING_FAILURE",
+        ),
+      );
+
+    const diagnosisWorkflow =
+      new FakeDiagnosisWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status: "REPAIRING",
+        },
+        diagnosis,
+      });
+
+    const repairWorkflow =
+      new FakeRepairWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status: "REVIEWING",
+        },
+        repair: {
+          summary:
+            "Repaired the failing parallel implementation.",
+          changedFiles: [
+            {
+              path:
+                "lib/example.dart",
+              changeType:
+                "modified",
+              summary:
+                "Fixed the test regression.",
+            },
+          ],
+          commandsRun: [],
+          assumptions: [],
+          warnings: [],
+          requiresHumanInput: false,
+        },
+        validation: {
+          passed: true,
+          checks: [],
+          failedChecks: [],
+          durationMs: 1,
+        },
+      });
+
+    const reviewWorkflow =
+      new FakeReviewWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status:
+            "AWAITING_FINAL_APPROVAL",
+        },
+        review: {
+          approved: true,
+          summary:
+            "The repaired implementation passed independent review.",
+          findings: [],
+          requirementCoverage: [],
+          requiresHumanInput: false,
+          confidence: 0.95,
+        },
+        changeEvidence: {
+          approvedFiles: [
+            "lib/example.dart",
+          ],
+          reportedFiles: [
+            "lib/example.dart",
+          ],
+          observedFiles: [
+            "lib/example.dart",
+          ],
+          unreportedFiles: [],
+          missingReportedFiles: [],
+          unapprovedFiles: [],
+          withinApprovedScope: true,
+          reportMatchesObserved: true,
+          patch:
+            "diff --git a/lib/example.dart b/lib/example.dart",
+        },
+      });
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        validationWorkflow,
+        diagnosisWorkflow,
+        repairWorkflow,
+        reviewWorkflow,
+      );
+
+    const validationRequired =
+      createParallelValidationRequiredResult();
+
+    const diagnosed =
+      await factory.resumeAfterParallelValidation(
+        validationRequired,
+      );
+
+    expect(
+      diagnosed.stopReason,
+    ).toBe(
+      "PARALLEL_DIAGNOSIS_REQUIRED",
+    );
+
+    expect(
+      diagnosed.run.task.status,
+    ).toBe(
+      "DIAGNOSING_FAILURE",
+    );
+
+    const repairRequired =
+      await factory.resumeAfterParallelDiagnosis(
+        diagnosed,
+      );
+
+    expect(
+      repairRequired.stopReason,
+    ).toBe(
+      "PARALLEL_REPAIR_REQUIRED",
+    );
+
+    expect(
+      repairRequired.run.task.status,
+    ).toBe(
+      "REPAIRING",
+    );
+
+    const reviewRequired =
+      await factory.resumeAfterParallelRepair(
+        repairRequired,
+      );
+
+    expect(
+      reviewRequired.stopReason,
+    ).toBe(
+      "PARALLEL_REVIEW_REQUIRED",
+    );
+
+    expect(
+      reviewRequired.run.task.status,
+    ).toBe(
+      "REVIEWING",
+    );
+
+    expect(
+      reviewRequired.run.validation
+        ?.passed,
+    ).toBe(true);
+
+    expect(
+      reviewRequired.run.repairs,
+    ).toHaveLength(1);
+
+    const finalApprovalRequired =
+      await factory.resumeAfterParallelReview(
+        reviewRequired,
+      );
+
+    expect(
+      finalApprovalRequired.stopReason,
+    ).toBe(
+      "FINAL_APPROVAL_REQUIRED",
+    );
+
+    expect(
+      finalApprovalRequired.run.task.status,
+    ).toBe(
+      "AWAITING_FINAL_APPROVAL",
+    );
+
+    expect(
+      finalApprovalRequired.run.review
+        ?.approved,
+    ).toBe(true);
+
+    expect(
+      finalApprovalRequired.run.changeEvidence
+        ?.withinApprovedScope,
+    ).toBe(true);
+
+    const completed =
+      await factory.resumeAfterFinalApproval(
+        finalApprovalRequired,
+      );
+
+    expect(
+      completed.stopReason,
+    ).toBe(
+      "COMPLETE",
+    );
+
+    expect(
+      completed.run.task.status,
+    ).toBe(
+      "COMPLETE",
+    );
+
+    expect(
+      validationWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      diagnosisWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      repairWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      reviewWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      completed.run.repairs,
+    ).toHaveLength(1);
+
+    expect(
+      completed.parallelExecution,
+    ).toBeDefined();
+  });
 });
