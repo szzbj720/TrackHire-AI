@@ -56,6 +56,16 @@ import {
   class FakeSequentialFactory
     implements SequentialFactoryAdapter
   {
+
+    resumeAfterFinalApproval = vi.fn(
+      async (): Promise<never> => {
+        throw new Error(
+          "resumeAfterFinalApproval should not be called in this test.",
+        );
+      },
+    );
+
+
     resumeAfterPlanApproval = vi.fn(
       async (
         run: SequentialFactoryRun,

@@ -60,6 +60,15 @@ class FakeSequentialFactory
     private readonly result: SequentialFactoryResult,
   ) {}
 
+  resumeAfterFinalApproval = vi.fn(
+    async (): Promise<never> => {
+      throw new Error(
+        "resumeAfterFinalApproval should not be called in this test.",
+      );
+    },
+  );
+
+
   async start(
     _task: EngineeringTask,
     _repositoryRoot: string,

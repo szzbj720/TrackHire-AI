@@ -1,4 +1,5 @@
 import type { EngineeringTask } from "../schemas/task.js";
+import { Orchestrator } from "./orchestrator.js";
 import type {
   SequentialFactoryResult,
   SequentialFactoryRun,
@@ -22,6 +23,10 @@ export interface SequentialFactoryAdapter {
     run: SequentialFactoryRun,
     repositoryRoot: string,
     baseBranch: string,
+  ): Promise<SequentialFactoryResult>;
+
+  resumeAfterFinalApproval(
+    run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult>;
 }
 
@@ -131,6 +136,49 @@ export class AdaptiveFactory {
     }
   }
 
+  async resumeAfterFinalApproval(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !== "FINAL_APPROVAL_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot approve final result from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (!result.route) {
+      throw new Error(
+        "Cannot approve final result without a routing decision.",
+      );
+    }
+
+    switch (result.route.route) {
+      case "LIGHTWEIGHT":
+        return this.approveLightweightFinalResult(
+          result,
+        );
+
+      case "SEQUENTIAL": {
+        const sequentialResult =
+          await this.sequentialFactory.resumeAfterFinalApproval(
+            result.run,
+          );
+
+        return {
+          run: sequentialResult.run,
+          route: result.route,
+          stopReason: sequentialResult.stopReason,
+        };
+      }
+
+      case "HUMAN_ESCALATION":
+        throw new Error(
+          "Cannot approve final result for a human escalation route.",
+        );
+    }
+  }
+
   async resumeLightweightAfterPlanApproval(
     result: AdaptiveFactoryResult,
     repositoryRoot: string,
@@ -219,6 +267,25 @@ export class AdaptiveFactory {
         ? { route: result.route }
         : {}),
       stopReason: sequentialResult.stopReason,
+    };
+  }
+
+  private approveLightweightFinalResult(
+    result: AdaptiveFactoryResult,
+  ): AdaptiveFactoryResult {
+    const orchestrator = new Orchestrator(
+      result.run.task,
+    );
+
+    orchestrator.approveFinal();
+
+    return {
+      run: {
+        ...result.run,
+        task: orchestrator.getTask(),
+      },
+      route: result.route!,
+      stopReason: "COMPLETE",
     };
   }
 
