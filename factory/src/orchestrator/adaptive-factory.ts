@@ -26,6 +26,14 @@ import type {
 import type {
   ParallelValidationResult,
 } from "./parallel-validation-workflow.js";
+import type {
+  RepairWorkflowInput,
+  RepairWorkflowResult,
+} from "./repair-workflow.js";
+import type {
+  ReviewWorkflowInput,
+  ReviewWorkflowResult,
+} from "./review-workflow.js";
 import {
   routeTask,
   type AdaptiveRoutingDecision,
@@ -70,6 +78,18 @@ export interface DiagnosisWorkflowAdapter {
   ): Promise<DiagnosisWorkflowResult>;
 }
 
+export interface RepairWorkflowAdapter {
+  run(
+    input: RepairWorkflowInput,
+  ): Promise<RepairWorkflowResult>;
+}
+
+export interface ReviewWorkflowAdapter {
+  run(
+    input: ReviewWorkflowInput,
+  ): Promise<ReviewWorkflowResult>;
+}
+
 export type AdaptiveFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "LIGHTWEIGHT_EXECUTION_REQUIRED"
@@ -77,6 +97,7 @@ export type AdaptiveFactoryStopReason =
   | "PARALLEL_VALIDATION_REQUIRED"
   | "PARALLEL_DIAGNOSIS_REQUIRED"
   | "PARALLEL_REPAIR_REQUIRED"
+  | "PARALLEL_REVIEW_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
@@ -106,6 +127,10 @@ export class AdaptiveFactory {
       ParallelValidationWorkflowAdapter,
     private readonly diagnosisWorkflow?:
       DiagnosisWorkflowAdapter,
+    private readonly repairWorkflow?:
+      RepairWorkflowAdapter,
+    private readonly reviewWorkflow?:
+      ReviewWorkflowAdapter,
   ) {}
 
   async start(
@@ -487,6 +512,212 @@ export class AdaptiveFactory {
       default:
         throw new Error(
           `Parallel diagnosis stopped in unexpected state ${diagnosisResult.task.status}.`,
+        );
+    }
+  }
+
+  async resumeAfterParallelRepair(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "PARALLEL_REPAIR_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume parallel repair from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !==
+      "PARALLEL"
+    ) {
+      throw new Error(
+        "Cannot resume parallel repair without a parallel route.",
+      );
+    }
+
+    if (
+      !result.run.implementation ||
+      !result.run.validation ||
+      !result.run.worktree
+    ) {
+      throw new Error(
+        "Cannot resume parallel repair without implementation, validation, and worktree evidence.",
+      );
+    }
+
+    const diagnosis =
+      result.diagnosis ??
+      result.run.diagnosis;
+
+    if (!diagnosis) {
+      throw new Error(
+        "Cannot resume parallel repair without a failure diagnosis.",
+      );
+    }
+
+    if (!this.repairWorkflow) {
+      throw new Error(
+        "Cannot resume parallel repair without a repair workflow.",
+      );
+    }
+
+    const repairResult =
+      await this.repairWorkflow.run({
+        task: result.run.task,
+        implementation:
+          result.run.implementation,
+        validation:
+          result.run.validation,
+        diagnosis,
+        worktreePath:
+          result.run.worktree.path,
+      });
+
+    const repairs = [
+      ...result.run.repairs,
+      ...(repairResult.repair
+        ? [repairResult.repair]
+        : []),
+    ];
+
+    const run: SequentialFactoryRun = {
+      ...result.run,
+      task: repairResult.task,
+      validation:
+        repairResult.validation,
+      repairs,
+    };
+
+    switch (
+      repairResult.task.status
+    ) {
+      case "REVIEWING":
+        return {
+          ...result,
+          run,
+          diagnosis,
+          stopReason:
+            "PARALLEL_REVIEW_REQUIRED",
+        };
+
+      case "DIAGNOSING_FAILURE":
+        return {
+          ...result,
+          run,
+          diagnosis,
+          stopReason:
+            "PARALLEL_DIAGNOSIS_REQUIRED",
+        };
+
+      case "NEEDS_HUMAN":
+        return {
+          ...result,
+          run,
+          diagnosis,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+
+      default:
+        throw new Error(
+          `Parallel repair stopped in unexpected state ${repairResult.task.status}.`,
+        );
+    }
+  }
+
+  async resumeAfterParallelReview(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "PARALLEL_REVIEW_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume parallel review from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !==
+      "PARALLEL"
+    ) {
+      throw new Error(
+        "Cannot resume parallel review without a parallel route.",
+      );
+    }
+
+    if (
+      !result.parallelExecution
+    ) {
+      throw new Error(
+        "Cannot resume parallel review without parallel execution evidence.",
+      );
+    }
+
+    if (
+      !result.run.implementation ||
+      !result.run.validation ||
+      !result.run.worktree
+    ) {
+      throw new Error(
+        "Cannot resume parallel review without implementation, validation, and worktree evidence.",
+      );
+    }
+
+    if (!this.reviewWorkflow) {
+      throw new Error(
+        "Cannot resume parallel review without a review workflow.",
+      );
+    }
+
+    const reviewResult =
+      await this.reviewWorkflow.run({
+        task: result.run.task,
+        implementation:
+          result.run.implementation,
+        validation:
+          result.run.validation,
+        worktreePath:
+          result.run.worktree.path,
+        baseRef:
+          result.parallelExecution.baseCommit,
+      });
+
+    const run: SequentialFactoryRun = {
+      ...result.run,
+      task: reviewResult.task,
+      changeEvidence:
+        reviewResult.changeEvidence,
+      ...(reviewResult.review
+        ? {
+            review:
+              reviewResult.review,
+          }
+        : {}),
+    };
+
+    switch (reviewResult.task.status) {
+      case "AWAITING_FINAL_APPROVAL":
+        return {
+          ...result,
+          run,
+          stopReason:
+            "FINAL_APPROVAL_REQUIRED",
+        };
+
+      case "NEEDS_HUMAN":
+        return {
+          ...result,
+          run,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+
+      default:
+        throw new Error(
+          `Parallel review stopped in unexpected state ${reviewResult.task.status}.`,
         );
     }
   }
