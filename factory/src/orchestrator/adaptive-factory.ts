@@ -16,6 +16,9 @@ import type {
 import type {
   ParallelPlanningWorkflow,
 } from "./parallel-planning-workflow.js";
+import type {
+  ParallelValidationResult,
+} from "./parallel-validation-workflow.js";
 import {
   routeTask,
   type AdaptiveRoutingDecision,
@@ -48,11 +51,18 @@ export interface ParallelExecutionWorkflowAdapter {
   ): Promise<ParallelExecutionResult>;
 }
 
+export interface ParallelValidationWorkflowAdapter {
+  run(
+    execution: ParallelExecutionResult,
+  ): Promise<ParallelValidationResult>;
+}
+
 export type AdaptiveFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "LIGHTWEIGHT_EXECUTION_REQUIRED"
   | "PARALLEL_APPROVAL_REQUIRED"
   | "PARALLEL_VALIDATION_REQUIRED"
+  | "PARALLEL_DIAGNOSIS_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
@@ -63,6 +73,7 @@ export interface AdaptiveFactoryResult {
   route?: AdaptiveRoutingDecision;
   workGraph?: WorkGraph;
   parallelExecution?: ParallelExecutionResult;
+  parallelValidation?: ParallelValidationResult;
   stopReason: AdaptiveFactoryStopReason;
 }
 
@@ -76,6 +87,8 @@ export class AdaptiveFactory {
       ParallelPlanningWorkflow,
     private readonly parallelExecutionWorkflow?:
       ParallelExecutionWorkflowAdapter,
+    private readonly parallelValidationWorkflow?:
+      ParallelValidationWorkflowAdapter,
   ) {}
 
   async start(
@@ -253,6 +266,128 @@ export class AdaptiveFactory {
     }
   }
 
+  async resumeAfterParallelValidation(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "PARALLEL_VALIDATION_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume parallel validation from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !== "PARALLEL"
+    ) {
+      throw new Error(
+        "Cannot resume parallel validation without a parallel route.",
+      );
+    }
+
+    if (!result.parallelExecution) {
+      throw new Error(
+        "Cannot resume parallel validation without parallel execution evidence.",
+      );
+    }
+
+    if (
+      !this.parallelValidationWorkflow
+    ) {
+      throw new Error(
+        "Cannot resume parallel validation without a parallel validation workflow.",
+      );
+    }
+
+    const parallelValidation =
+      await this.parallelValidationWorkflow.run(
+        result.parallelExecution,
+      );
+
+    const run: SequentialFactoryRun = {
+      ...result.run,
+      task: parallelValidation.task,
+      implementation:
+        parallelValidation.implementation,
+      validation:
+        parallelValidation.validation,
+      ...(parallelValidation.review?.review
+        ? {
+            review:
+              parallelValidation.review.review,
+          }
+        : {}),
+      ...(parallelValidation.review
+        ? {
+            changeEvidence:
+              parallelValidation.review
+                .changeEvidence,
+          }
+        : {}),
+    };
+
+    switch (
+      parallelValidation.task.status
+    ) {
+      case "AWAITING_FINAL_APPROVAL":
+        return {
+          run,
+          route: result.route,
+          ...(result.workGraph
+            ? {
+                workGraph:
+                  result.workGraph,
+              }
+            : {}),
+          parallelExecution:
+            result.parallelExecution,
+          parallelValidation,
+          stopReason:
+            "FINAL_APPROVAL_REQUIRED",
+        };
+
+      case "NEEDS_HUMAN":
+        return {
+          run,
+          route: result.route,
+          ...(result.workGraph
+            ? {
+                workGraph:
+                  result.workGraph,
+              }
+            : {}),
+          parallelExecution:
+            result.parallelExecution,
+          parallelValidation,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+
+      case "DIAGNOSING_FAILURE":
+        return {
+          run,
+          route: result.route,
+          ...(result.workGraph
+            ? {
+                workGraph:
+                  result.workGraph,
+              }
+            : {}),
+          parallelExecution:
+            result.parallelExecution,
+          parallelValidation,
+          stopReason:
+            "PARALLEL_DIAGNOSIS_REQUIRED",
+        };
+
+      default:
+        throw new Error(
+          `Parallel validation stopped in unexpected state ${parallelValidation.task.status}.`,
+        );
+    }
+  }
+
   async resumeAfterFinalApproval(
     result: AdaptiveFactoryResult,
   ): Promise<AdaptiveFactoryResult> {
@@ -273,7 +408,7 @@ export class AdaptiveFactory {
 
     switch (result.route.route) {
       case "LIGHTWEIGHT":
-        return this.approveLightweightFinalResult(
+        return this.approveFinalResult(
           result,
         );
 
@@ -292,8 +427,8 @@ export class AdaptiveFactory {
       }
 
       case "PARALLEL":
-        throw new Error(
-          "Cannot approve final result for a parallel route before parallel validation and review are complete.",
+        return this.approveFinalResult(
+          result,
         );
     }
   }
@@ -437,14 +572,16 @@ export class AdaptiveFactory {
     return {
       run: sequentialResult.run,
       ...(result.route
-        ? { route: result.route }
+        ? {
+            route: result.route,
+          }
         : {}),
       stopReason:
         sequentialResult.stopReason,
     };
   }
 
-  private approveLightweightFinalResult(
+  private approveFinalResult(
     result: AdaptiveFactoryResult,
   ): AdaptiveFactoryResult {
     const orchestrator =
@@ -455,11 +592,11 @@ export class AdaptiveFactory {
     orchestrator.approveFinal();
 
     return {
+      ...result,
       run: {
         ...result.run,
         task: orchestrator.getTask(),
       },
-      route: result.route!,
       stopReason: "COMPLETE",
     };
   }
