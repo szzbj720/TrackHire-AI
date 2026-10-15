@@ -1,9 +1,16 @@
 import type {
+  FailureDiagnosis,
+} from "../schemas/diagnosis.js";
+import type {
   EngineeringTask,
 } from "../schemas/task.js";
 import type {
   WorkGraph,
 } from "../schemas/work-graph.js";
+import type {
+  DiagnosisWorkflowInput,
+  DiagnosisWorkflowResult,
+} from "./diagnosis-workflow.js";
 import type {
   LightweightWorkflow,
   LightweightWorkflowResult,
@@ -57,12 +64,19 @@ export interface ParallelValidationWorkflowAdapter {
   ): Promise<ParallelValidationResult>;
 }
 
+export interface DiagnosisWorkflowAdapter {
+  run(
+    input: DiagnosisWorkflowInput,
+  ): Promise<DiagnosisWorkflowResult>;
+}
+
 export type AdaptiveFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "LIGHTWEIGHT_EXECUTION_REQUIRED"
   | "PARALLEL_APPROVAL_REQUIRED"
   | "PARALLEL_VALIDATION_REQUIRED"
   | "PARALLEL_DIAGNOSIS_REQUIRED"
+  | "PARALLEL_REPAIR_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
@@ -74,6 +88,7 @@ export interface AdaptiveFactoryResult {
   workGraph?: WorkGraph;
   parallelExecution?: ParallelExecutionResult;
   parallelValidation?: ParallelValidationResult;
+  diagnosis?: FailureDiagnosis;
   stopReason: AdaptiveFactoryStopReason;
 }
 
@@ -89,6 +104,8 @@ export class AdaptiveFactory {
       ParallelExecutionWorkflowAdapter,
     private readonly parallelValidationWorkflow?:
       ParallelValidationWorkflowAdapter,
+    private readonly diagnosisWorkflow?:
+      DiagnosisWorkflowAdapter,
   ) {}
 
   async start(
@@ -121,9 +138,8 @@ export class AdaptiveFactory {
       );
     }
 
-    const route = routeTask(
-      result.run.task,
-    );
+    const route =
+      routeTask(result.run.task);
 
     switch (route.route) {
       case "LIGHTWEIGHT":
@@ -200,7 +216,8 @@ export class AdaptiveFactory {
     }
 
     if (
-      result.route?.route !== "PARALLEL"
+      result.route?.route !==
+      "PARALLEL"
     ) {
       throw new Error(
         "Cannot resume parallel execution without a parallel route.",
@@ -279,7 +296,8 @@ export class AdaptiveFactory {
     }
 
     if (
-      result.route?.route !== "PARALLEL"
+      result.route?.route !==
+      "PARALLEL"
     ) {
       throw new Error(
         "Cannot resume parallel validation without a parallel route.",
@@ -384,6 +402,91 @@ export class AdaptiveFactory {
       default:
         throw new Error(
           `Parallel validation stopped in unexpected state ${parallelValidation.task.status}.`,
+        );
+    }
+  }
+
+  async resumeAfterParallelDiagnosis(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "PARALLEL_DIAGNOSIS_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume parallel diagnosis from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !==
+      "PARALLEL"
+    ) {
+      throw new Error(
+        "Cannot resume parallel diagnosis without a parallel route.",
+      );
+    }
+
+    if (
+      !result.run.implementation ||
+      !result.run.validation ||
+      !result.run.worktree
+    ) {
+      throw new Error(
+        "Cannot resume parallel diagnosis without implementation, validation, and worktree evidence.",
+      );
+    }
+
+    if (!this.diagnosisWorkflow) {
+      throw new Error(
+        "Cannot resume parallel diagnosis without a diagnosis workflow.",
+      );
+    }
+
+    const diagnosisResult =
+      await this.diagnosisWorkflow.run({
+        task: result.run.task,
+        implementation:
+          result.run.implementation,
+        validation:
+          result.run.validation,
+        worktreePath:
+          result.run.worktree.path,
+      });
+
+    const run: SequentialFactoryRun = {
+      ...result.run,
+      task: diagnosisResult.task,
+      diagnosis:
+        diagnosisResult.diagnosis,
+    };
+
+    switch (
+      diagnosisResult.task.status
+    ) {
+      case "REPAIRING":
+        return {
+          ...result,
+          run,
+          diagnosis:
+            diagnosisResult.diagnosis,
+          stopReason:
+            "PARALLEL_REPAIR_REQUIRED",
+        };
+
+      case "NEEDS_HUMAN":
+        return {
+          ...result,
+          run,
+          diagnosis:
+            diagnosisResult.diagnosis,
+          stopReason:
+            "HUMAN_INPUT_REQUIRED",
+        };
+
+      default:
+        throw new Error(
+          `Parallel diagnosis stopped in unexpected state ${diagnosisResult.task.status}.`,
         );
     }
   }
