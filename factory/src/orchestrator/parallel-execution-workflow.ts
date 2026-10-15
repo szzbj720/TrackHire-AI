@@ -10,6 +10,9 @@ import type {
     cherryPickCommits,
   } from "../tools/git-integration.js";
   import {
+    resolveGitRevision,
+  } from "../tools/git-revision.js";
+  import {
     createTaskWorktree,
     type Worktree,
   } from "../tools/git-worktree.js";
@@ -34,6 +37,7 @@ import type {
   
   export interface ParallelExecutionResult {
     task: EngineeringTask;
+    baseCommit: string;
     integrationWorktree: Worktree;
     workerResults: ParallelWorkerResult[];
   }
@@ -56,6 +60,12 @@ import type {
         );
       }
   
+      const baseCommit =
+        await resolveGitRevision(
+          input.repositoryRoot,
+          input.baseBranch,
+        );
+  
       const orchestrator =
         new Orchestrator(input.task);
   
@@ -70,8 +80,7 @@ import type {
             input.repositoryRoot,
           taskId:
             `${input.task.id}-integration`,
-          baseBranch:
-            input.baseBranch,
+          baseBranch: baseCommit,
         });
   
       const workerResults:
@@ -125,6 +134,7 @@ import type {
   
           return {
             task: orchestrator.getTask(),
+            baseCommit,
             integrationWorktree,
             workerResults,
           };
@@ -147,7 +157,9 @@ import type {
                 `factory: complete ${result.unit.id}`,
             });
   
-          commitHashes.push(commit.hash);
+          commitHashes.push(
+            commit.hash,
+          );
         }
   
         await cherryPickCommits({
@@ -157,10 +169,13 @@ import type {
         });
       }
   
-      orchestrator.transition("VALIDATING");
+      orchestrator.transition(
+        "VALIDATING",
+      );
   
       return {
         task: orchestrator.getTask(),
+        baseCommit,
         integrationWorktree,
         workerResults,
       };
@@ -192,7 +207,9 @@ import type {
         );
       }
   
-      if (task.plan.requiresHumanInput) {
+      if (
+        task.plan.requiresHumanInput
+      ) {
         throw new Error(
           "Cannot execute parallel work from a plan that still requires human input.",
         );
