@@ -12,7 +12,7 @@ import {
   import {
     AdaptiveFactory,
     type AdaptiveFactoryResult,
-    type SequentialFactoryStarter,
+    type SequentialFactoryAdapter,
   } from "./adaptive-factory.js";
   
   vi.mock("../tools/git-worktree.js", () => ({
@@ -70,8 +70,16 @@ import {
   }
   
   class FakeSequentialFactory
-    implements SequentialFactoryStarter
+    implements SequentialFactoryAdapter
   {
+    resumeAfterPlanApproval = vi.fn(
+      async (): Promise<never> => {
+        throw new Error(
+          "resumeAfterPlanApproval should not be called in this test.",
+        );
+      },
+    );
+
     async start(): Promise<never> {
       throw new Error(
         "start should not be called in this test.",

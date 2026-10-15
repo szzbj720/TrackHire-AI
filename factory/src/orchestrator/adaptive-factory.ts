@@ -12,10 +12,16 @@ import {
   type AdaptiveRoutingDecision,
 } from "./adaptive-routing.js";
 
-export interface SequentialFactoryStarter {
+export interface SequentialFactoryAdapter {
   start(
     task: EngineeringTask,
     repositoryRoot: string,
+  ): Promise<SequentialFactoryResult>;
+
+  resumeAfterPlanApproval(
+    run: SequentialFactoryRun,
+    repositoryRoot: string,
+    baseBranch: string,
   ): Promise<SequentialFactoryResult>;
 }
 
@@ -24,6 +30,7 @@ export type AdaptiveFactoryStopReason =
   | "LIGHTWEIGHT_EXECUTION_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
+  | "COMPLETE"
   | "FAILED";
 
 export interface AdaptiveFactoryResult {
@@ -34,7 +41,7 @@ export interface AdaptiveFactoryResult {
 
 export class AdaptiveFactory {
   constructor(
-    private readonly sequentialFactory: SequentialFactoryStarter,
+    private readonly sequentialFactory: SequentialFactoryAdapter,
     private readonly lightweightWorkflow?: LightweightWorkflow,
   ) {}
 
@@ -88,6 +95,39 @@ export class AdaptiveFactory {
           route,
           stopReason: "HUMAN_INPUT_REQUIRED",
         };
+    }
+  }
+
+  async resumeAfterPlanApproval(
+    result: AdaptiveFactoryResult,
+    repositoryRoot: string,
+    baseBranch: string,
+  ): Promise<AdaptiveFactoryResult> {
+    if (!result.route) {
+      throw new Error(
+        "Cannot resume adaptive execution without a routing decision.",
+      );
+    }
+
+    switch (result.route.route) {
+      case "LIGHTWEIGHT":
+        return this.resumeLightweightAfterPlanApproval(
+          result,
+          repositoryRoot,
+          baseBranch,
+        );
+
+      case "SEQUENTIAL":
+        return this.resumeSequentialAfterPlanApproval(
+          result,
+          repositoryRoot,
+          baseBranch,
+        );
+
+      case "HUMAN_ESCALATION":
+        throw new Error(
+          "Cannot resume a task that requires human escalation.",
+        );
     }
   }
 
@@ -151,6 +191,35 @@ export class AdaptiveFactory {
           `Lightweight execution stopped in unexpected state ${lightweightResult.task.status}.`,
         );
     }
+  }
+
+  private async resumeSequentialAfterPlanApproval(
+    result: AdaptiveFactoryResult,
+    repositoryRoot: string,
+    baseBranch: string,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !== "PLAN_APPROVAL_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume sequential execution from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    const sequentialResult =
+      await this.sequentialFactory.resumeAfterPlanApproval(
+        result.run,
+        repositoryRoot,
+        baseBranch,
+      );
+
+    return {
+      run: sequentialResult.run,
+      ...(result.route
+        ? { route: result.route }
+        : {}),
+      stopReason: sequentialResult.stopReason,
+    };
   }
 
   private mergeLightweightResult(

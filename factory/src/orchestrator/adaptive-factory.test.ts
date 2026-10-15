@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { EngineeringTask } from "../schemas/task.js";
 import type {
   SequentialFactoryResult,
 } from "./sequential-factory.js";
 import {
   AdaptiveFactory,
-  type SequentialFactoryStarter,
+  type SequentialFactoryAdapter,
 } from "./adaptive-factory.js";
 
 function createTask(): EngineeringTask {
@@ -44,8 +44,16 @@ function createPlannedResult(
 }
 
 class FakeSequentialFactory
-  implements SequentialFactoryStarter
+  implements SequentialFactoryAdapter
 {
+  resumeAfterPlanApproval = vi.fn(
+    async (): Promise<never> => {
+      throw new Error(
+        "resumeAfterPlanApproval should not be called in this test.",
+      );
+    },
+  );
+
   calls = 0;
 
   constructor(
