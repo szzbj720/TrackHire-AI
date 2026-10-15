@@ -3,6 +3,10 @@ import type {
   SequentialFactoryResult,
   SequentialFactoryRun,
 } from "./sequential-factory.js";
+import type {
+  LightweightWorkflow,
+  LightweightWorkflowResult,
+} from "./lightweight-workflow.js";
 import {
   routeTask,
   type AdaptiveRoutingDecision,
@@ -18,6 +22,7 @@ export interface SequentialFactoryStarter {
 export type AdaptiveFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "LIGHTWEIGHT_EXECUTION_REQUIRED"
+  | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "FAILED";
 
@@ -30,6 +35,7 @@ export interface AdaptiveFactoryResult {
 export class AdaptiveFactory {
   constructor(
     private readonly sequentialFactory: SequentialFactoryStarter,
+    private readonly lightweightWorkflow?: LightweightWorkflow,
   ) {}
 
   async start(
@@ -66,8 +72,7 @@ export class AdaptiveFactory {
         return {
           run: result.run,
           route,
-          stopReason:
-            "LIGHTWEIGHT_EXECUTION_REQUIRED",
+          stopReason: "LIGHTWEIGHT_EXECUTION_REQUIRED",
         };
 
       case "SEQUENTIAL":
@@ -84,5 +89,82 @@ export class AdaptiveFactory {
           stopReason: "HUMAN_INPUT_REQUIRED",
         };
     }
+  }
+
+  async resumeLightweightAfterPlanApproval(
+    result: AdaptiveFactoryResult,
+    repositoryRoot: string,
+    baseBranch: string,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "LIGHTWEIGHT_EXECUTION_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume lightweight execution from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !== "LIGHTWEIGHT"
+    ) {
+      throw new Error(
+        "Cannot resume lightweight execution without a lightweight route.",
+      );
+    }
+
+    if (!this.lightweightWorkflow) {
+      throw new Error(
+        "Cannot resume lightweight execution without a lightweight workflow.",
+      );
+    }
+
+    const lightweightResult =
+      await this.lightweightWorkflow.run(
+        result.run.task,
+        repositoryRoot,
+        baseBranch,
+      );
+
+    const run = this.mergeLightweightResult(
+      result.run,
+      lightweightResult,
+    );
+
+    switch (lightweightResult.task.status) {
+      case "AWAITING_FINAL_APPROVAL":
+        return {
+          run,
+          route: result.route,
+          stopReason: "FINAL_APPROVAL_REQUIRED",
+        };
+
+      case "NEEDS_HUMAN":
+        return {
+          run,
+          route: result.route,
+          stopReason: "HUMAN_INPUT_REQUIRED",
+        };
+
+      default:
+        throw new Error(
+          `Lightweight execution stopped in unexpected state ${lightweightResult.task.status}.`,
+        );
+    }
+  }
+
+  private mergeLightweightResult(
+    run: SequentialFactoryRun,
+    result: LightweightWorkflowResult,
+  ): SequentialFactoryRun {
+    return {
+      ...run,
+      task: result.task,
+      worktree: result.worktree,
+      implementation: result.implementation,
+      ...(result.validation
+        ? { validation: result.validation }
+        : {}),
+    };
   }
 }
