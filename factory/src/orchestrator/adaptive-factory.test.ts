@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { EngineeringTask } from "../schemas/task.js";
 import type {
   SequentialFactoryResult,
@@ -46,35 +46,27 @@ function createPlannedResult(
 class FakeSequentialFactory
   implements SequentialFactoryAdapter
 {
-  resumeAfterPlanApproval = vi.fn(
-    async (): Promise<never> => {
-      throw new Error(
-        "resumeAfterPlanApproval should not be called in this test.",
-      );
-    },
-  );
-
   calls = 0;
 
   constructor(
     private readonly result: SequentialFactoryResult,
   ) {}
 
-  resumeAfterFinalApproval = vi.fn(
-    async (): Promise<never> => {
-      throw new Error(
-        "resumeAfterFinalApproval should not be called in this test.",
-      );
-    },
-  );
-
-
-  async start(
-    _task: EngineeringTask,
-    _repositoryRoot: string,
-  ): Promise<SequentialFactoryResult> {
+  async start(): Promise<SequentialFactoryResult> {
     this.calls += 1;
     return this.result;
+  }
+
+  async resumeAfterPlanApproval(): Promise<never> {
+    throw new Error(
+      "resumeAfterPlanApproval should not be called in this test.",
+    );
+  }
+
+  async resumeAfterFinalApproval(): Promise<never> {
+    throw new Error(
+      "resumeAfterFinalApproval should not be called in this test.",
+    );
   }
 }
 
@@ -144,7 +136,9 @@ describe("AdaptiveFactory", () => {
       "HUMAN_ESCALATION",
     );
     expect(result.run.worktree).toBeUndefined();
-    expect(result.run.implementation).toBeUndefined();
+    expect(
+      result.run.implementation,
+    ).toBeUndefined();
   });
 
   it("preserves human escalation when planning already requires human input", async () => {
@@ -174,7 +168,9 @@ describe("AdaptiveFactory", () => {
     expect(adaptiveResult.stopReason).toBe(
       "HUMAN_INPUT_REQUIRED",
     );
-    expect(adaptiveResult.route).toBeUndefined();
+    expect(
+      adaptiveResult.route,
+    ).toBeUndefined();
   });
 
   it("preserves planning failure", async () => {
@@ -201,7 +197,11 @@ describe("AdaptiveFactory", () => {
       "/repository",
     );
 
-    expect(adaptiveResult.stopReason).toBe("FAILED");
-    expect(adaptiveResult.route).toBeUndefined();
+    expect(adaptiveResult.stopReason).toBe(
+      "FAILED",
+    );
+    expect(
+      adaptiveResult.route,
+    ).toBeUndefined();
   });
 });
