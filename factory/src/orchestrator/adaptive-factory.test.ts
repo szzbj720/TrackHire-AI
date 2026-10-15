@@ -5,6 +5,9 @@ import {
 } from "vitest";
 
 import type {
+  FailureDiagnosis,
+} from "../schemas/diagnosis.js";
+import type {
   EngineeringTask,
 } from "../schemas/task.js";
 import {
@@ -13,15 +16,30 @@ import {
 import {
   AdaptiveFactory,
   type AdaptiveFactoryResult,
+  type DiagnosisWorkflowAdapter,
   type ParallelValidationWorkflowAdapter,
+  type RepairWorkflowAdapter,
+  type ReviewWorkflowAdapter,
   type SequentialFactoryAdapter,
 } from "./adaptive-factory.js";
+import type {
+  DiagnosisWorkflowInput,
+  DiagnosisWorkflowResult,
+} from "./diagnosis-workflow.js";
 import type {
   ParallelExecutionResult,
 } from "./parallel-execution-workflow.js";
 import type {
   ParallelValidationResult,
 } from "./parallel-validation-workflow.js";
+import type {
+  RepairWorkflowInput,
+  RepairWorkflowResult,
+} from "./repair-workflow.js";
+import type {
+  ReviewWorkflowInput,
+  ReviewWorkflowResult,
+} from "./review-workflow.js";
 import type {
   SequentialFactoryResult,
 } from "./sequential-factory.js";
@@ -179,6 +197,109 @@ function createParallelValidationRequiredResult(): AdaptiveFactoryResult {
   };
 }
 
+function createRepairableDiagnosis(): FailureDiagnosis {
+  return {
+    category:
+      "TEST_REGRESSION",
+    summary:
+      "The implementation caused a test regression.",
+    evidence: [
+      "The deterministic test check failed.",
+    ],
+    suspectedFiles: [
+      "lib/example.dart",
+    ],
+    recommendedAction:
+      "Repair the implementation and rerun validation.",
+    repairable: true,
+    confidence: 0.9,
+    requiresHumanInput: false,
+  };
+}
+
+function createDiagnosisRequiredResult(): AdaptiveFactoryResult {
+  const result =
+    createParallelValidationRequiredResult();
+
+  return {
+    ...result,
+    run: {
+      ...result.run,
+      task: {
+        ...result.run.task,
+        status:
+          "DIAGNOSING_FAILURE",
+      },
+      implementation: {
+        summary:
+          "Integrated parallel implementation.",
+        changedFiles: [],
+        commandsRun: [],
+        assumptions: [],
+        warnings: [],
+        requiresHumanInput: false,
+      },
+      validation: {
+        passed: false,
+        checks: [],
+        failedChecks: [
+          "test",
+        ],
+        durationMs: 1,
+      },
+    },
+    stopReason:
+      "PARALLEL_DIAGNOSIS_REQUIRED",
+  };
+}
+
+function createRepairRequiredResult(): AdaptiveFactoryResult {
+  const result =
+    createDiagnosisRequiredResult();
+
+  const diagnosis =
+    createRepairableDiagnosis();
+
+  return {
+    ...result,
+    run: {
+      ...result.run,
+      task: {
+        ...result.run.task,
+        status: "REPAIRING",
+      },
+      diagnosis,
+    },
+    diagnosis,
+    stopReason:
+      "PARALLEL_REPAIR_REQUIRED",
+  };
+}
+
+function createReviewRequiredResult(): AdaptiveFactoryResult {
+  const result =
+    createRepairRequiredResult();
+
+  return {
+    ...result,
+    run: {
+      ...result.run,
+      task: {
+        ...result.run.task,
+        status: "REVIEWING",
+      },
+      validation: {
+        passed: true,
+        checks: [],
+        failedChecks: [],
+        durationMs: 1,
+      },
+    },
+    stopReason:
+      "PARALLEL_REVIEW_REQUIRED",
+  };
+}
+
 class FakeSequentialFactory
   implements SequentialFactoryAdapter
 {
@@ -223,6 +344,70 @@ class FakeParallelValidationWorkflow
       ParallelExecutionResult,
   ): Promise<ParallelValidationResult> {
     this.calls += 1;
+
+    return this.result;
+  }
+}
+
+class FakeDiagnosisWorkflow
+  implements DiagnosisWorkflowAdapter
+{
+  calls = 0;
+
+  constructor(
+    private readonly result:
+      DiagnosisWorkflowResult,
+  ) {}
+
+  async run(
+    _input:
+      DiagnosisWorkflowInput,
+  ): Promise<DiagnosisWorkflowResult> {
+    this.calls += 1;
+
+    return this.result;
+  }
+}
+
+class FakeRepairWorkflow
+  implements RepairWorkflowAdapter
+{
+  calls = 0;
+
+  constructor(
+    private readonly result:
+      RepairWorkflowResult,
+  ) {}
+
+  async run(
+    _input:
+      RepairWorkflowInput,
+  ): Promise<RepairWorkflowResult> {
+    this.calls += 1;
+
+    return this.result;
+  }
+}
+
+class FakeReviewWorkflow
+  implements ReviewWorkflowAdapter
+{
+  calls = 0;
+
+  lastInput:
+    ReviewWorkflowInput | undefined;
+
+  constructor(
+    private readonly result:
+      ReviewWorkflowResult,
+  ) {}
+
+  async run(
+    input:
+      ReviewWorkflowInput,
+  ): Promise<ReviewWorkflowResult> {
+    this.calls += 1;
+    this.lastInput = input;
 
     return this.result;
   }
@@ -630,5 +815,548 @@ describe("AdaptiveFactory", () => {
     expect(
       completed.parallelValidation,
     ).toBeDefined();
+  });
+
+  it("routes a repairable parallel diagnosis into repair", async () => {
+    const diagnosis =
+      createRepairableDiagnosis();
+
+    const diagnosisWorkflow =
+      new FakeDiagnosisWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status: "REPAIRING",
+        },
+        diagnosis,
+      });
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        diagnosisWorkflow,
+      );
+
+    const result =
+      await factory.resumeAfterParallelDiagnosis(
+        createDiagnosisRequiredResult(),
+      );
+
+    expect(
+      diagnosisWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "PARALLEL_REPAIR_REQUIRED",
+    );
+
+    expect(
+      result.run.task.status,
+    ).toBe("REPAIRING");
+
+    expect(
+      result.diagnosis,
+    ).toEqual(diagnosis);
+
+    expect(
+      result.run.diagnosis,
+    ).toEqual(diagnosis);
+  });
+
+  it("preserves human escalation when diagnosis cannot continue automatically", async () => {
+    const diagnosis:
+      FailureDiagnosis = {
+        category:
+          "REQUIREMENT_AMBIGUITY",
+        summary:
+          "The failure depends on an ambiguous requirement.",
+        evidence: [
+          "The expected behavior cannot be determined from the task.",
+        ],
+        suspectedFiles: [],
+        recommendedAction:
+          "Ask a human to clarify the requirement.",
+        repairable: false,
+        confidence: 0.9,
+        requiresHumanInput: true,
+      };
+
+    const diagnosisWorkflow =
+      new FakeDiagnosisWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status:
+            "NEEDS_HUMAN",
+        },
+        diagnosis,
+      });
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        diagnosisWorkflow,
+      );
+
+    const result =
+      await factory.resumeAfterParallelDiagnosis(
+        createDiagnosisRequiredResult(),
+      );
+
+    expect(
+      diagnosisWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "HUMAN_INPUT_REQUIRED",
+    );
+
+    expect(
+      result.run.task.status,
+    ).toBe(
+      "NEEDS_HUMAN",
+    );
+
+    expect(
+      result.diagnosis,
+    ).toEqual(diagnosis);
+  });
+
+  it("moves a successful parallel repair into review", async () => {
+    const repairWorkflow =
+      new FakeRepairWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status: "REVIEWING",
+        },
+        repair: {
+          summary:
+            "Repaired the failing implementation.",
+          changedFiles: [
+            {
+              path:
+                "lib/example.dart",
+              changeType:
+                "modified",
+              summary:
+                "Fixed the regression.",
+            },
+          ],
+          commandsRun: [],
+          assumptions: [],
+          warnings: [],
+          requiresHumanInput: false,
+        },
+        validation: {
+          passed: true,
+          checks: [],
+          failedChecks: [],
+          durationMs: 1,
+        },
+      });
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        repairWorkflow,
+      );
+
+    const result =
+      await factory.resumeAfterParallelRepair(
+        createRepairRequiredResult(),
+      );
+
+    expect(
+      repairWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "PARALLEL_REVIEW_REQUIRED",
+    );
+
+    expect(
+      result.run.task.status,
+    ).toBe("REVIEWING");
+
+    expect(
+      result.run.validation
+        ?.passed,
+    ).toBe(true);
+
+    expect(
+      result.run.repairs,
+    ).toHaveLength(1);
+  });
+
+  it("returns a failed parallel repair to diagnosis", async () => {
+    const repairWorkflow =
+      new FakeRepairWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status:
+            "DIAGNOSING_FAILURE",
+        },
+        repair: {
+          summary:
+            "Attempted to repair the implementation.",
+          changedFiles: [
+            {
+              path:
+                "lib/example.dart",
+              changeType:
+                "modified",
+              summary:
+                "Attempted regression repair.",
+            },
+          ],
+          commandsRun: [],
+          assumptions: [],
+          warnings: [],
+          requiresHumanInput: false,
+        },
+        validation: {
+          passed: false,
+          checks: [],
+          failedChecks: [
+            "test",
+          ],
+          durationMs: 1,
+        },
+      });
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        repairWorkflow,
+      );
+
+    const result =
+      await factory.resumeAfterParallelRepair(
+        createRepairRequiredResult(),
+      );
+
+    expect(
+      repairWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "PARALLEL_DIAGNOSIS_REQUIRED",
+    );
+
+    expect(
+      result.run.task.status,
+    ).toBe(
+      "DIAGNOSING_FAILURE",
+    );
+
+    expect(
+      result.run.validation
+        ?.passed,
+    ).toBe(false);
+
+    expect(
+      result.run.repairs,
+    ).toHaveLength(1);
+  });
+
+  it("preserves human escalation when bounded repair stops", async () => {
+    const repairWorkflow =
+      new FakeRepairWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status:
+            "NEEDS_HUMAN",
+        },
+        validation: {
+          passed: false,
+          checks: [],
+          failedChecks: [
+            "test",
+          ],
+          durationMs: 1,
+        },
+      });
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        repairWorkflow,
+      );
+
+    const result =
+      await factory.resumeAfterParallelRepair(
+        createRepairRequiredResult(),
+      );
+
+    expect(
+      repairWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "HUMAN_INPUT_REQUIRED",
+    );
+
+    expect(
+      result.run.task.status,
+    ).toBe(
+      "NEEDS_HUMAN",
+    );
+
+    expect(
+      result.run.repairs,
+    ).toHaveLength(0);
+  });
+
+  it("moves an approved post-repair review to final approval", async () => {
+    const reviewWorkflow =
+      new FakeReviewWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status:
+            "AWAITING_FINAL_APPROVAL",
+        },
+        review: {
+          approved: true,
+          summary:
+            "The repaired implementation is ready for final approval.",
+          findings: [],
+          requirementCoverage: [],
+          requiresHumanInput: false,
+          confidence: 0.95,
+        },
+        changeEvidence: {
+          approvedFiles: [
+            "lib/example.dart",
+          ],
+          reportedFiles: [
+            "lib/example.dart",
+          ],
+          observedFiles: [
+            "lib/example.dart",
+          ],
+          unreportedFiles: [],
+          missingReportedFiles: [],
+          unapprovedFiles: [],
+          withinApprovedScope: true,
+          reportMatchesObserved: true,
+          patch:
+            "diff --git a/lib/example.dart b/lib/example.dart",
+        },
+      });
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        reviewWorkflow,
+      );
+
+    const result =
+      await factory.resumeAfterParallelReview(
+        createReviewRequiredResult(),
+      );
+
+    expect(
+      reviewWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      reviewWorkflow.lastInput
+        ?.baseRef,
+    ).toBe(
+      "1111111111111111111111111111111111111111",
+    );
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "FINAL_APPROVAL_REQUIRED",
+    );
+
+    expect(
+      result.run.task.status,
+    ).toBe(
+      "AWAITING_FINAL_APPROVAL",
+    );
+
+    expect(
+      result.run.review
+        ?.approved,
+    ).toBe(true);
+
+    expect(
+      result.run.changeEvidence
+        ?.withinApprovedScope,
+    ).toBe(true);
+  });
+
+  it("preserves human escalation from post-repair review", async () => {
+    const reviewWorkflow =
+      new FakeReviewWorkflow({
+        task: {
+          ...createPlannedTask(
+            "parallel",
+          ),
+          status:
+            "NEEDS_HUMAN",
+        },
+        review: {
+          approved: false,
+          summary:
+            "The reviewer found uncertainty that requires human judgment.",
+          findings: [],
+          requirementCoverage: [],
+          requiresHumanInput: true,
+          confidence: 0.5,
+        },
+        changeEvidence: {
+          approvedFiles: [
+            "lib/example.dart",
+          ],
+          reportedFiles: [
+            "lib/example.dart",
+          ],
+          observedFiles: [
+            "lib/example.dart",
+          ],
+          unreportedFiles: [],
+          missingReportedFiles: [],
+          unapprovedFiles: [],
+          withinApprovedScope: true,
+          reportMatchesObserved: true,
+          patch:
+            "diff --git a/lib/example.dart b/lib/example.dart",
+        },
+      });
+
+    const sequentialFactory =
+      new FakeSequentialFactory(
+        createPlannedResult(
+          "parallel",
+        ),
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        reviewWorkflow,
+      );
+
+    const result =
+      await factory.resumeAfterParallelReview(
+        createReviewRequiredResult(),
+      );
+
+    expect(
+      reviewWorkflow.calls,
+    ).toBe(1);
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "HUMAN_INPUT_REQUIRED",
+    );
+
+    expect(
+      result.run.task.status,
+    ).toBe(
+      "NEEDS_HUMAN",
+    );
   });
 });
