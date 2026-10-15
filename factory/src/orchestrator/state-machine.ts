@@ -10,60 +10,52 @@ import type {
       "ANALYZING",
       "FAILED",
     ],
-  
     ANALYZING: [
       "PLANNING",
       "NEEDS_HUMAN",
       "FAILED",
     ],
-  
     PLANNING: [
       "AWAITING_PLAN_APPROVAL",
       "NEEDS_HUMAN",
       "FAILED",
     ],
-  
     AWAITING_PLAN_APPROVAL: [
       "PLANNING",
       "IMPLEMENTING",
       "FAILED",
     ],
-  
     IMPLEMENTING: [
       "VALIDATING",
       "NEEDS_HUMAN",
       "FAILED",
     ],
-  
     VALIDATING: [
       "REVIEWING",
       "DIAGNOSING_FAILURE",
+      "AWAITING_FINAL_APPROVAL",
+      "NEEDS_HUMAN",
       "FAILED",
     ],
-  
     DIAGNOSING_FAILURE: [
       "REPAIRING",
       "NEEDS_HUMAN",
       "FAILED",
     ],
-  
     REPAIRING: [
       "VALIDATING",
       "NEEDS_HUMAN",
       "FAILED",
     ],
-  
     REVIEWING: [
       "AWAITING_FINAL_APPROVAL",
       "NEEDS_HUMAN",
       "FAILED",
     ],
-  
     AWAITING_FINAL_APPROVAL: [
       "COMPLETE",
       "FAILED",
     ],
-  
     NEEDS_HUMAN: [
       "ANALYZING",
       "PLANNING",
@@ -71,9 +63,7 @@ import type {
       "DIAGNOSING_FAILURE",
       "FAILED",
     ],
-  
     COMPLETE: [],
-  
     FAILED: [],
   };
   
