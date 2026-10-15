@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { EngineeringTask } from "../schemas/task.js";
 import type {
-  SequentialFactory,
   SequentialFactoryResult,
 } from "./sequential-factory.js";
-import { AdaptiveFactory } from "./adaptive-factory.js";
+import {
+  AdaptiveFactory,
+  type SequentialFactoryStarter,
+} from "./adaptive-factory.js";
 
 function createTask(): EngineeringTask {
   const now = new Date().toISOString();
@@ -41,7 +43,9 @@ function createPlannedResult(
   };
 }
 
-class FakeSequentialFactory {
+class FakeSequentialFactory
+  implements SequentialFactoryStarter
+{
   calls = 0;
 
   constructor(
@@ -65,7 +69,7 @@ describe("AdaptiveFactory", () => {
       );
 
     const factory = new AdaptiveFactory(
-      sequentialFactory as SequentialFactory,
+      sequentialFactory,
     );
 
     const result = await factory.start(
@@ -87,7 +91,7 @@ describe("AdaptiveFactory", () => {
       );
 
     const factory = new AdaptiveFactory(
-      sequentialFactory as SequentialFactory,
+      sequentialFactory,
     );
 
     const result = await factory.start(
@@ -108,7 +112,7 @@ describe("AdaptiveFactory", () => {
       );
 
     const factory = new AdaptiveFactory(
-      sequentialFactory as SequentialFactory,
+      sequentialFactory,
     );
 
     const result = await factory.start(
@@ -142,7 +146,7 @@ describe("AdaptiveFactory", () => {
       new FakeSequentialFactory(result);
 
     const factory = new AdaptiveFactory(
-      sequentialFactory as SequentialFactory,
+      sequentialFactory,
     );
 
     const adaptiveResult = await factory.start(
@@ -172,7 +176,7 @@ describe("AdaptiveFactory", () => {
       new FakeSequentialFactory(result);
 
     const factory = new AdaptiveFactory(
-      sequentialFactory as SequentialFactory,
+      sequentialFactory,
     );
 
     const adaptiveResult = await factory.start(

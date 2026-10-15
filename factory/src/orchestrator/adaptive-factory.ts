@@ -1,13 +1,19 @@
 import type { EngineeringTask } from "../schemas/task.js";
-import {
-  type SequentialFactory,
-  type SequentialFactoryResult,
-  type SequentialFactoryRun,
+import type {
+  SequentialFactoryResult,
+  SequentialFactoryRun,
 } from "./sequential-factory.js";
 import {
   routeTask,
   type AdaptiveRoutingDecision,
 } from "./adaptive-routing.js";
+
+export interface SequentialFactoryStarter {
+  start(
+    task: EngineeringTask,
+    repositoryRoot: string,
+  ): Promise<SequentialFactoryResult>;
+}
 
 export type AdaptiveFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
@@ -23,7 +29,7 @@ export interface AdaptiveFactoryResult {
 
 export class AdaptiveFactory {
   constructor(
-    private readonly sequentialFactory: SequentialFactory,
+    private readonly sequentialFactory: SequentialFactoryStarter,
   ) {}
 
   async start(
