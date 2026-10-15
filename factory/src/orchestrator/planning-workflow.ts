@@ -3,6 +3,7 @@ import type { Planner } from "../agents/planner.js";
 import { buildRepositoryContext } from "../context/context-builder.js";
 import type { EngineeringTask } from "../schemas/task.js";
 import { Orchestrator } from "./orchestrator.js";
+import { selectExecutionStrategy } from "./strategy-selector.js";
 
 export class PlanningWorkflow {
   constructor(
@@ -30,10 +31,14 @@ export class PlanningWorkflow {
 
     orchestrator.setAnalysis(analysis);
 
-    if (analysis.requiresHumanInput) {
+    const strategy = selectExecutionStrategy(analysis);
+
+    if (strategy === null) {
       orchestrator.transition("NEEDS_HUMAN");
       return orchestrator;
     }
+
+    orchestrator.setStrategy(strategy);
 
     orchestrator.transition("PLANNING");
 

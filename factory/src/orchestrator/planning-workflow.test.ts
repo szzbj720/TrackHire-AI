@@ -13,7 +13,6 @@ import {
   } from "node:fs/promises";
   import { join } from "node:path";
   import { tmpdir } from "node:os";
-  
   import type { TaskAnalyzer } from "../agents/analyzer.js";
   import type { Planner } from "../agents/planner.js";
   import type { RepositoryContext } from "../context/context-builder.js";
@@ -168,7 +167,6 @@ import {
       const planner = new FakePlanner(
         createPlan(),
       );
-  
       const workflow = new PlanningWorkflow(
         analyzer,
         planner,
@@ -182,17 +180,61 @@ import {
       expect(orchestrator.getTask().status).toBe(
         "AWAITING_PLAN_APPROVAL",
       );
-  
       expect(orchestrator.getTask().analysis).toEqual(
         createAnalysis(),
       );
-  
       expect(orchestrator.getTask().plan).toEqual(
         createPlan(),
       );
-  
       expect(analyzer.calls).toBe(1);
       expect(planner.calls).toBe(1);
+    });
+  
+    it("stores a sequential strategy for a medium-complexity, medium-risk task", async () => {
+      const workflow = new PlanningWorkflow(
+        new FakeAnalyzer(createAnalysis()),
+        new FakePlanner(createPlan()),
+      );
+  
+      const orchestrator = await workflow.run(
+        createTask(),
+        repositoryRoot,
+      );
+  
+      expect(orchestrator.getTask().strategy).toEqual({
+        mode: "sequential",
+        reasoning:
+          "The task has medium complexity or risk and warrants planning, implementation, validation, and independent review.",
+      });
+      expect(orchestrator.getTask().status).toBe(
+        "AWAITING_PLAN_APPROVAL",
+      );
+    });
+  
+    it("stores a single-agent strategy for a low-complexity, low-risk task", async () => {
+      const analysis: TaskAnalysis = {
+        ...createAnalysis(),
+        complexity: "low",
+        risk: "low",
+        confidence: 0.9,
+      };
+  
+      const workflow = new PlanningWorkflow(
+        new FakeAnalyzer(analysis),
+        new FakePlanner(createPlan()),
+      );
+  
+      const orchestrator = await workflow.run(
+        createTask(),
+        repositoryRoot,
+      );
+  
+      expect(orchestrator.getTask().strategy?.mode).toBe(
+        "single-agent",
+      );
+      expect(orchestrator.getTask().status).toBe(
+        "AWAITING_PLAN_APPROVAL",
+      );
     });
   
     it("stops before planning when analysis requires human input", async () => {
@@ -202,7 +244,6 @@ import {
       const planner = new FakePlanner(
         createPlan(),
       );
-  
       const workflow = new PlanningWorkflow(
         analyzer,
         planner,
@@ -216,10 +257,40 @@ import {
       expect(orchestrator.getTask().status).toBe(
         "NEEDS_HUMAN",
       );
-  
       expect(orchestrator.getTask().analysis).toBeDefined();
+      expect(orchestrator.getTask().strategy).toBeUndefined();
       expect(orchestrator.getTask().plan).toBeUndefined();
+      expect(analyzer.calls).toBe(1);
+      expect(planner.calls).toBe(0);
+    });
   
+    it("stops before planning when analysis confidence is too low", async () => {
+      const analysis: TaskAnalysis = {
+        ...createAnalysis(),
+        confidence: 0.69,
+        requiresHumanInput: false,
+      };
+  
+      const analyzer = new FakeAnalyzer(analysis);
+      const planner = new FakePlanner(createPlan());
+      const workflow = new PlanningWorkflow(
+        analyzer,
+        planner,
+      );
+  
+      const orchestrator = await workflow.run(
+        createTask(),
+        repositoryRoot,
+      );
+  
+      expect(orchestrator.getTask().status).toBe(
+        "NEEDS_HUMAN",
+      );
+      expect(orchestrator.getTask().analysis).toEqual(
+        analysis,
+      );
+      expect(orchestrator.getTask().strategy).toBeUndefined();
+      expect(orchestrator.getTask().plan).toBeUndefined();
       expect(analyzer.calls).toBe(1);
       expect(planner.calls).toBe(0);
     });
@@ -231,7 +302,6 @@ import {
       const planner = new FakePlanner(
         createPlan(true),
       );
-  
       const workflow = new PlanningWorkflow(
         analyzer,
         planner,
@@ -245,12 +315,13 @@ import {
       expect(orchestrator.getTask().status).toBe(
         "NEEDS_HUMAN",
       );
-  
       expect(orchestrator.getTask().analysis).toBeDefined();
+      expect(orchestrator.getTask().strategy?.mode).toBe(
+        "sequential",
+      );
       expect(orchestrator.getTask().plan).toEqual(
         createPlan(true),
       );
-  
       expect(analyzer.calls).toBe(1);
       expect(planner.calls).toBe(1);
     });
