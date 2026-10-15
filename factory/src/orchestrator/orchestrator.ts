@@ -2,6 +2,7 @@ import type { FactoryEvent } from "../schemas/event.js";
 import type { ImplementationPlan } from "../schemas/plan.js";
 import type {
   EngineeringTask,
+  ExecutionStrategy,
   FactoryState,
   TaskAnalysis,
 } from "../schemas/task.js";
@@ -27,6 +28,14 @@ export class Orchestrator {
     this.task = {
       ...this.task,
       analysis,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  setStrategy(strategy: ExecutionStrategy): void {
+    this.task = {
+      ...this.task,
+      strategy,
       updatedAt: new Date().toISOString(),
     };
   }
