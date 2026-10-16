@@ -14,6 +14,9 @@ import {
   import type {
     FactoryRunMetrics,
   } from "../schemas/evaluation.js";
+  import type {
+    MultiModelReviewMetrics,
+  } from "./multi-model-review-metrics.js";
   import {
     EvaluationArtifactStore,
   } from "./evaluation-artifact-store.js";
@@ -147,6 +150,19 @@ import {
           "material-model-disagreement",
         ],
       },
+    };
+  }
+  
+  function createMultiModelReviewMetrics():
+    MultiModelReviewMetrics {
+    return {
+      reviewCount: 2,
+      successfulReviews: 2,
+      failedReviews: 0,
+      disagreement: true,
+      disagreementReasons: 1,
+      escalationRequired: true,
+      escalationReasons: 1,
     };
   }
   
@@ -441,6 +457,91 @@ import {
           store.writeMultiModelReview(
             "RUN-001",
             createMultiModelReview(),
+          ),
+        ).rejects.toThrow(
+          "Persistence failed.",
+        );
+      });
+  
+      it("persists multi-model review metrics for the run", async () => {
+        const {
+          artifactStore,
+          writeJson,
+        } = createArtifactStore();
+  
+        const store =
+          new EvaluationArtifactStore(
+            artifactStore,
+          );
+  
+        const metrics =
+          createMultiModelReviewMetrics();
+  
+        await store.writeMultiModelReviewMetrics(
+          "RUN-001",
+          metrics,
+        );
+  
+        expect(
+          writeJson,
+        ).toHaveBeenCalledTimes(1);
+  
+        expect(
+          writeJson,
+        ).toHaveBeenCalledWith(
+          "RUN-001",
+          "multi-model-review-metrics",
+          metrics,
+        );
+      });
+  
+      it("rejects an empty run ID before persisting multi-model review metrics", async () => {
+        const {
+          artifactStore,
+          writeJson,
+        } = createArtifactStore();
+  
+        const store =
+          new EvaluationArtifactStore(
+            artifactStore,
+          );
+  
+        await expect(
+          store.writeMultiModelReviewMetrics(
+            "",
+            createMultiModelReviewMetrics(),
+          ),
+        ).rejects.toThrow(
+          "Run ID is required to persist multi-model review evidence.",
+        );
+  
+        expect(
+          writeJson,
+        ).not.toHaveBeenCalled();
+      });
+  
+      it("propagates multi-model review metrics persistence failures", async () => {
+        const writeJson = vi.fn(
+          async () => {
+            throw new Error(
+              "Persistence failed.",
+            );
+          },
+        );
+  
+        const artifactStore = {
+          writeJson,
+        } as unknown as RunArtifactStore;
+  
+        const store =
+          new EvaluationArtifactStore(
+            artifactStore,
+          );
+  
+        await expect(
+          store.writeMultiModelReviewMetrics(
+            "RUN-001",
+            createMultiModelReviewMetrics(),
           ),
         ).rejects.toThrow(
           "Persistence failed.",

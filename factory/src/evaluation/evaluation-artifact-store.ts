@@ -8,6 +8,9 @@ import type {
     factoryRunMetricsSchema,
     type FactoryRunMetrics,
   } from "../schemas/evaluation.js";
+  import type {
+    MultiModelReviewMetrics,
+  } from "./multi-model-review-metrics.js";
   
   export class EvaluationArtifactStore {
     constructor(
@@ -34,16 +37,35 @@ import type {
       runId: string,
       review: MultiModelReviewResult,
     ): Promise<void> {
-      if (runId.length === 0) {
-        throw new Error(
-          "Run ID is required to persist multi-model review evidence.",
-        );
-      }
+      this.assertRunId(runId);
   
       await this.artifactStore.writeJson(
         runId,
         "multi-model-review",
         review,
       );
+    }
+  
+    async writeMultiModelReviewMetrics(
+      runId: string,
+      metrics: MultiModelReviewMetrics,
+    ): Promise<void> {
+      this.assertRunId(runId);
+  
+      await this.artifactStore.writeJson(
+        runId,
+        "multi-model-review-metrics",
+        metrics,
+      );
+    }
+  
+    private assertRunId(
+      runId: string,
+    ): void {
+      if (runId.length === 0) {
+        throw new Error(
+          "Run ID is required to persist multi-model review evidence.",
+        );
+      }
     }
   }
