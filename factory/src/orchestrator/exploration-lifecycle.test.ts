@@ -230,6 +230,36 @@ import {
     }
   }
   
+  class AlwaysPassingValidator
+    implements Validator
+  {
+    async validate(
+      _worktreePath: string,
+    ): Promise<ValidationResult> {
+      return {
+        passed: true,
+  
+        checks: [
+          {
+            name: "flutter test",
+            command: "flutter",
+            args: ["test"],
+            exitCode: 0,
+            stdout:
+              "All tests passed.",
+            stderr: "",
+            durationMs: 100,
+            passed: true,
+          },
+        ],
+  
+        failedChecks: [],
+  
+        durationMs: 100,
+      };
+    }
+  }
+  
   function createTask():
     EngineeringTask {
     return {
@@ -611,6 +641,155 @@ import {
             "run-003",
           ),
         ).rejects.toThrow();
+      });
+  
+      it("escalates equivalent validated implementations and persists both for human selection", async () => {
+        const {
+          lifecycle,
+          artifactStore,
+        } = await createLifecycle();
+  
+        const result =
+          await lifecycle.run({
+            runId: "run-004",
+  
+            task: createTask(),
+  
+            analysis:
+              createAnalysis(),
+  
+            request,
+  
+            generationTargets: [
+              {
+                id: "explorer-a",
+  
+                provider:
+                  new CandidateProvider(
+                    "candidate-a",
+                    "model-a",
+                    0.8,
+                  ),
+              },
+              {
+                id: "explorer-b",
+  
+                provider:
+                  new CandidateProvider(
+                    "candidate-b",
+                    "model-b",
+                    0.8,
+                  ),
+              },
+            ],
+  
+            builderTargets: [
+              {
+                targetId:
+                  "explorer-a",
+  
+                builder:
+                  new RecordingBuilder(
+                    "Implementation A",
+                  ),
+              },
+              {
+                targetId:
+                  "explorer-b",
+  
+                builder:
+                  new RecordingBuilder(
+                    "Implementation B",
+                  ),
+              },
+            ],
+  
+            validator:
+              new AlwaysPassingValidator(),
+  
+            repositoryRoot:
+              "/repo",
+  
+            repositoryFiles: [
+              "lib/models/job_application.dart",
+            ],
+  
+            baseBranch: "main",
+          });
+  
+        expect(
+          result.selectedCandidateId,
+        ).toBeUndefined();
+  
+        expect(
+          result.requiresHumanInput,
+        ).toBe(true);
+  
+        expect(
+          result.implementationSelection
+            ?.requiresHumanSelection,
+        ).toBe(true);
+  
+        expect(
+          result.implementationSelection
+            ?.tiedCandidateIds,
+        ).toEqual([
+          "candidate-a",
+          "candidate-b",
+        ]);
+  
+        const evidence =
+          await artifactStore.readEvidence(
+            "run-004",
+          );
+  
+        expect(
+          evidence.implementations,
+        ).toHaveLength(2);
+  
+        expect(
+          evidence.validations,
+        ).toHaveLength(2);
+  
+        expect(
+          evidence.validations.every(
+            (validation) =>
+              validation.status ===
+                "success" &&
+              validation.validation
+                .passed,
+          ),
+        ).toBe(true);
+  
+        expect(
+          evidence.selection
+            .selectedCandidateId,
+        ).toBeUndefined();
+  
+        expect(
+          evidence.selection
+            .requiresHumanSelection,
+        ).toBe(true);
+  
+        expect(
+          evidence.selection
+            .tiedCandidateIds,
+        ).toEqual([
+          "candidate-a",
+          "candidate-b",
+        ]);
+  
+        expect(
+          evidence.metrics,
+        ).toMatchObject({
+          candidateCount: 2,
+          implementationSuccesses: 2,
+          validationPasses: 2,
+          validationFailures: 0,
+          usableCandidateCount: 2,
+          requiredHumanSelection:
+            true,
+        });
       });
     },
   );
