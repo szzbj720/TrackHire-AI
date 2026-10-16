@@ -158,7 +158,7 @@ import {
           "flutter",
           [
             "test",
-            "test/benchmark_interview_date_test.dart",
+            "test/job_application_test.dart",
           ],
           input.workspace.path,
         );

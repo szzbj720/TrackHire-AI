@@ -168,12 +168,12 @@ import {
   describe(
     "TrackHireInterviewDateVerifier",
     () => {
-      it("runs benchmark behavior, analysis, and full regression tests in the benchmark workspace", async () => {
+      it("runs scoped behavior, analysis, and full regression tests in the benchmark workspace", async () => {
         const runner =
           new FakeCommandRunner([
             passingResult([
               "test",
-              "test/benchmark_interview_date_test.dart",
+              "test/job_application_test.dart",
             ]),
   
             passingResult([
@@ -203,7 +203,7 @@ import {
   
             args: [
               "test",
-              "test/benchmark_interview_date_test.dart",
+              "test/job_application_test.dart",
             ],
   
             cwd:
@@ -242,7 +242,7 @@ import {
             new FakeCommandRunner([
               passingResult([
                 "test",
-                "test/benchmark_interview_date_test.dart",
+                "test/job_application_test.dart",
               ]),
   
               passingResult([
@@ -274,47 +274,42 @@ import {
           {
             criterionId:
               "optional-date",
-  
             passed: true,
           },
   
           {
             criterionId:
               "persist-date",
-  
             passed: true,
           },
   
           {
             criterionId:
               "edit-date",
-  
             passed: true,
           },
   
           {
             criterionId:
               "upcoming-interviews",
-  
             passed: true,
           },
   
           {
             criterionId:
               "regression",
-  
             passed: true,
           },
         ]);
       });
   
-      it("fails feature criteria when the dedicated benchmark behavior test fails", async () => {
+      it("fails feature criteria when the scoped behavior test fails", async () => {
         const verifier =
           new TrackHireInterviewDateVerifier(
             new FakeCommandRunner([
               failingResult([
                 "test",
-                "test/benchmark_interview_date_test.dart",
+                "test/job_application_test.dart",
               ]),
   
               passingResult([
@@ -352,7 +347,7 @@ import {
             new FakeCommandRunner([
               passingResult([
                 "test",
-                "test/benchmark_interview_date_test.dart",
+                "test/job_application_test.dart",
               ]),
   
               failingResult([
@@ -397,7 +392,7 @@ import {
             new FakeCommandRunner([
               passingResult([
                 "test",
-                "test/benchmark_interview_date_test.dart",
+                "test/job_application_test.dart",
               ]),
   
               passingResult([
