@@ -1,6 +1,9 @@
 import type {
     RunArtifactStore,
   } from "../artifact/run-artifact-store.js";
+  import type {
+    MultiModelReviewResult,
+  } from "../models/multi-model-review-coordinator.js";
   import {
     factoryRunMetricsSchema,
     type FactoryRunMetrics,
@@ -24,6 +27,23 @@ import type {
         validatedMetrics.runId,
         "metrics",
         validatedMetrics,
+      );
+    }
+  
+    async writeMultiModelReview(
+      runId: string,
+      review: MultiModelReviewResult,
+    ): Promise<void> {
+      if (runId.length === 0) {
+        throw new Error(
+          "Run ID is required to persist multi-model review evidence.",
+        );
+      }
+  
+      await this.artifactStore.writeJson(
+        runId,
+        "multi-model-review",
+        review,
       );
     }
   }
