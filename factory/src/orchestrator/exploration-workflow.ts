@@ -38,6 +38,9 @@ import type {
     ExplorationWorkspaceManager,
   } from "../models/exploration-workspace-manager.js";
   import type {
+    ExplorationWorkspace,
+  } from "../models/exploration-workspace-manager.js";
+  import type {
     ModelExecutionTarget,
   } from "../models/multi-model-runner.js";
   import type {
@@ -87,6 +90,7 @@ import type {
     candidates: ExplorationCandidate[];
   
     selectedCandidateId?: string;
+    selectedWorkspace?: ExplorationWorkspace;
   
     implementationSelection?:
       ExplorationImplementationSelection;
@@ -353,19 +357,36 @@ import type {
         };
       }
   
+      const selectedCandidateId =
+        implementationSelection
+          .selectedCandidateId;
+  
+      if (!selectedCandidateId) {
+        throw new Error(
+          "Exploration selection completed without a selected candidate.",
+        );
+      }
+  
+      const selectedWorkspace =
+        workspaces.find(
+          (workspace) =>
+            workspace.candidateId ===
+            selectedCandidateId,
+        );
+  
+      if (!selectedWorkspace) {
+        throw new Error(
+          `Missing selected exploration workspace for candidate: ${selectedCandidateId}`,
+        );
+      }
+  
       return {
         explored: true,
         reasoning:
           "Parallel exploration produced a deterministically validated implementation winner.",
         candidates,
-        ...(implementationSelection
-          .selectedCandidateId
-          ? {
-              selectedCandidateId:
-                implementationSelection
-                  .selectedCandidateId,
-            }
-          : {}),
+        selectedCandidateId,
+        selectedWorkspace,
         implementationSelection,
         metrics,
         evidence,

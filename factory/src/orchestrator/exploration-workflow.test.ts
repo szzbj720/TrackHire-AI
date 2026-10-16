@@ -350,9 +350,13 @@ import {
         expect(
           result.evidence,
         ).toBeUndefined();
+  
+        expect(
+          result.selectedWorkspace,
+        ).toBeUndefined();
       });
   
-      it("selects the implementation that passes deterministic validation", async () => {
+      it("selects the implementation and workspace that pass deterministic validation", async () => {
         const workflow =
           new ExplorationWorkflow();
   
@@ -419,6 +423,23 @@ import {
         expect(
           result.selectedCandidateId,
         ).toBe("candidate-b");
+  
+        expect(
+          result.selectedWorkspace,
+        ).toMatchObject({
+          candidateId:
+            "candidate-b",
+          targetId:
+            "explorer-b",
+          model:
+            "model-b",
+          worktree: {
+            path:
+              "/tmp/TH-001-exploration-candidate-b",
+            branch:
+              "factory/th-001-exploration-candidate-b",
+          },
+        });
   
         expect(
           result.requiresHumanInput,
@@ -504,6 +525,11 @@ import {
   
         expect(
           result.selectedCandidateId,
+        ).toBe("candidate-b");
+  
+        expect(
+          result.selectedWorkspace
+            ?.candidateId,
         ).toBe("candidate-b");
   
         expect(
@@ -604,6 +630,11 @@ import {
             ?.metrics
             .selectedCandidateId,
         ).toBe("candidate-b");
+  
+        expect(
+          result.selectedWorkspace
+            ?.candidateId,
+        ).toBe("candidate-b");
       });
   
       it("emits evidence when competing implementations require human selection", async () => {
@@ -676,6 +707,10 @@ import {
   
         expect(
           result.selectedCandidateId,
+        ).toBeUndefined();
+  
+        expect(
+          result.selectedWorkspace,
         ).toBeUndefined();
   
         expect(
