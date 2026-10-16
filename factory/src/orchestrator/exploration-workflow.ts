@@ -5,6 +5,12 @@ import type {
     ExplorationMetricsCollector,
   } from "../evaluation/exploration-metrics-collector.js";
   import {
+    createExplorationEvidence,
+  } from "../evidence/exploration-evidence.js";
+  import type {
+    ExplorationEvidence,
+  } from "../evidence/exploration-evidence.js";
+  import {
     ExplorationCandidateEvaluator,
   } from "../models/exploration-candidate-evaluator.js";
   import {
@@ -86,6 +92,8 @@ import type {
       ExplorationImplementationSelection;
   
     metrics?: ExplorationMetrics;
+  
+    evidence?: ExplorationEvidence;
   
     requiresHumanInput: boolean;
   }
@@ -317,6 +325,18 @@ import type {
             implementationSelection,
         });
   
+      const evidence =
+        createExplorationEvidence({
+          candidates,
+          implementations:
+            implementations.results,
+          validations:
+            validations.results,
+          selection:
+            implementationSelection,
+          metrics,
+        });
+  
       if (
         implementationSelection
           .requiresHumanSelection
@@ -328,6 +348,7 @@ import type {
           candidates,
           implementationSelection,
           metrics,
+          evidence,
           requiresHumanInput: true,
         };
       }
@@ -347,6 +368,7 @@ import type {
           : {}),
         implementationSelection,
         metrics,
+        evidence,
         requiresHumanInput: false,
       };
     }

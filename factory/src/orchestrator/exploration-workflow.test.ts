@@ -187,6 +187,33 @@ import {
     }
   }
   
+  class AlwaysPassingValidator
+    implements Validator
+  {
+    async validate(
+      _worktreePath: string,
+    ): Promise<ValidationResult> {
+      return {
+        passed: true,
+        checks: [
+          {
+            name: "flutter test",
+            command: "flutter",
+            args: ["test"],
+            exitCode: 0,
+            stdout:
+              "All tests passed.",
+            stderr: "",
+            durationMs: 100,
+            passed: true,
+          },
+        ],
+        failedChecks: [],
+        durationMs: 100,
+      };
+    }
+  }
+  
   function createTask():
     EngineeringTask {
     return {
@@ -319,6 +346,10 @@ import {
         expect(
           result.candidates,
         ).toHaveLength(1);
+  
+        expect(
+          result.evidence,
+        ).toBeUndefined();
       });
   
       it("selects the implementation that passes deterministic validation", async () => {
@@ -478,6 +509,199 @@ import {
         expect(
           result.requiresHumanInput,
         ).toBe(false);
+      });
+  
+      it("emits complete exploration evidence for an automatic winner", async () => {
+        const workflow =
+          new ExplorationWorkflow();
+  
+        const result =
+          await workflow.run({
+            task: createTask(),
+            analysis:
+              createAnalysis(),
+            request,
+  
+            generationTargets: [
+              {
+                id: "explorer-a",
+                provider:
+                  new CandidateProvider(
+                    "candidate-a",
+                    "model-a",
+                    0.99,
+                  ),
+              },
+              {
+                id: "explorer-b",
+                provider:
+                  new CandidateProvider(
+                    "candidate-b",
+                    "model-b",
+                    0.5,
+                  ),
+              },
+            ],
+  
+            builderTargets: [
+              {
+                targetId:
+                  "explorer-a",
+                builder:
+                  new RecordingBuilder(
+                    "Implementation A",
+                  ),
+              },
+              {
+                targetId:
+                  "explorer-b",
+                builder:
+                  new RecordingBuilder(
+                    "Implementation B",
+                  ),
+              },
+            ],
+  
+            validator:
+              new PathAwareValidator(),
+  
+            repositoryRoot:
+              "/repo",
+  
+            repositoryFiles: [
+              "lib/models/job_application.dart",
+            ],
+  
+            baseBranch: "main",
+          });
+  
+        expect(
+          result.evidence,
+        ).toBeDefined();
+  
+        expect(
+          result.evidence?.candidates,
+        ).toHaveLength(2);
+  
+        expect(
+          result.evidence
+            ?.implementations,
+        ).toHaveLength(2);
+  
+        expect(
+          result.evidence
+            ?.validations,
+        ).toHaveLength(2);
+  
+        expect(
+          result.evidence
+            ?.selection
+            .selectedCandidateId,
+        ).toBe("candidate-b");
+  
+        expect(
+          result.evidence
+            ?.metrics
+            .selectedCandidateId,
+        ).toBe("candidate-b");
+      });
+  
+      it("emits evidence when competing implementations require human selection", async () => {
+        const workflow =
+          new ExplorationWorkflow();
+  
+        const result =
+          await workflow.run({
+            task: createTask(),
+            analysis:
+              createAnalysis(),
+            request,
+  
+            generationTargets: [
+              {
+                id: "explorer-a",
+                provider:
+                  new CandidateProvider(
+                    "candidate-a",
+                    "model-a",
+                    0.8,
+                  ),
+              },
+              {
+                id: "explorer-b",
+                provider:
+                  new CandidateProvider(
+                    "candidate-b",
+                    "model-b",
+                    0.8,
+                  ),
+              },
+            ],
+  
+            builderTargets: [
+              {
+                targetId:
+                  "explorer-a",
+                builder:
+                  new RecordingBuilder(
+                    "Implementation A",
+                  ),
+              },
+              {
+                targetId:
+                  "explorer-b",
+                builder:
+                  new RecordingBuilder(
+                    "Implementation B",
+                  ),
+              },
+            ],
+  
+            validator:
+              new AlwaysPassingValidator(),
+  
+            repositoryRoot:
+              "/repo",
+  
+            repositoryFiles: [
+              "lib/models/job_application.dart",
+            ],
+  
+            baseBranch: "main",
+          });
+  
+        expect(
+          result.requiresHumanInput,
+        ).toBe(true);
+  
+        expect(
+          result.selectedCandidateId,
+        ).toBeUndefined();
+  
+        expect(
+          result.evidence,
+        ).toBeDefined();
+  
+        expect(
+          result.evidence
+            ?.selection
+            .requiresHumanSelection,
+        ).toBe(true);
+  
+        expect(
+          result.evidence
+            ?.selection
+            .tiedCandidateIds,
+        ).toEqual([
+          "candidate-a",
+          "candidate-b",
+        ]);
+  
+        expect(
+          result.evidence
+            ?.metrics
+            .requiredHumanSelection,
+        ).toBe(true);
       });
     },
   );
