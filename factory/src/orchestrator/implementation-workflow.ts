@@ -16,6 +16,15 @@ export interface ImplementationWorkflowResult {
   validation: ValidationResult;
 }
 
+export interface ImplementationWorkspace {
+  path: string;
+  branch: string;
+}
+
+export interface ImplementationWorkflowOptions {
+  worktree?: ImplementationWorkspace;
+}
+
 export class ImplementationWorkflow {
   constructor(
     private readonly builder: Builder,
@@ -26,6 +35,7 @@ export class ImplementationWorkflow {
     task: EngineeringTask,
     repositoryRoot: string,
     baseBranch: string,
+    options: ImplementationWorkflowOptions = {},
   ): Promise<ImplementationWorkflowResult> {
     if (task.status !== "IMPLEMENTING") {
       throw new Error(
@@ -47,11 +57,13 @@ export class ImplementationWorkflow {
 
     const orchestrator = new Orchestrator(task);
 
-    const worktree = await createTaskWorktree({
-      repositoryRoot,
-      taskId: task.id,
-      baseBranch,
-    });
+    const worktree =
+      options.worktree ??
+      await createTaskWorktree({
+        repositoryRoot,
+        taskId: task.id,
+        baseBranch,
+      });
 
     const implementation =
       await this.builder.implement({
