@@ -66,7 +66,8 @@ import type {
   
     baseRevision: string;
   
-    executor: BenchmarkStrategyExecutor;
+    executor:
+      BenchmarkStrategyExecutor;
   
     validator: Validator;
   
@@ -169,6 +170,21 @@ import type {
             request.baseRevision,
         });
   
+      /*
+       * The strategy executes before protected benchmark
+       * fixtures are installed.
+       *
+       * This keeps acceptance tests held out from the
+       * implementation agent and prevents benchmark leakage.
+       */
+      const execution =
+        await request.executor.execute({
+          scenario:
+            request.scenario,
+  
+          workspace,
+        });
+  
       let installedFixtures:
         InstalledBenchmarkFixture[] = [];
   
@@ -180,24 +196,6 @@ import type {
           await this.fixtureManager.install(
             workspace,
             request.fixtures,
-          );
-      }
-  
-      const execution =
-        await request.executor.execute({
-          scenario:
-            request.scenario,
-  
-          workspace,
-        });
-  
-      if (
-        installedFixtures.length > 0
-      ) {
-        await this.fixtureManager
-          .assertUnchanged(
-            workspace,
-            installedFixtures,
           );
       }
   
@@ -293,7 +291,6 @@ import type {
           acceptance.passed,
   
         startedAt,
-  
         completedAt,
       };
   

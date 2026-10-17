@@ -1,4 +1,5 @@
 import {
+    access,
     mkdtemp,
     readFile,
     rm,
@@ -46,44 +47,11 @@ import {
   const temporaryDirectories:
     string[] = [];
   
-  class PassingValidator
-    implements Validator {
-    async validate():
-      Promise<ValidationResult> {
-      return {
-        passed: true,
+  const fixturePath =
+    "test/factory_benchmark_test.dart";
   
-        checks: [
-          {
-            name:
-              "benchmark",
-  
-            command:
-              "flutter",
-  
-            args: [
-              "test",
-            ],
-  
-            exitCode: 0,
-  
-            stdout:
-              "passed",
-  
-            stderr: "",
-  
-            durationMs: 1,
-  
-            passed: true,
-          },
-        ],
-  
-        failedChecks: [],
-  
-        durationMs: 1,
-      };
-    }
-  }
+  const fixtureContent =
+    "protected benchmark";
   
   function passingExecution() {
     return {
@@ -155,16 +123,20 @@ import {
         vi.fn().mockResolvedValue(
           workspace,
         ),
-    } as unknown as BenchmarkWorkspaceManager;
+    } as unknown as
+      BenchmarkWorkspaceManager;
   }
   
-  function createExecutor():
-    BenchmarkStrategyExecutor {
-    return {
-      async execute() {
-        return passingExecution();
+  function fixtures() {
+    return [
+      {
+        path:
+          fixturePath,
+  
+        content:
+          fixtureContent,
       },
-    };
+    ];
   }
   
   afterEach(
@@ -187,89 +159,147 @@ import {
   );
   
   describe(
-    "BenchmarkRunner protected fixtures",
+    "BenchmarkRunner held-out fixtures",
     () => {
-      it("installs fixtures before strategy execution", async () => {
-        const workspace =
-          await createWorkspace();
+      it(
+        "keeps fixtures hidden during strategy execution and installs them before validation",
+        async () => {
+          const workspace =
+            await createWorkspace();
   
-        let observedFixture = "";
+          let visibleDuringExecution =
+            true;
   
-        const executor:
-          BenchmarkStrategyExecutor = {
+          let observedDuringValidation =
+            "";
+  
+          const executor:
+            BenchmarkStrategyExecutor = {
             async execute() {
-              observedFixture =
-                await readFile(
+              try {
+                await access(
                   join(
                     workspace.path,
-                    "test/factory_benchmark_test.dart",
+                    fixturePath,
                   ),
-                  "utf8",
                 );
+              } catch {
+                visibleDuringExecution =
+                  false;
+              }
   
               return passingExecution();
             },
           };
   
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(
-              workspace,
-            ),
+          const validator:
+            Validator = {
+            async validate():
+              Promise<ValidationResult> {
+              observedDuringValidation =
+                await readFile(
+                  join(
+                    workspace.path,
+                    fixturePath,
+                  ),
+                  "utf8",
+                );
+  
+              return {
+                passed: true,
+  
+                checks: [],
+  
+                failedChecks: [],
+  
+                durationMs: 0,
+              };
+            },
+          };
+  
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(
+                workspace,
+              ),
+            );
+  
+          const result =
+            await runner.run({
+              runId:
+                "run-001",
+  
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              strategy:
+                "sequential",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+  
+              executor,
+  
+              validator,
+  
+              fixtures:
+                fixtures(),
+            });
+  
+          expect(
+            visibleDuringExecution,
+          ).toBe(false);
+  
+          expect(
+            observedDuringValidation,
+          ).toBe(
+            fixtureContent,
           );
   
-        await runner.run({
-          runId:
-            "run-001",
+          expect(
+            result.success,
+          ).toBe(true);
+        },
+      );
   
-          scenario:
-            trackHireInterviewDateBenchmark,
+      it(
+        "overwrites a strategy-created file with the held-out fixture before validation",
+        async () => {
+          const workspace =
+            await createWorkspace();
   
-          strategy:
-            "sequential",
-  
-          repositoryRoot:
-            "/repo/trackhire",
-  
-          baseRevision:
-            "main",
-  
-          executor,
-  
-          validator:
-            new PassingValidator(),
-  
-          fixtures: [
-            {
-              path:
-                "test/factory_benchmark_test.dart",
-  
-              content:
-                "protected benchmark",
-            },
-          ],
-        });
-  
-        expect(
-          observedFixture,
-        ).toBe(
-          "protected benchmark",
-        );
-      });
-  
-      it("rejects a strategy that modifies a protected fixture", async () => {
-        const workspace =
-          await createWorkspace();
-  
-        const executor:
-          BenchmarkStrategyExecutor = {
+          const executor:
+            BenchmarkStrategyExecutor = {
             async execute() {
-              await writeFile(
+              const {
+                mkdir,
+              } =
+                await import(
+                  "node:fs/promises"
+                );
+  
+              const target =
                 join(
                   workspace.path,
-                  "test/factory_benchmark_test.dart",
+                  fixturePath,
+                );
+  
+              await mkdir(
+                join(
+                  workspace.path,
+                  "test",
                 ),
-                "weakened benchmark",
+                {
+                  recursive: true,
+                },
+              );
+  
+              await writeFile(
+                target,
+                "strategy-created content",
                 "utf8",
               );
   
@@ -277,124 +307,41 @@ import {
             },
           };
   
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(
-              workspace,
-            ),
-          );
+          let observedDuringValidation =
+            "";
   
-        await expect(
-          runner.run({
-            runId:
-              "run-001",
+          const validator:
+            Validator = {
+            async validate():
+              Promise<ValidationResult> {
+              observedDuringValidation =
+                await readFile(
+                  join(
+                    workspace.path,
+                    fixturePath,
+                  ),
+                  "utf8",
+                );
   
-            scenario:
-              trackHireInterviewDateBenchmark,
+              return {
+                passed: true,
   
-            strategy:
-              "sequential",
+                checks: [],
   
-            repositoryRoot:
-              "/repo/trackhire",
+                failedChecks: [],
   
-            baseRevision:
-              "main",
-  
-            executor,
-  
-            validator:
-              new PassingValidator(),
-  
-            fixtures: [
-              {
-                path:
-                  "test/factory_benchmark_test.dart",
-  
-                content:
-                  "protected benchmark",
-              },
-            ],
-          }),
-        ).rejects.toThrow(
-          "Protected benchmark fixture was modified: test/factory_benchmark_test.dart",
-        );
-      });
-  
-      it("rejects a strategy that deletes a protected fixture", async () => {
-        const workspace =
-          await createWorkspace();
-  
-        const executor:
-          BenchmarkStrategyExecutor = {
-            async execute() {
-              await rm(
-                join(
-                  workspace.path,
-                  "test/factory_benchmark_test.dart",
-                ),
-              );
-  
-              return passingExecution();
+                durationMs: 0,
+              };
             },
           };
   
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(
-              workspace,
-            ),
-          );
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(
+                workspace,
+              ),
+            );
   
-        await expect(
-          runner.run({
-            runId:
-              "run-001",
-  
-            scenario:
-              trackHireInterviewDateBenchmark,
-  
-            strategy:
-              "sequential",
-  
-            repositoryRoot:
-              "/repo/trackhire",
-  
-            baseRevision:
-              "main",
-  
-            executor,
-  
-            validator:
-              new PassingValidator(),
-  
-            fixtures: [
-              {
-                path:
-                  "test/factory_benchmark_test.dart",
-  
-                content:
-                  "protected benchmark",
-              },
-            ],
-          }),
-        ).rejects.toThrow(
-          "Protected benchmark fixture is missing: test/factory_benchmark_test.dart",
-        );
-      });
-  
-      it("allows an unchanged protected fixture to reach validation", async () => {
-        const workspace =
-          await createWorkspace();
-  
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(
-              workspace,
-            ),
-          );
-  
-        const result =
           await runner.run({
             runId:
               "run-001",
@@ -411,30 +358,162 @@ import {
             baseRevision:
               "main",
   
-            executor:
-              createExecutor(),
+            executor,
   
-            validator:
-              new PassingValidator(),
+            validator,
   
-            fixtures: [
-              {
-                path:
-                  "test/factory_benchmark_test.dart",
-  
-                content:
-                  "protected benchmark",
-              },
-            ],
+            fixtures:
+              fixtures(),
           });
   
-        expect(
-          result.validation.passed,
-        ).toBe(true);
+          expect(
+            observedDuringValidation,
+          ).toBe(
+            fixtureContent,
+          );
+        },
+      );
   
-        expect(
-          result.success,
-        ).toBe(true);
-      });
+      it(
+        "rejects validation that modifies the installed held-out fixture",
+        async () => {
+          const workspace =
+            await createWorkspace();
+  
+          const validator:
+            Validator = {
+            async validate():
+              Promise<ValidationResult> {
+              await writeFile(
+                join(
+                  workspace.path,
+                  fixturePath,
+                ),
+                "modified during validation",
+                "utf8",
+              );
+  
+              return {
+                passed: true,
+  
+                checks: [],
+  
+                failedChecks: [],
+  
+                durationMs: 0,
+              };
+            },
+          };
+  
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(
+                workspace,
+              ),
+            );
+  
+          await expect(
+            runner.run({
+              runId:
+                "run-001",
+  
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              strategy:
+                "sequential",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+  
+              executor: {
+                async execute() {
+                  return passingExecution();
+                },
+              },
+  
+              validator,
+  
+              fixtures:
+                fixtures(),
+            }),
+          ).rejects.toThrow(
+            "Protected benchmark fixture was modified: test/factory_benchmark_test.dart",
+          );
+        },
+      );
+  
+      it(
+        "rejects validation that deletes the installed held-out fixture",
+        async () => {
+          const workspace =
+            await createWorkspace();
+  
+          const validator:
+            Validator = {
+            async validate():
+              Promise<ValidationResult> {
+              await rm(
+                join(
+                  workspace.path,
+                  fixturePath,
+                ),
+              );
+  
+              return {
+                passed: true,
+  
+                checks: [],
+  
+                failedChecks: [],
+  
+                durationMs: 0,
+              };
+            },
+          };
+  
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(
+                workspace,
+              ),
+            );
+  
+          await expect(
+            runner.run({
+              runId:
+                "run-001",
+  
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              strategy:
+                "sequential",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+  
+              executor: {
+                async execute() {
+                  return passingExecution();
+                },
+              },
+  
+              validator,
+  
+              fixtures:
+                fixtures(),
+            }),
+          ).rejects.toThrow(
+            "Protected benchmark fixture is missing: test/factory_benchmark_test.dart",
+          );
+        },
+      );
     },
   );

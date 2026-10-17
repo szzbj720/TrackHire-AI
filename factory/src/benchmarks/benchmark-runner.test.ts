@@ -203,32 +203,56 @@ import {
   describe(
     "BenchmarkRunner",
     () => {
-      it("runs a strategy in an isolated workspace and produces a successful benchmark result", async () => {
-        const workspaceManager =
-          createWorkspaceManager();
+      it(
+        "runs a strategy in an isolated workspace and produces a successful benchmark result",
+        async () => {
+          const workspaceManager =
+            createWorkspaceManager();
   
-        const executor =
-          createExecutor();
+          const executor =
+            createExecutor();
   
-        const validator =
-          createValidator();
+          const validator =
+            createValidator();
   
-        const runner =
-          new BenchmarkRunner(
-            workspaceManager,
-            undefined,
-            createClock(),
-          );
+          const runner =
+            new BenchmarkRunner(
+              workspaceManager,
+              undefined,
+              createClock(),
+            );
   
-        const result =
-          await runner.run({
-            runId:
-              "run-001",
+          const result =
+            await runner.run({
+              runId:
+                "run-001",
   
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              strategy:
+                "sequential",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+  
+              executor,
+              validator,
+            });
+  
+          expect(
+            workspaceManager.create,
+          ).toHaveBeenCalledWith({
             scenario:
               trackHireInterviewDateBenchmark,
   
-            strategy:
+            runId:
+              "run-001",
+  
+            strategyId:
               "sequential",
   
             repositoryRoot:
@@ -236,233 +260,229 @@ import {
   
             baseRevision:
               "main",
-  
-            executor,
-            validator,
           });
   
-        expect(
-          workspaceManager.create,
-        ).toHaveBeenCalledWith({
-          scenario:
-            trackHireInterviewDateBenchmark,
+          expect(
+            result.success,
+          ).toBe(true);
   
-          runId:
-            "run-001",
+          expect(
+            result.validation.passed,
+          ).toBe(true);
   
-          strategyId:
-            "sequential",
+          expect(
+            result.acceptance.passed,
+          ).toBe(true);
   
-          repositoryRoot:
-            "/repo/trackhire",
-  
-          baseRevision:
-            "main",
-        });
-  
-        expect(result.success).toBe(
-          true,
-        );
-  
-        expect(
-          result.validation.passed,
-        ).toBe(true);
-  
-        expect(
-          result.acceptance.passed,
-        ).toBe(true);
-  
-        expect(
-          result.baselineRevision,
-        ).toBe(
-          "abc123def456",
-        );
-  
-        expect(
-          result.durationMs,
-        ).toBe(4500);
-      });
-  
-      it("fails the benchmark when deterministic validation fails", async () => {
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(),
-            undefined,
-            createClock(),
+          expect(
+            result.baselineRevision,
+          ).toBe(
+            "abc123def456",
           );
   
-        const result =
-          await runner.run({
-            runId:
-              "run-001",
+          expect(
+            result.durationMs,
+          ).toBe(4500);
+        },
+      );
   
-            scenario:
-              trackHireInterviewDateBenchmark,
+      it(
+        "fails the benchmark when deterministic validation fails",
+        async () => {
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(),
+              undefined,
+              createClock(),
+            );
   
-            strategy:
-              "sequential",
+          const result =
+            await runner.run({
+              runId:
+                "run-001",
   
-            repositoryRoot:
-              "/repo/trackhire",
+              scenario:
+                trackHireInterviewDateBenchmark,
   
-            baseRevision:
-              "main",
+              strategy:
+                "sequential",
   
-            executor:
-              createExecutor(),
+              repositoryRoot:
+                "/repo/trackhire",
   
-            validator:
-              createValidator(false),
+              baseRevision:
+                "main",
+  
+              executor:
+                createExecutor(),
+  
+              validator:
+                createValidator(false),
+            });
+  
+          expect(
+            result.success,
+          ).toBe(false);
+  
+          expect(
+            result.validation.passed,
+          ).toBe(false);
+  
+          expect(
+            result.acceptance.passed,
+          ).toBe(true);
+  
+          expect(
+            result.validation
+              .failedCommands,
+          ).toEqual([
+            "flutter analyze",
+          ]);
+        },
+      );
+  
+      it(
+        "fails the benchmark when acceptance criteria fail even if validation passes",
+        async () => {
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(),
+              undefined,
+              createClock(),
+            );
+  
+          const result =
+            await runner.run({
+              runId:
+                "run-001",
+  
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              strategy:
+                "sequential",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+  
+              executor:
+                createExecutor({
+                  failCriterion:
+                    "upcoming-interviews",
+                }),
+  
+              validator:
+                createValidator(true),
+            });
+  
+          expect(
+            result.success,
+          ).toBe(false);
+  
+          expect(
+            result.validation.passed,
+          ).toBe(true);
+  
+          expect(
+            result.acceptance.passed,
+          ).toBe(false);
+  
+          expect(
+            result.acceptance
+              .failedCriteria,
+          ).toBe(1);
+        },
+      );
+  
+      it(
+        "preserves measured model usage without inventing cost",
+        async () => {
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(),
+              undefined,
+              createClock(),
+            );
+  
+          const result =
+            await runner.run({
+              runId:
+                "run-001",
+  
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              strategy:
+                "exploration",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+  
+              executor:
+                createExecutor(),
+  
+              validator:
+                createValidator(),
+            });
+  
+          expect(
+            result.usage,
+          ).toEqual({
+            inputTokens: 100,
+            outputTokens: 50,
+            estimatedCostUsd: 0,
           });
+        },
+      );
   
-        expect(result.success).toBe(
-          false,
-        );
+      it(
+        "records the deterministic commands that actually ran",
+        async () => {
+          const runner =
+            new BenchmarkRunner(
+              createWorkspaceManager(),
+              undefined,
+              createClock(),
+            );
   
-        expect(
-          result.validation.passed,
-        ).toBe(false);
+          const result =
+            await runner.run({
+              runId:
+                "run-001",
   
-        expect(
-          result.acceptance.passed,
-        ).toBe(true);
+              scenario:
+                trackHireInterviewDateBenchmark,
   
-        expect(
-          result.validation.failedCommands,
-        ).toEqual([
-          "flutter analyze",
-        ]);
-      });
+              strategy:
+                "parallel",
   
-      it("fails the benchmark when acceptance criteria fail even if validation passes", async () => {
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(),
-            undefined,
-            createClock(),
-          );
+              repositoryRoot:
+                "/repo/trackhire",
   
-        const result =
-          await runner.run({
-            runId:
-              "run-001",
+              baseRevision:
+                "main",
   
-            scenario:
-              trackHireInterviewDateBenchmark,
+              executor:
+                createExecutor(),
   
-            strategy:
-              "sequential",
+              validator:
+                createValidator(),
+            });
   
-            repositoryRoot:
-              "/repo/trackhire",
-  
-            baseRevision:
-              "main",
-  
-            executor:
-              createExecutor({
-                failCriterion:
-                  "upcoming-interviews",
-              }),
-  
-            validator:
-              createValidator(true),
-          });
-  
-        expect(result.success).toBe(
-          false,
-        );
-  
-        expect(
-          result.validation.passed,
-        ).toBe(true);
-  
-        expect(
-          result.acceptance.passed,
-        ).toBe(false);
-  
-        expect(
-          result.acceptance.failedCriteria,
-        ).toBe(1);
-      });
-  
-      it("preserves measured model usage without inventing cost", async () => {
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(),
-            undefined,
-            createClock(),
-          );
-  
-        const result =
-          await runner.run({
-            runId:
-              "run-001",
-  
-            scenario:
-              trackHireInterviewDateBenchmark,
-  
-            strategy:
-              "exploration",
-  
-            repositoryRoot:
-              "/repo/trackhire",
-  
-            baseRevision:
-              "main",
-  
-            executor:
-              createExecutor(),
-  
-            validator:
-              createValidator(),
-          });
-  
-        expect(result.usage).toEqual({
-          inputTokens: 100,
-          outputTokens: 50,
-          estimatedCostUsd: 0,
-        });
-      });
-  
-      it("records the deterministic commands that actually ran", async () => {
-        const runner =
-          new BenchmarkRunner(
-            createWorkspaceManager(),
-            undefined,
-            createClock(),
-          );
-  
-        const result =
-          await runner.run({
-            runId:
-              "run-001",
-  
-            scenario:
-              trackHireInterviewDateBenchmark,
-  
-            strategy:
-              "parallel",
-  
-            repositoryRoot:
-              "/repo/trackhire",
-  
-            baseRevision:
-              "main",
-  
-            executor:
-              createExecutor(),
-  
-            validator:
-              createValidator(),
-          });
-  
-        expect(
-          result.validation.commandsRun,
-        ).toEqual([
-          "flutter analyze",
-          "flutter test",
-        ]);
-      });
+          expect(
+            result.validation
+              .commandsRun,
+          ).toEqual([
+            "flutter analyze",
+            "flutter test",
+          ]);
+        },
+      );
     },
   );
