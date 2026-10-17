@@ -7,6 +7,24 @@ import {
     BenchmarkCriterionVerifier,
   } from "./deterministic-acceptance-collector.js";
   
+  import type {
+    BenchmarkScenario,
+  } from "../schemas/benchmark-scenario.js";
+  
+  import type {
+    EngineeringTask,
+  } from "../schemas/task.js";
+  
+  import type {
+    BenchmarkWorkspace,
+  } from "./benchmark-workspace-manager.js";
+  
+  const TRACKHIRE_SCENARIO_ID =
+    "trackhire-interview-date";
+  
+  const BENCHMARK_TEST_PATH =
+    "test/factory_benchmark_interview_date_test.dart";
+  
   export interface BenchmarkCommandResult {
     command: string;
     args: string[];
@@ -23,14 +41,14 @@ import {
     ): Promise<BenchmarkCommandResult>;
   }
   
-  class ProcessBenchmarkCommandRunner
+  export class ProcessBenchmarkCommandRunner
     implements BenchmarkCommandRunner {
     async run(
       command: string,
       args: string[],
       cwd: string,
     ): Promise<BenchmarkCommandResult> {
-      return new Promise(
+      return await new Promise(
         (
           resolve,
           reject,
@@ -50,17 +68,17 @@ import {
   
           child.stdout.on(
             "data",
-            (chunk: Buffer) => {
+            (data: Buffer | string) => {
               stdout +=
-                chunk.toString();
+                data.toString();
             },
           );
   
           child.stderr.on(
             "data",
-            (chunk: Buffer) => {
+            (data: Buffer | string) => {
               stderr +=
-                chunk.toString();
+                data.toString();
             },
           );
   
@@ -87,48 +105,76 @@ import {
     }
   }
   
-  function formatCommand(
-    result: BenchmarkCommandResult,
-  ): string {
-    return [
-      result.command,
-      ...result.args,
-    ].join(" ");
+  interface CriterionCommand {
+    criterionId: string;
+    plainName: string;
   }
   
-  function toEvidence(
+  const criterionCommands:
+    CriterionCommand[] = [
+      {
+        criterionId:
+          "optional-date",
+  
+        plainName:
+          "optional-date",
+      },
+      {
+        criterionId:
+          "persist-date",
+  
+        plainName:
+          "persist-date",
+      },
+      {
+        criterionId:
+          "upcoming-interviews",
+  
+        plainName:
+          "upcoming-interviews",
+      },
+      {
+        criterionId:
+          "edit-date",
+  
+        plainName:
+          "edit-date",
+      },
+    ];
+  
+  function commandEvidence(
     result: BenchmarkCommandResult,
   ): string[] {
     const command =
-      formatCommand(result);
-  
-    if (result.exitCode === 0) {
-      return [
-        `${command} passed.`,
-      ];
-    }
-  
-    const details =
       [
-        result.stderr.trim(),
-        result.stdout.trim(),
-      ]
-        .filter(
-          (value) =>
-            value.length > 0,
-        )
-        .join("\n");
+        result.command,
+        ...result.args,
+      ].join(" ");
   
-    if (details.length === 0) {
-      return [
-        `${command} failed with exit code ${result.exitCode}.`,
-      ];
+    const evidence = [
+      `Command: ${command}`,
+      `Exit code: ${result.exitCode}`,
+    ];
+  
+    const stdout =
+      result.stdout.trim();
+  
+    const stderr =
+      result.stderr.trim();
+  
+    if (stdout.length > 0) {
+      evidence.push(
+        `stdout: ${stdout}`,
+      );
     }
   
-    return [
-      `${command} failed with exit code ${result.exitCode}.`,
-      details,
-    ];
+    if (stderr.length > 0) {
+      evidence.push(
+        `stderr: ${stderr}`,
+      );
+    }
+  
+    return evidence;
   }
   
   export class TrackHireInterviewDateVerifier
@@ -139,29 +185,55 @@ import {
           new ProcessBenchmarkCommandRunner(),
     ) {}
   
-    async verify(input: Parameters<
-      BenchmarkCriterionVerifier["verify"]
-    >[0]): Promise<
+    async verify(input: {
+      scenario: BenchmarkScenario;
+      workspace: BenchmarkWorkspace;
+      task: EngineeringTask;
+    }): Promise<
       BenchmarkCriterionVerification[]
     > {
       if (
         input.scenario.id !==
-        "trackhire-interview-date"
+        TRACKHIRE_SCENARIO_ID
       ) {
         throw new Error(
-          `TrackHireInterviewDateVerifier cannot verify scenario ${input.scenario.id}.`,
+          `TrackHire interview-date verifier cannot verify scenario: ${input.scenario.id}`,
         );
       }
   
-      const behavioralResult =
-        await this.commandRunner.run(
-          "flutter",
-          [
-            "test",
-            "test/factory_benchmark_interview_date_test.dart",
-          ],
-          input.workspace.path,
-        );
+      const criterionResults:
+        BenchmarkCriterionVerification[] =
+          [];
+  
+      for (
+        const criterion
+        of criterionCommands
+      ) {
+        const result =
+          await this.commandRunner.run(
+            "flutter",
+            [
+              "test",
+              BENCHMARK_TEST_PATH,
+              "--plain-name",
+              criterion.plainName,
+            ],
+            input.workspace.path,
+          );
+  
+        criterionResults.push({
+          criterionId:
+            criterion.criterionId,
+  
+          passed:
+            result.exitCode === 0,
+  
+          evidence:
+            commandEvidence(
+              result,
+            ),
+        });
+      }
   
       const analyzeResult =
         await this.commandRunner.run(
@@ -181,84 +253,25 @@ import {
           input.workspace.path,
         );
   
-      const behavioralPassed =
-        behavioralResult.exitCode === 0;
+      criterionResults.push({
+        criterionId:
+          "regression",
   
-      const regressionPassed =
-        analyzeResult.exitCode === 0 &&
-        fullTestResult.exitCode === 0;
+        passed:
+          analyzeResult.exitCode === 0 &&
+          fullTestResult.exitCode === 0,
   
-      const behavioralEvidence =
-        toEvidence(
-          behavioralResult,
-        );
+        evidence: [
+          ...commandEvidence(
+            analyzeResult,
+          ),
   
-      return [
-        {
-          criterionId:
-            "optional-date",
+          ...commandEvidence(
+            fullTestResult,
+          ),
+        ],
+      });
   
-          passed:
-            behavioralPassed,
-  
-          evidence: [
-            ...behavioralEvidence,
-          ],
-        },
-  
-        {
-          criterionId:
-            "persist-date",
-  
-          passed:
-            behavioralPassed,
-  
-          evidence: [
-            ...behavioralEvidence,
-          ],
-        },
-  
-        {
-          criterionId:
-            "edit-date",
-  
-          passed:
-            behavioralPassed,
-  
-          evidence: [
-            ...behavioralEvidence,
-          ],
-        },
-  
-        {
-          criterionId:
-            "upcoming-interviews",
-  
-          passed:
-            behavioralPassed,
-  
-          evidence: [
-            ...behavioralEvidence,
-          ],
-        },
-  
-        {
-          criterionId:
-            "regression",
-  
-          passed:
-            regressionPassed,
-  
-          evidence: [
-            ...toEvidence(
-              analyzeResult,
-            ),
-  
-            ...toEvidence(
-              fullTestResult,
-            ),
-          ],
-        },
-      ];
+      return criterionResults;
     }
   }

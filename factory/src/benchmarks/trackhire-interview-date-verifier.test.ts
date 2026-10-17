@@ -18,16 +18,20 @@ import {
   } from "./trackhire-interview-date.js";
   
   import type {
+    BenchmarkWorkspace,
+  } from "./benchmark-workspace-manager.js";
+  
+  import type {
     EngineeringTask,
   } from "../schemas/task.js";
   
   class FakeCommandRunner
     implements BenchmarkCommandRunner {
-    calls: Array<{
+    readonly calls: {
       command: string;
       args: string[];
       cwd: string;
-    }> = [];
+    }[] = [];
   
     constructor(
       private readonly results:
@@ -46,11 +50,13 @@ import {
       });
   
       const result =
-        this.results.shift();
+        this.results[
+          this.calls.length - 1
+        ];
   
       if (!result) {
         throw new Error(
-          "No fake command result available.",
+          "No fake command result configured.",
         );
       }
   
@@ -58,279 +64,348 @@ import {
     }
   }
   
-  function passingResult(
+  function commandResult(
+    command: string,
     args: string[],
+    exitCode = 0,
   ): BenchmarkCommandResult {
     return {
-      command:
-        "flutter",
-  
+      command,
       args,
-  
-      exitCode: 0,
-  
+      exitCode,
       stdout:
-        "Passed.",
-  
-      stderr: "",
-    };
-  }
-  
-  function failingResult(
-    args: string[],
-  ): BenchmarkCommandResult {
-    return {
-      command:
-        "flutter",
-  
-      args,
-  
-      exitCode: 1,
-  
-      stdout: "",
-  
+        exitCode === 0
+          ? "passed"
+          : "",
       stderr:
-        "Deterministic failure.",
+        exitCode === 0
+          ? ""
+          : "failed",
     };
   }
   
-  function createTask():
-    EngineeringTask {
-    return {
+  const workspace:
+    BenchmarkWorkspace = {
+      scenarioId:
+        "trackhire-interview-date",
+  
+      runId:
+        "run-001",
+  
+      strategyId:
+        "sequential",
+  
+      baselineRevision:
+        "abc123",
+  
+      path:
+        "/tmp/trackhire-benchmark",
+  
+      branch:
+        "factory/benchmark-run-001",
+    };
+  
+  const task:
+    EngineeringTask = {
       id:
         "trackhire-interview-date-run-001",
   
       request:
-        trackHireInterviewDateBenchmark
-          .task,
+        trackHireInterviewDateBenchmark.task,
   
       status:
-        "REVIEWING",
+        "TASK_CREATED",
   
       requirements:
-        trackHireInterviewDateBenchmark
-          .acceptanceCriteria
-          .map(
-            (criterion) =>
-              criterion.description,
-          ),
+        [],
   
       acceptanceCriteria:
-        trackHireInterviewDateBenchmark
-          .acceptanceCriteria
-          .map(
-            (criterion) =>
-              criterion.verification,
-          ),
+        [],
   
-      constraints: [],
+      constraints:
+        [],
   
       repairAttempts: 0,
   
       createdAt:
-        "2026-10-16T21:00:00.000Z",
+        "2026-10-17T00:00:00.000Z",
   
       updatedAt:
-        "2026-10-16T21:00:00.000Z",
+        "2026-10-17T00:00:00.000Z",
     };
+  
+  function passingResults():
+    BenchmarkCommandResult[] {
+    const benchmarkPath =
+      "test/factory_benchmark_interview_date_test.dart";
+  
+    return [
+      commandResult(
+        "flutter",
+        [
+          "test",
+          benchmarkPath,
+          "--plain-name",
+          "optional-date",
+        ],
+      ),
+  
+      commandResult(
+        "flutter",
+        [
+          "test",
+          benchmarkPath,
+          "--plain-name",
+          "persist-date",
+        ],
+      ),
+  
+      commandResult(
+        "flutter",
+        [
+          "test",
+          benchmarkPath,
+          "--plain-name",
+          "upcoming-interviews",
+        ],
+      ),
+  
+      commandResult(
+        "flutter",
+        [
+          "test",
+          benchmarkPath,
+          "--plain-name",
+          "edit-date",
+        ],
+      ),
+  
+      commandResult(
+        "flutter",
+        [
+          "analyze",
+        ],
+      ),
+  
+      commandResult(
+        "flutter",
+        [
+          "test",
+        ],
+      ),
+    ];
   }
-  
-  function createInput() {
-    return {
-      scenario:
-        trackHireInterviewDateBenchmark,
-  
-      workspace: {
-        scenarioId:
-          "trackhire-interview-date",
-  
-        runId:
-          "benchmark-run-001",
-  
-        strategyId:
-          "sequential",
-  
-        baselineRevision:
-          "abc123",
-  
-        path:
-          "/tmp/trackhire-benchmark",
-  
-        branch:
-          "factory/benchmark-sequential",
-      },
-  
-      task:
-        createTask(),
-    };
-  }
-  
-  const benchmarkTestArgs = [
-    "test",
-    "test/factory_benchmark_interview_date_test.dart",
-  ];
   
   describe(
     "TrackHireInterviewDateVerifier",
     () => {
-      it("runs protected behavior, analysis, and full regression tests in the benchmark workspace", async () => {
+      it("runs each feature criterion independently", async () => {
         const runner =
-          new FakeCommandRunner([
-            passingResult(
-              benchmarkTestArgs,
-            ),
-  
-            passingResult([
-              "analyze",
-            ]),
-  
-            passingResult([
-              "test",
-            ]),
-          ]);
+          new FakeCommandRunner(
+            passingResults(),
+          );
   
         const verifier =
           new TrackHireInterviewDateVerifier(
             runner,
           );
   
-        await verifier.verify(
-          createInput(),
-        );
+        const results =
+          await verifier.verify({
+            scenario:
+              trackHireInterviewDateBenchmark,
+  
+            workspace,
+  
+            task,
+          });
+  
+        expect(
+          results.map(
+            (result) =>
+              result.criterionId,
+          ),
+        ).toEqual([
+          "optional-date",
+          "persist-date",
+          "upcoming-interviews",
+          "edit-date",
+          "regression",
+        ]);
   
         expect(
           runner.calls,
-        ).toEqual([
-          {
-            command:
-              "flutter",
+        ).toHaveLength(6);
+      });
   
-            args:
-              benchmarkTestArgs,
+      it("uses the protected fixture for every feature criterion", async () => {
+        const runner =
+          new FakeCommandRunner(
+            passingResults(),
+          );
   
-            cwd:
-              "/tmp/trackhire-benchmark",
-          },
+        const verifier =
+          new TrackHireInterviewDateVerifier(
+            runner,
+          );
   
-          {
-            command:
-              "flutter",
+        await verifier.verify({
+          scenario:
+            trackHireInterviewDateBenchmark,
   
-            args: [
+          workspace,
+  
+          task,
+        });
+  
+        const featureCalls =
+          runner.calls.slice(
+            0,
+            4,
+          );
+  
+        for (
+          const call
+          of featureCalls
+        ) {
+          expect(
+            call.command,
+          ).toBe(
+            "flutter",
+          );
+  
+          expect(
+            call.args[0],
+          ).toBe(
+            "test",
+          );
+  
+          expect(
+            call.args[1],
+          ).toBe(
+            "test/factory_benchmark_interview_date_test.dart",
+          );
+  
+          expect(
+            call.args[2],
+          ).toBe(
+            "--plain-name",
+          );
+  
+          expect(
+            call.cwd,
+          ).toBe(
+            workspace.path,
+          );
+        }
+      });
+  
+      it("maps a feature failure only to its own criterion", async () => {
+        const results =
+          passingResults();
+  
+        results[2] =
+          commandResult(
+            "flutter",
+            [
+              "test",
+              "test/factory_benchmark_interview_date_test.dart",
+              "--plain-name",
+              "upcoming-interviews",
+            ],
+            1,
+          );
+  
+        const runner =
+          new FakeCommandRunner(
+            results,
+          );
+  
+        const verifier =
+          new TrackHireInterviewDateVerifier(
+            runner,
+          );
+  
+        const verification =
+          await verifier.verify({
+            scenario:
+              trackHireInterviewDateBenchmark,
+  
+            workspace,
+  
+            task,
+          });
+  
+        expect(
+          verification,
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              criterionId:
+                "optional-date",
+  
+              passed: true,
+            }),
+  
+            expect.objectContaining({
+              criterionId:
+                "persist-date",
+  
+              passed: true,
+            }),
+  
+            expect.objectContaining({
+              criterionId:
+                "upcoming-interviews",
+  
+              passed: false,
+            }),
+  
+            expect.objectContaining({
+              criterionId:
+                "edit-date",
+  
+              passed: true,
+            }),
+          ]),
+        );
+      });
+  
+      it("requires both analyze and the full test suite for regression", async () => {
+        const results =
+          passingResults();
+  
+        results[4] =
+          commandResult(
+            "flutter",
+            [
               "analyze",
             ],
+            1,
+          );
   
-            cwd:
-              "/tmp/trackhire-benchmark",
-          },
+        const runner =
+          new FakeCommandRunner(
+            results,
+          );
   
-          {
-            command:
-              "flutter",
-  
-            args: [
-              "test",
-            ],
-  
-            cwd:
-              "/tmp/trackhire-benchmark",
-          },
-        ]);
-      });
-  
-      it("passes all criteria when deterministic behavior and regression checks pass", async () => {
         const verifier =
           new TrackHireInterviewDateVerifier(
-            new FakeCommandRunner([
-              passingResult(
-                benchmarkTestArgs,
-              ),
-  
-              passingResult([
-                "analyze",
-              ]),
-  
-              passingResult([
-                "test",
-              ]),
-            ]),
+            runner,
           );
   
-        const results =
-          await verifier.verify(
-            createInput(),
-          );
+        const verification =
+          await verifier.verify({
+            scenario:
+              trackHireInterviewDateBenchmark,
   
-        expect(
-          results.every(
-            (result) =>
-              result.passed,
-          ),
-        ).toBe(true);
-      });
+            workspace,
   
-      it("fails feature criteria when the protected behavior test fails", async () => {
-        const verifier =
-          new TrackHireInterviewDateVerifier(
-            new FakeCommandRunner([
-              failingResult(
-                benchmarkTestArgs,
-              ),
-  
-              passingResult([
-                "analyze",
-              ]),
-  
-              passingResult([
-                "test",
-              ]),
-            ]),
-          );
-  
-        const results =
-          await verifier.verify(
-            createInput(),
-          );
-  
-        expect(
-          results
-            .slice(0, 4)
-            .every(
-              (result) =>
-                !result.passed,
-            ),
-        ).toBe(true);
-  
-        expect(
-          results[4]?.passed,
-        ).toBe(true);
-      });
-  
-      it("fails regression when flutter analyze fails", async () => {
-        const verifier =
-          new TrackHireInterviewDateVerifier(
-            new FakeCommandRunner([
-              passingResult(
-                benchmarkTestArgs,
-              ),
-  
-              failingResult([
-                "analyze",
-              ]),
-  
-              passingResult([
-                "test",
-              ]),
-            ]),
-          );
-  
-        const results =
-          await verifier.verify(
-            createInput(),
-          );
+            task,
+          });
   
         const regression =
-          results.find(
+          verification.find(
             (result) =>
               result.criterionId ===
               "regression",
@@ -339,63 +414,117 @@ import {
         expect(
           regression?.passed,
         ).toBe(false);
+  
+        expect(
+          runner.calls[5],
+        ).toEqual({
+          command:
+            "flutter",
+  
+          args: [
+            "test",
+          ],
+  
+          cwd:
+            workspace.path,
+        });
       });
   
-      it("fails regression when the full Flutter test suite fails", async () => {
+      it("records command evidence for a failed criterion", async () => {
+        const results =
+          passingResults();
+  
+        results[0] = {
+          command:
+            "flutter",
+  
+          args: [
+            "test",
+            "test/factory_benchmark_interview_date_test.dart",
+            "--plain-name",
+            "optional-date",
+          ],
+  
+          exitCode: 1,
+  
+          stdout: "",
+  
+          stderr:
+            "interviewDate is not defined",
+        };
+  
+        const runner =
+          new FakeCommandRunner(
+            results,
+          );
+  
         const verifier =
           new TrackHireInterviewDateVerifier(
-            new FakeCommandRunner([
-              passingResult(
-                benchmarkTestArgs,
-              ),
-  
-              passingResult([
-                "analyze",
-              ]),
-  
-              failingResult([
-                "test",
-              ]),
-            ]),
+            runner,
           );
   
-        const results =
-          await verifier.verify(
-            createInput(),
-          );
+        const verification =
+          await verifier.verify({
+            scenario:
+              trackHireInterviewDateBenchmark,
   
-        const regression =
-          results.find(
+            workspace,
+  
+            task,
+          });
+  
+        const optionalDate =
+          verification.find(
             (result) =>
               result.criterionId ===
-              "regression",
+              "optional-date",
           );
   
         expect(
-          regression?.passed,
+          optionalDate?.passed,
         ).toBe(false);
+  
+        expect(
+          optionalDate?.evidence,
+        ).toEqual(
+          expect.arrayContaining([
+            "Exit code: 1",
+            "stderr: interviewDate is not defined",
+          ]),
+        );
       });
   
-      it("rejects use with a different benchmark scenario", async () => {
+      it("rejects a different benchmark scenario", async () => {
+        const runner =
+          new FakeCommandRunner(
+            passingResults(),
+          );
+  
         const verifier =
           new TrackHireInterviewDateVerifier(
-            new FakeCommandRunner([]),
+            runner,
           );
   
         await expect(
           verifier.verify({
-            ...createInput(),
-  
             scenario: {
               ...trackHireInterviewDateBenchmark,
   
               id:
                 "different-scenario",
             },
+  
+            workspace,
+  
+            task,
           }),
         ).rejects.toThrow(
-          "TrackHireInterviewDateVerifier cannot verify scenario different-scenario.",
+          "TrackHire interview-date verifier cannot verify scenario: different-scenario",
         );
+  
+        expect(
+          runner.calls,
+        ).toHaveLength(0);
       });
     },
   );
