@@ -2,9 +2,17 @@
 
 ![Flutter CI](https://github.com/szzbj720/trackhire/actions/workflows/flutter_ci.yml/badge.svg)
 
-TrackHire AI is a mobile app I built to help job seekers stay organized during the application process. I started this project because I was applying to a lot of internships and new grad roles, and I kept running into the same problem: my applications, job descriptions, deadlines, notes, and interview prep were spread across different tabs, spreadsheets, and random documents.
+TrackHire AI is a mobile app I built to help job seekers stay organized during the application process. I started the project while applying to internships and new grad roles because my applications, job descriptions, deadlines, notes, and interview prep were spread across different tabs, spreadsheets, and documents.
 
-Instead of treating job searching as just a list of companies, I wanted to build something that felt closer to a personal job search workspace. The app lets users track applications, save important roles, organize required materials, and use AI to break down job descriptions into useful next steps.
+Instead of treating job searching as just a list of companies, I wanted something closer to a personal job search workspace. TrackHire became a place to track applications, save important roles, organize application materials, analyze job descriptions, and keep the information I needed throughout my job search in one place.
+
+As the project grew, I also found myself navigating parts of software development that were unfamiliar to me and using AI tools to help me understand the codebase, debug problems, and build new features. That created a second problem I became interested in: if AI is going to help perform real engineering work, how do I know when I can actually trust what it produces?
+
+That question led me to build an AI software engineering factory around TrackHire. The factory understands the repository, evaluates the complexity and risk of engineering tasks, plans and routes work across AI agents, executes changes in isolated environments, and validates the results instead of trusting generated code at face value. It can diagnose failures, attempt bounded recovery, and escalate uncertain decisions for human approval.
+
+TrackHire now serves two purposes: it is still the product I originally built to make my own job search easier, and it is the first real-world codebase I use to experiment with how AI engineering agents can be coordinated, evaluated, and trusted.
+
+[Learn more about the AI Engineering Factory](#ai-engineering-factory)
 
 ---
 
