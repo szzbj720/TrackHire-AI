@@ -35,6 +35,7 @@ import {
   
   import type {
     BenchmarkAcceptanceCollector,
+    BenchmarkModelEvidenceSource,
   } from "./sequential-benchmark-executor.js";
   
   import {
@@ -242,206 +243,331 @@ import {
     };
   }
   
+  function createWorkspace() {
+    return {
+      scenarioId:
+        "trackhire-interview-date",
+  
+      runId:
+        "experiment-001-sequential",
+  
+      strategyId:
+        "sequential",
+  
+      baselineRevision:
+        "abc123",
+  
+      path:
+        "/tmp/benchmark-sequential",
+  
+      branch:
+        "factory/benchmark-sequential",
+    };
+  }
+  
   describe(
     "SequentialBenchmarkExecutor",
     () => {
-      it("executes the real implementation workflow inside the benchmark workspace", async () => {
-        const builder =
-          new RecordingBuilder();
+      it(
+        "executes the real implementation workflow inside the benchmark workspace",
+        async () => {
+          const builder =
+            new RecordingBuilder();
   
-        const validator =
-          new PassingValidator();
+          const validator =
+            new PassingValidator();
   
-        const acceptanceCollector =
-          new RecordingAcceptanceCollector();
+          const acceptanceCollector =
+            new RecordingAcceptanceCollector();
   
-        const executor =
-          new SequentialBenchmarkExecutor({
-            runId:
-              "experiment-001-sequential",
-  
-            plan:
-              createPlan(),
-  
-            implementationWorkflow:
-              new ImplementationWorkflow(
-                builder,
-                validator,
-              ),
-  
-            acceptanceCollector,
-          });
-  
-        const result =
-          await executor.execute({
-            scenario:
-              trackHireInterviewDateBenchmark,
-  
-            workspace: {
-              scenarioId:
-                "trackhire-interview-date",
-  
+          const executor =
+            new SequentialBenchmarkExecutor({
               runId:
                 "experiment-001-sequential",
   
-              strategyId:
-                "sequential",
+              plan:
+                createPlan(),
   
-              baselineRevision:
-                "abc123",
+              implementationWorkflow:
+                new ImplementationWorkflow(
+                  builder,
+                  validator,
+                ),
   
-              path:
-                "/tmp/benchmark-sequential",
+              acceptanceCollector,
+            });
   
-              branch:
-                "factory/benchmark-sequential",
-            },
-          });
+          const result =
+            await executor.execute({
+              scenario:
+                trackHireInterviewDateBenchmark,
   
-        expect(
-          builder.worktreePaths,
-        ).toEqual([
-          "/tmp/benchmark-sequential",
-        ]);
+              workspace:
+                createWorkspace(),
+            });
   
-        expect(
-          validator.worktreePaths,
-        ).toEqual([
-          "/tmp/benchmark-sequential",
-        ]);
+          expect(
+            builder.worktreePaths,
+          ).toEqual([
+            "/tmp/benchmark-sequential",
+          ]);
   
-        expect(
-          acceptanceCollector
-            .workspacePaths,
-        ).toEqual([
-          "/tmp/benchmark-sequential",
-        ]);
+          expect(
+            validator.worktreePaths,
+          ).toEqual([
+            "/tmp/benchmark-sequential",
+          ]);
   
-        expect(
-          result.criterionResults,
-        ).toHaveLength(
-          trackHireInterviewDateBenchmark
-            .acceptanceCriteria
-            .length,
-        );
+          expect(
+            acceptanceCollector
+              .workspacePaths,
+          ).toEqual([
+            "/tmp/benchmark-sequential",
+          ]);
   
-        expect(
-          result.humanInterventions,
-        ).toBe(1);
-      });
+          expect(
+            result.criterionResults,
+          ).toHaveLength(
+            trackHireInterviewDateBenchmark
+              .acceptanceCriteria
+              .length,
+          );
   
-      it("does not invent model usage when usage evidence is unavailable", async () => {
-        const executor =
-          new SequentialBenchmarkExecutor({
-            runId:
-              "experiment-001-sequential",
+          expect(
+            result.humanInterventions,
+          ).toBe(1);
+        },
+      );
   
-            plan:
-              createPlan(),
-  
-            implementationWorkflow:
-              new ImplementationWorkflow(
-                new RecordingBuilder(),
-                new PassingValidator(),
-              ),
-  
-            acceptanceCollector:
-              new RecordingAcceptanceCollector(),
-          });
-  
-        const result =
-          await executor.execute({
-            scenario:
-              trackHireInterviewDateBenchmark,
-  
-            workspace: {
-              scenarioId:
-                "trackhire-interview-date",
-  
+      it(
+        "does not invent model usage when model evidence is unavailable",
+        async () => {
+          const executor =
+            new SequentialBenchmarkExecutor({
               runId:
                 "experiment-001-sequential",
   
-              strategyId:
-                "sequential",
+              plan:
+                createPlan(),
   
-              baselineRevision:
-                "abc123",
+              implementationWorkflow:
+                new ImplementationWorkflow(
+                  new RecordingBuilder(),
+                  new PassingValidator(),
+                ),
   
-              path:
-                "/tmp/benchmark-sequential",
+              acceptanceCollector:
+                new RecordingAcceptanceCollector(),
+            });
   
-              branch:
-                "factory/benchmark-sequential",
-            },
+          const result =
+            await executor.execute({
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              workspace:
+                createWorkspace(),
+            });
+  
+          expect(
+            result.usage,
+          ).toEqual({
+            inputTokens: 0,
+            outputTokens: 0,
+            estimatedCostUsd: 0,
           });
+        },
+      );
   
-        expect(
-          result.usage,
-        ).toEqual({
-          inputTokens: 0,
-          outputTokens: 0,
-          estimatedCostUsd: 0,
-        });
-      });
+      it(
+        "reports measured model usage from model evidence",
+        async () => {
+          const modelEvidence:
+            BenchmarkModelEvidenceSource = {
+              snapshot() {
+                return {
+                  calls: [
+                    {
+                      callIndex: 0,
   
-      it("preserves measured model usage when it is supplied", async () => {
-        const executor =
-          new SequentialBenchmarkExecutor({
-            runId:
-              "experiment-001-sequential",
+                      requestedAt:
+                        "2026-10-17T00:00:00.000Z",
   
-            plan:
-              createPlan(),
+                      completedAt:
+                        "2026-10-17T00:00:00.050Z",
   
-            implementationWorkflow:
-              new ImplementationWorkflow(
-                new RecordingBuilder(),
-                new PassingValidator(),
-              ),
+                      durationMs: 50,
   
-            acceptanceCollector:
-              new RecordingAcceptanceCollector(),
+                      success: true,
   
-            usage: {
-              inputTokens: 1200,
-              outputTokens: 450,
-              estimatedCostUsd: 0.012,
-            },
-          });
+                      model:
+                        "fake-coder",
   
-        const result =
-          await executor.execute({
-            scenario:
-              trackHireInterviewDateBenchmark,
+                      usage: {
+                        inputTokens: 1200,
+                        outputTokens: 450,
+                        estimatedCostUsd: 0.012,
+                      },
+                    },
+                  ],
   
-            workspace: {
-              scenarioId:
-                "trackhire-interview-date",
+                  successfulCalls: 1,
+                  failedCalls: 0,
   
+                  inputTokens: 1200,
+                  outputTokens: 450,
+  
+                  estimatedCostUsd: 0.012,
+  
+                  totalDurationMs: 50,
+                };
+              },
+            };
+  
+          const executor =
+            new SequentialBenchmarkExecutor({
               runId:
                 "experiment-001-sequential",
   
-              strategyId:
-                "sequential",
+              plan:
+                createPlan(),
   
-              baselineRevision:
-                "abc123",
+              implementationWorkflow:
+                new ImplementationWorkflow(
+                  new RecordingBuilder(),
+                  new PassingValidator(),
+                ),
   
-              path:
-                "/tmp/benchmark-sequential",
+              acceptanceCollector:
+                new RecordingAcceptanceCollector(),
   
-              branch:
-                "factory/benchmark-sequential",
-            },
+              modelEvidence,
+            });
+  
+          const result =
+            await executor.execute({
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              workspace:
+                createWorkspace(),
+            });
+  
+          expect(
+            result.usage,
+          ).toEqual({
+            inputTokens: 1200,
+            outputTokens: 450,
+            estimatedCostUsd: 0.012,
           });
+        },
+      );
   
-        expect(
-          result.usage,
-        ).toEqual({
-          inputTokens: 1200,
-          outputTokens: 450,
-          estimatedCostUsd: 0.012,
-        });
-      });
+      it(
+        "uses aggregate evidence from multiple model calls",
+        async () => {
+          const modelEvidence:
+            BenchmarkModelEvidenceSource = {
+              snapshot() {
+                return {
+                  calls: [
+                    {
+                      callIndex: 0,
+  
+                      requestedAt:
+                        "2026-10-17T00:00:00.000Z",
+  
+                      completedAt:
+                        "2026-10-17T00:00:00.040Z",
+  
+                      durationMs: 40,
+  
+                      success: true,
+  
+                      model:
+                        "fake-planner",
+  
+                      usage: {
+                        inputTokens: 700,
+                        outputTokens: 200,
+                        estimatedCostUsd: 0.007,
+                      },
+                    },
+  
+                    {
+                      callIndex: 1,
+  
+                      requestedAt:
+                        "2026-10-17T00:00:01.000Z",
+  
+                      completedAt:
+                        "2026-10-17T00:00:01.060Z",
+  
+                      durationMs: 60,
+  
+                      success: true,
+  
+                      model:
+                        "fake-coder",
+  
+                      usage: {
+                        inputTokens: 900,
+                        outputTokens: 350,
+                        estimatedCostUsd: 0.011,
+                      },
+                    },
+                  ],
+  
+                  successfulCalls: 2,
+                  failedCalls: 0,
+  
+                  inputTokens: 1600,
+                  outputTokens: 550,
+  
+                  estimatedCostUsd: 0.018,
+  
+                  totalDurationMs: 100,
+                };
+              },
+            };
+  
+          const executor =
+            new SequentialBenchmarkExecutor({
+              runId:
+                "experiment-001-sequential",
+  
+              plan:
+                createPlan(),
+  
+              implementationWorkflow:
+                new ImplementationWorkflow(
+                  new RecordingBuilder(),
+                  new PassingValidator(),
+                ),
+  
+              acceptanceCollector:
+                new RecordingAcceptanceCollector(),
+  
+              modelEvidence,
+            });
+  
+          const result =
+            await executor.execute({
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              workspace:
+                createWorkspace(),
+            });
+  
+          expect(
+            result.usage,
+          ).toEqual({
+            inputTokens: 1600,
+            outputTokens: 550,
+            estimatedCostUsd: 0.018,
+          });
+        },
+      );
     },
   );

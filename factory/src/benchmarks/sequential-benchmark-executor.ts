@@ -16,6 +16,10 @@ import type {
   } from "./benchmark-workspace-manager.js";
   
   import type {
+    BenchmarkModelProviderSnapshot,
+  } from "./benchmark-model-provider.js";
+  
+  import type {
     BenchmarkScenario,
   } from "../schemas/benchmark-scenario.js";
   
@@ -43,6 +47,11 @@ import type {
     }): Promise<BenchmarkCriterionResult[]>;
   }
   
+  export interface BenchmarkModelEvidenceSource {
+    snapshot():
+      BenchmarkModelProviderSnapshot;
+  }
+  
   export interface SequentialBenchmarkExecutorOptions {
     runId: string;
   
@@ -54,7 +63,33 @@ import type {
     acceptanceCollector:
       BenchmarkAcceptanceCollector;
   
-    usage?: BenchmarkUsage;
+    modelEvidence?:
+      BenchmarkModelEvidenceSource;
+  }
+  
+  function usageFromSnapshot(
+    snapshot:
+      BenchmarkModelProviderSnapshot,
+  ): BenchmarkUsage {
+    return {
+      inputTokens:
+        snapshot.inputTokens,
+  
+      outputTokens:
+        snapshot.outputTokens,
+  
+      estimatedCostUsd:
+        snapshot.estimatedCostUsd,
+    };
+  }
+  
+  function zeroUsage():
+    BenchmarkUsage {
+    return {
+      inputTokens: 0,
+      outputTokens: 0,
+      estimatedCostUsd: 0,
+    };
   }
   
   export class SequentialBenchmarkExecutor
@@ -130,15 +165,19 @@ import type {
               result.task,
           });
   
+      const usage =
+        this.options.modelEvidence
+          ? usageFromSnapshot(
+              this.options
+                .modelEvidence
+                .snapshot(),
+            )
+          : zeroUsage();
+  
       return {
         criterionResults,
   
-        usage:
-          this.options.usage ?? {
-            inputTokens: 0,
-            outputTokens: 0,
-            estimatedCostUsd: 0,
-          },
+        usage,
   
         humanInterventions: 1,
       };
