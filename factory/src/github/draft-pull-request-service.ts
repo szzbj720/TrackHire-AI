@@ -4,8 +4,17 @@ import type {
   } from "../schemas/pull-request.js";
   
   import type {
+    ValidationResult,
+  } from "../schemas/validation.js";
+  
+  import type {
     GitHubClient,
   } from "./github-client.js";
+  
+  export interface CreateValidatedDraftPullRequestInput {
+    request: CreateDraftPullRequestRequest;
+    validation: ValidationResult;
+  }
   
   export class DraftPullRequestService {
     constructor(
@@ -13,11 +22,17 @@ import type {
     ) {}
   
     async create(
-      request: CreateDraftPullRequestRequest,
+      input: CreateValidatedDraftPullRequestInput,
     ): Promise<PullRequestResult> {
+      if (!input.validation.passed) {
+        throw new Error(
+          "Cannot create a draft pull request because validation failed.",
+        );
+      }
+  
       const result =
         await this.client.createDraftPullRequest(
-          request,
+          input.request,
         );
   
       if (!result.isDraft) {
