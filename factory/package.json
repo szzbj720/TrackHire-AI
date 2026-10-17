@@ -9,6 +9,7 @@
     "inspect": "tsx src/context/inspect-repository.ts",
     "plan": "tsx src/run-planning-demo.ts",
     "factory:demo": "tsx src/run-sequential-demo.ts",
+    "factory:deliver": "tsx src/runtime/run-factory-delivery.ts",
     "benchmark:baseline": "tsx src/benchmarks/run-trackhire-baseline.ts"
   },
   "keywords": [],

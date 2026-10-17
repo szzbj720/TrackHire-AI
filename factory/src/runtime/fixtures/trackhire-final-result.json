@@ -1,0 +1,135 @@
+{
+    "run": {
+      "task": {
+        "id": "TH-001",
+        "request": "Add an optional interview date to a TrackHire application and display upcoming interviews.",
+        "status": "AWAITING_FINAL_APPROVAL",
+        "requirements": [
+          "Allow an interview date to be stored for an application.",
+          "Display applications with upcoming interviews."
+        ],
+        "acceptanceCriteria": [
+          "Applications can exist without an interview date.",
+          "Applications with future interview dates can be displayed as upcoming."
+        ],
+        "constraints": [
+          "Existing applications without interview dates must continue to work."
+        ],
+        "strategy": {
+          "mode": "sequential",
+          "reasoning": "The task touches related model and provider behavior and can be completed sequentially."
+        },
+        "repairAttempts": 0,
+        "createdAt": "2026-10-17T00:00:00.000Z",
+        "updatedAt": "2026-10-17T00:10:00.000Z"
+      },
+      "implementation": {
+        "summary": "Added optional interview date support and upcoming interview filtering.",
+        "changedFiles": [
+          {
+            "path": "lib/models/job_application.dart",
+            "changeType": "modified",
+            "summary": "Added nullable interviewDate support."
+          },
+          {
+            "path": "lib/providers/application_provider.dart",
+            "changeType": "modified",
+            "summary": "Added filtering for upcoming interviews."
+          }
+        ],
+        "commandsRun": [
+          "flutter analyze",
+          "flutter test"
+        ],
+        "assumptions": [],
+        "warnings": [],
+        "requiresHumanInput": false
+      },
+      "validation": {
+        "passed": true,
+        "checks": [
+          {
+            "name": "flutter analyze",
+            "command": "flutter",
+            "args": [
+              "analyze"
+            ],
+            "exitCode": 0,
+            "stdout": "",
+            "stderr": "",
+            "durationMs": 100,
+            "passed": true
+          },
+          {
+            "name": "flutter test",
+            "command": "flutter",
+            "args": [
+              "test"
+            ],
+            "exitCode": 0,
+            "stdout": "",
+            "stderr": "",
+            "durationMs": 200,
+            "passed": true
+          }
+        ],
+        "failedChecks": [],
+        "durationMs": 300
+      },
+      "repairs": [],
+      "review": {
+        "approved": true,
+        "summary": "The implementation satisfies the requested TrackHire behavior.",
+        "findings": [],
+        "requirementCoverage": [
+          {
+            "requirement": "Applications can exist without an interview date.",
+            "satisfied": true,
+            "evidence": [
+              "interviewDate is nullable.",
+              "Existing application compatibility is preserved."
+            ]
+          },
+          {
+            "requirement": "Applications with future interview dates can be displayed as upcoming.",
+            "satisfied": true,
+            "evidence": [
+              "Upcoming interview filtering is implemented.",
+              "Provider validation passes."
+            ]
+          }
+        ],
+        "requiresHumanInput": false,
+        "confidence": 0.95
+      },
+      "changeEvidence": {
+        "approvedFiles": [
+          "lib/models/job_application.dart",
+          "lib/providers/application_provider.dart"
+        ],
+        "reportedFiles": [
+          "lib/models/job_application.dart",
+          "lib/providers/application_provider.dart"
+        ],
+        "observedFiles": [
+          "lib/models/job_application.dart",
+          "lib/providers/application_provider.dart"
+        ],
+        "unreportedFiles": [],
+        "missingReportedFiles": [],
+        "unapprovedFiles": [],
+        "withinApprovedScope": true,
+        "reportMatchesObserved": true,
+        "patch": "deterministic TrackHire fixture"
+      }
+    },
+    "route": {
+      "route": "SEQUENTIAL",
+      "policy": {
+        "mode": "sequential",
+        "disposition": "SUPPORTED_SEQUENTIAL",
+        "reasoning": "Sequential execution is supported."
+      }
+    },
+    "stopReason": "FINAL_APPROVAL_REQUIRED"
+  }
