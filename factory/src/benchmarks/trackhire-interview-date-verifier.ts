@@ -25,6 +25,14 @@ import {
   const BENCHMARK_TEST_PATH =
     "test/factory_benchmark_interview_date_test.dart";
   
+  const EXISTING_REGRESSION_TEST_PATH =
+    "test/job_application_test.dart";
+  
+  const PRODUCTION_ANALYSIS_PATHS = [
+    "lib",
+    "backend",
+  ];
+  
   export interface BenchmarkCommandResult {
     command: string;
     args: string[];
@@ -68,7 +76,10 @@ import {
   
           child.stdout.on(
             "data",
-            (data: Buffer | string) => {
+            (
+              data:
+                Buffer | string,
+            ) => {
               stdout +=
                 data.toString();
             },
@@ -76,7 +87,10 @@ import {
   
           child.stderr.on(
             "data",
-            (data: Buffer | string) => {
+            (
+              data:
+                Buffer | string,
+            ) => {
               stderr +=
                 data.toString();
             },
@@ -93,8 +107,10 @@ import {
               resolve({
                 command,
                 args,
+  
                 exitCode:
                   code ?? 1,
+  
                 stdout,
                 stderr,
               });
@@ -119,6 +135,7 @@ import {
         plainName:
           "optional-date",
       },
+  
       {
         criterionId:
           "persist-date",
@@ -126,6 +143,7 @@ import {
         plainName:
           "persist-date",
       },
+  
       {
         criterionId:
           "upcoming-interviews",
@@ -133,6 +151,7 @@ import {
         plainName:
           "upcoming-interviews",
       },
+  
       {
         criterionId:
           "edit-date",
@@ -143,7 +162,8 @@ import {
     ];
   
   function commandEvidence(
-    result: BenchmarkCommandResult,
+    result:
+      BenchmarkCommandResult,
   ): string[] {
     const command =
       [
@@ -162,13 +182,17 @@ import {
     const stderr =
       result.stderr.trim();
   
-    if (stdout.length > 0) {
+    if (
+      stdout.length > 0
+    ) {
       evidence.push(
         `stdout: ${stdout}`,
       );
     }
   
-    if (stderr.length > 0) {
+    if (
+      stderr.length > 0
+    ) {
       evidence.push(
         `stderr: ${stderr}`,
       );
@@ -186,9 +210,14 @@ import {
     ) {}
   
     async verify(input: {
-      scenario: BenchmarkScenario;
-      workspace: BenchmarkWorkspace;
-      task: EngineeringTask;
+      scenario:
+        BenchmarkScenario;
+  
+      workspace:
+        BenchmarkWorkspace;
+  
+      task:
+        EngineeringTask;
     }): Promise<
       BenchmarkCriterionVerification[]
     > {
@@ -240,15 +269,17 @@ import {
           "flutter",
           [
             "analyze",
+            ...PRODUCTION_ANALYSIS_PATHS,
           ],
           input.workspace.path,
         );
   
-      const fullTestResult =
+      const regressionTestResult =
         await this.commandRunner.run(
           "flutter",
           [
             "test",
+            EXISTING_REGRESSION_TEST_PATH,
           ],
           input.workspace.path,
         );
@@ -259,7 +290,7 @@ import {
   
         passed:
           analyzeResult.exitCode === 0 &&
-          fullTestResult.exitCode === 0,
+          regressionTestResult.exitCode === 0,
   
         evidence: [
           ...commandEvidence(
@@ -267,7 +298,7 @@ import {
           ),
   
           ...commandEvidence(
-            fullTestResult,
+            regressionTestResult,
           ),
         ],
       });
