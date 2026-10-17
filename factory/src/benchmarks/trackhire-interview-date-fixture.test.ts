@@ -9,9 +9,9 @@ import {
   } from "./trackhire-interview-date-fixture.js";
   
   describe(
-    "TrackHire interview date benchmark fixture",
+    "trackHireInterviewDateFixture",
     () => {
-      it("uses a benchmark-owned test path outside the agent implementation scope", () => {
+      it("uses a protected benchmark test path", () => {
         expect(
           trackHireInterviewDateFixture.path,
         ).toBe(
@@ -19,79 +19,131 @@ import {
         );
       });
   
-      it("requires interview date to remain optional", () => {
+      it("uses the TrackHire package imports", () => {
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "package:trackhire/models/job_application.dart",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "package:trackhire/providers/application_provider.dart",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "package:trackhire/screens/add_edit_job_screen.dart",
+        );
+      });
+  
+      it("checks that interview date remains optional", () => {
+        expect(
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "group('optional-date'",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "application.interviewDate",
         );
   
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "isNull",
         );
       });
   
-      it("requires database and API persistence", () => {
+      it("checks database and API persistence", () => {
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "group('persist-date'",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "toDatabaseJson",
         );
   
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "fromDatabaseJson",
         );
   
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "toApiJson",
         );
   
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "fromApiJson",
         );
       });
   
-      it("requires upcoming interview behavior", () => {
+      it("checks upcoming interview behavior without a testing-only provider API", () => {
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
         ).toContain(
-          "upcomingInterviews",
+          "group('upcoming-interviews'",
         );
   
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "provider.applications =",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "provider.upcomingInterviews",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "'Sooner'",
         );
   
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "'Later'",
         );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
+        ).not.toContain(
+          "setApplicationsForTesting",
+        );
       });
   
-      it("requires an interview date input in the add or edit flow", () => {
+      it("checks that the add and edit UI exposes interview date", () => {
         expect(
-          trackHireInterviewDateFixture
-            .content,
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "group('edit-date'",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
+        ).toContain(
+          "AddEditJobScreen",
+        );
+  
+        expect(
+          trackHireInterviewDateFixture.content,
         ).toContain(
           "find.text('Interview Date')",
         );

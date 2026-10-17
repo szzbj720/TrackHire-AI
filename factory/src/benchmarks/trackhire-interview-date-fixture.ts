@@ -16,177 +16,124 @@ import type {
   import 'package:trackhire/screens/add_edit_job_screen.dart';
   
   void main() {
-    group('Factory benchmark: interview date', () {
+    group('optional-date', () {
+      test('interview date is optional', () {
+        final application = JobApplication(
+          company: 'Acme',
+          role: 'Engineer',
+          status: 'Applied',
+          dateApplied: '2026-10-01',
+          location: 'Remote',
+          salaryRange: '',
+          notes: '',
+        );
+  
+        expect(application.interviewDate, isNull);
+      });
+    });
+  
+    group('persist-date', () {
+      test('database serialization preserves interview date', () {
+        final application = JobApplication(
+          company: 'Acme',
+          role: 'Engineer',
+          status: 'Interviewing',
+          dateApplied: '2026-10-01',
+          interviewDate: '2026-10-25',
+          location: 'Remote',
+          salaryRange: '',
+          notes: '',
+        );
+  
+        final databaseJson = application.toDatabaseJson();
+  
+        expect(
+          databaseJson['interviewDate'],
+          '2026-10-25',
+        );
+  
+        final restored =
+            JobApplication.fromDatabaseJson(databaseJson);
+  
+        expect(
+          restored.interviewDate,
+          '2026-10-25',
+        );
+      });
+  
+      test('API serialization preserves interview date', () {
+        final application = JobApplication(
+          company: 'Acme',
+          role: 'Engineer',
+          status: 'Interviewing',
+          dateApplied: '2026-10-01',
+          interviewDate: '2026-10-25',
+          location: 'Remote',
+          salaryRange: '',
+          notes: '',
+        );
+  
+        final apiJson = application.toApiJson();
+  
+        expect(
+          apiJson['interviewDate'],
+          '2026-10-25',
+        );
+  
+        final restored =
+            JobApplication.fromApiJson(apiJson);
+  
+        expect(
+          restored.interviewDate,
+          '2026-10-25',
+        );
+      });
+    });
+  
+    group('upcoming-interviews', () {
       test(
-        'job application supports no interview date',
+        'provider returns upcoming interviews in chronological order',
         () {
-          final application = JobApplication(
-            id: 1,
-            company: 'OpenAI',
-            role: 'Software Engineer',
-            status: 'Applied',
-            dateApplied: '2026-10-01',
-            location: 'San Francisco',
-            salaryRange: '',
-            notes: '',
-            hasResume: false,
-            hasPortfolio: false,
-            hasCoverLetter: false,
-            hasApplicationQuestions: false,
-            hasOther: false,
-            isSaved: false,
-          );
+          final provider = ApplicationProvider();
   
-          expect(
-            application.interviewDate,
-            isNull,
-          );
-        },
-      );
-  
-      test(
-        'database serialization preserves interview date',
-        () {
-          final application = JobApplication(
-            id: 1,
-            company: 'OpenAI',
-            role: 'Software Engineer',
-            status: 'Interviewing',
-            dateApplied: '2026-10-01',
-            interviewDate: '2026-10-25',
-            location: 'San Francisco',
-            salaryRange: '',
-            notes: '',
-            hasResume: false,
-            hasPortfolio: false,
-            hasCoverLetter: false,
-            hasApplicationQuestions: false,
-            hasOther: false,
-            isSaved: false,
-          );
-  
-          final encoded =
-              application.toDatabaseJson();
-  
-          final decoded =
-              JobApplication.fromDatabaseJson(
-            encoded,
-          );
-  
-          expect(
-            decoded.interviewDate,
-            '2026-10-25',
-          );
-        },
-      );
-  
-      test(
-        'API serialization preserves interview date',
-        () {
-          final application = JobApplication(
-            id: 1,
-            company: 'OpenAI',
-            role: 'Software Engineer',
-            status: 'Interviewing',
-            dateApplied: '2026-10-01',
-            interviewDate: '2026-10-25',
-            location: 'San Francisco',
-            salaryRange: '',
-            notes: '',
-            hasResume: false,
-            hasPortfolio: false,
-            hasCoverLetter: false,
-            hasApplicationQuestions: false,
-            hasOther: false,
-            isSaved: false,
-          );
-  
-          final encoded =
-              application.toApiJson();
-  
-          final decoded =
-              JobApplication.fromApiJson({
-            ...encoded,
-            'id': 1,
-          });
-  
-          expect(
-            decoded.interviewDate,
-            '2026-10-25',
-          );
-        },
-      );
-  
-      test(
-        'upcoming interviews are future dates in chronological order',
-        () {
-          final provider =
-              ApplicationProvider();
-  
-          final applications = [
+          provider.applications = [
             JobApplication(
-              id: 1,
               company: 'Later',
               role: 'Engineer',
               status: 'Interviewing',
               dateApplied: '2026-10-01',
               interviewDate: '2099-12-20',
-              location: '',
+              location: 'Remote',
               salaryRange: '',
               notes: '',
-              hasResume: false,
-              hasPortfolio: false,
-              hasCoverLetter: false,
-              hasApplicationQuestions: false,
-              hasOther: false,
-              isSaved: false,
             ),
             JobApplication(
-              id: 2,
-              company: 'Sooner',
-              role: 'Engineer',
-              status: 'Interviewing',
-              dateApplied: '2026-10-01',
-              interviewDate: '2099-11-10',
-              location: '',
-              salaryRange: '',
-              notes: '',
-              hasResume: false,
-              hasPortfolio: false,
-              hasCoverLetter: false,
-              hasApplicationQuestions: false,
-              hasOther: false,
-              isSaved: false,
-            ),
-            JobApplication(
-              id: 3,
               company: 'No Interview',
               role: 'Engineer',
               status: 'Applied',
               dateApplied: '2026-10-01',
-              location: '',
+              location: 'Remote',
               salaryRange: '',
               notes: '',
-              hasResume: false,
-              hasPortfolio: false,
-              hasCoverLetter: false,
-              hasApplicationQuestions: false,
-              hasOther: false,
-              isSaved: false,
+            ),
+            JobApplication(
+              company: 'Sooner',
+              role: 'Engineer',
+              status: 'Interviewing',
+              dateApplied: '2026-10-01',
+              interviewDate: '2099-12-10',
+              location: 'Remote',
+              salaryRange: '',
+              notes: '',
             ),
           ];
-  
-          provider.setApplicationsForTesting(
-            applications,
-          );
   
           final upcoming =
               provider.upcomingInterviews;
   
           expect(
             upcoming.map(
-              (application) =>
-                  application.company,
+              (application) => application.company,
             ),
             [
               'Sooner',
@@ -195,16 +142,17 @@ import type {
           );
         },
       );
+    });
   
+    group('edit-date', () {
       testWidgets(
-        'add application flow exposes optional interview date input',
+        'add and edit screen exposes interview date',
         (tester) async {
           final provider =
               ApplicationProvider();
   
           await tester.pumpWidget(
-            ChangeNotifierProvider<
-                ApplicationProvider>.value(
+            ChangeNotifierProvider<ApplicationProvider>.value(
               value: provider,
               child: const MaterialApp(
                 home: AddEditJobScreen(),
