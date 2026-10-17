@@ -8,6 +8,7 @@ import {
   
   import {
     BenchmarkWorkspaceManager,
+    type BenchmarkWorkspace,
   } from "./benchmark-workspace-manager.js";
   
   import {
@@ -46,149 +47,166 @@ import {
     const workspaceManager =
       new BenchmarkWorkspaceManager();
   
-    const workspace =
-      await workspaceManager.create({
-        scenario:
-          trackHireInterviewDateBenchmark,
+    let workspace:
+      BenchmarkWorkspace | undefined;
   
-        runId,
+    try {
+      workspace =
+        await workspaceManager.create({
+          scenario:
+            trackHireInterviewDateBenchmark,
   
-        strategyId:
-          "baseline",
+          runId,
   
-        repositoryRoot,
+          strategyId:
+            "baseline",
   
-        baseRevision:
-          "HEAD",
-      });
+          repositoryRoot,
   
-    const taskAdapter =
-      new BenchmarkTaskAdapter();
+          baseRevision:
+            "HEAD",
+        });
   
-    const task =
-      taskAdapter.create({
-        scenario:
-          trackHireInterviewDateBenchmark,
+      const taskAdapter =
+        new BenchmarkTaskAdapter();
   
-        runId,
-      });
+      const task =
+        taskAdapter.create({
+          scenario:
+            trackHireInterviewDateBenchmark,
   
-    const baseline =
-      new TrackHireBaseline();
+          runId,
+        });
   
-    console.log(
-      "Running real TrackHire benchmark baseline...",
-    );
+      const baseline =
+        new TrackHireBaseline();
   
-    console.log(
-      `Baseline revision: ${workspace.baselineRevision}`,
-    );
-  
-    console.log(
-      `Workspace: ${workspace.path}`,
-    );
-  
-    const result =
-      await baseline.run({
-        scenario:
-          trackHireInterviewDateBenchmark,
-  
-        workspace,
-  
-        task,
-      });
-  
-    console.log("");
-  
-    for (
-      const criterion
-      of result.criteria
-    ) {
       console.log(
-        formatCriterion(
-          criterion,
-        ),
-      );
-    }
-  
-    console.log("");
-  
-    console.log(
-      `Passed criteria: ${result.passedCriteria}`,
-    );
-  
-    console.log(
-      `Failed criteria: ${result.failedCriteria}`,
-    );
-  
-    console.log(
-      `Overall baseline: ${
-        result.passed
-          ? "PASS"
-          : "FAIL"
-      }`,
-    );
-  
-    const featureCriteria = [
-      "optional-date",
-      "persist-date",
-      "upcoming-interviews",
-      "edit-date",
-    ];
-  
-    const unexpectedFeaturePasses =
-      result.criteria.filter(
-        (criterion) =>
-          featureCriteria.includes(
-            criterion.criterionId,
-          ) &&
-          criterion.passed,
+        "Running real TrackHire benchmark baseline...",
       );
   
-    if (
-      unexpectedFeaturePasses.length > 0
-    ) {
-      throw new Error(
-        [
-          "Untouched TrackHire unexpectedly passed feature criteria:",
-          ...unexpectedFeaturePasses.map(
-            (criterion) =>
-              criterion.criterionId,
+      console.log(
+        `Baseline revision: ${workspace.baselineRevision}`,
+      );
+  
+      console.log(
+        `Workspace: ${workspace.path}`,
+      );
+  
+      const result =
+        await baseline.run({
+          scenario:
+            trackHireInterviewDateBenchmark,
+  
+          workspace,
+  
+          task,
+        });
+  
+      console.log("");
+  
+      for (
+        const criterion
+        of result.criteria
+      ) {
+        console.log(
+          formatCriterion(
+            criterion,
           ),
-        ].join(" "),
+        );
+      }
+  
+      console.log("");
+  
+      console.log(
+        `Passed criteria: ${result.passedCriteria}`,
       );
+  
+      console.log(
+        `Failed criteria: ${result.failedCriteria}`,
+      );
+  
+      console.log(
+        `Overall baseline: ${
+          result.passed
+            ? "PASS"
+            : "FAIL"
+        }`,
+      );
+  
+      const featureCriteria = [
+        "optional-date",
+        "persist-date",
+        "upcoming-interviews",
+        "edit-date",
+      ];
+  
+      const unexpectedFeaturePasses =
+        result.criteria.filter(
+          (criterion) =>
+            featureCriteria.includes(
+              criterion.criterionId,
+            ) &&
+            criterion.passed,
+        );
+  
+      if (
+        unexpectedFeaturePasses.length >
+        0
+      ) {
+        throw new Error(
+          [
+            "Untouched TrackHire unexpectedly passed feature criteria:",
+            ...unexpectedFeaturePasses.map(
+              (criterion) =>
+                criterion.criterionId,
+            ),
+          ].join(" "),
+        );
+      }
+  
+      const regression =
+        result.criteria.find(
+          (criterion) =>
+            criterion.criterionId ===
+            "regression",
+        );
+  
+      if (!regression) {
+        throw new Error(
+          "Benchmark did not produce a regression criterion.",
+        );
+      }
+  
+      if (!regression.passed) {
+        throw new Error(
+          "Untouched TrackHire failed its regression checks.",
+        );
+      }
+  
+      if (result.passed) {
+        throw new Error(
+          "Untouched TrackHire unexpectedly passed the interview-date benchmark.",
+        );
+      }
+  
+      console.log("");
+  
+      console.log(
+        "Baseline control behaved as expected.",
+      );
+    } finally {
+      if (workspace) {
+        await workspaceManager.cleanup({
+          repositoryRoot,
+          workspace,
+        });
+  
+        console.log(
+          "Benchmark workspace cleaned up.",
+        );
+      }
     }
-  
-    const regression =
-      result.criteria.find(
-        (criterion) =>
-          criterion.criterionId ===
-          "regression",
-      );
-  
-    if (!regression) {
-      throw new Error(
-        "Benchmark did not produce a regression criterion.",
-      );
-    }
-  
-    if (!regression.passed) {
-      throw new Error(
-        "Untouched TrackHire failed its regression checks.",
-      );
-    }
-  
-    if (result.passed) {
-      throw new Error(
-        "Untouched TrackHire unexpectedly passed the interview-date benchmark.",
-      );
-    }
-  
-    console.log("");
-  
-    console.log(
-      "Baseline control behaved as expected.",
-    );
   }
   
   main().catch(

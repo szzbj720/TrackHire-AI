@@ -1,13 +1,26 @@
-import type {
+import {
+    execFile,
+  } from "node:child_process";
+  
+  import {
+    promisify,
+  } from "node:util";
+  
+  import type {
     BenchmarkScenario,
   } from "../schemas/benchmark-scenario.js";
+  
   import {
     createTaskWorktree,
     type Worktree,
   } from "../tools/git-worktree.js";
+  
   import {
     resolveGitRevision,
   } from "../tools/git-revision.js";
+  
+  const execFileAsync =
+    promisify(execFile);
   
   export interface BenchmarkWorkspace {
     scenarioId: string;
@@ -30,12 +43,25 @@ import type {
     baseRevision: string;
   }
   
+  export interface BenchmarkWorkspaceCleanupRequest {
+    repositoryRoot: string;
+    workspace: BenchmarkWorkspace;
+  }
+  
   export interface BenchmarkWorktreeCreator {
     create(options: {
       repositoryRoot: string;
       taskId: string;
       baseBranch: string;
     }): Promise<Worktree>;
+  }
+  
+  export interface BenchmarkWorktreeCleaner {
+    remove(options: {
+      repositoryRoot: string;
+      worktreePath: string;
+      branch: string;
+    }): Promise<void>;
   }
   
   export interface BenchmarkRevisionResolver {
@@ -48,7 +74,53 @@ import type {
   const defaultWorktreeCreator:
     BenchmarkWorktreeCreator = {
       async create(options) {
-        return createTaskWorktree(options);
+        return createTaskWorktree(
+          options,
+        );
+      },
+    };
+  
+  const defaultWorktreeCleaner:
+    BenchmarkWorktreeCleaner = {
+      async remove(options) {
+        await execFileAsync(
+          "git",
+          [
+            "worktree",
+            "remove",
+            "--force",
+            options.worktreePath,
+          ],
+          {
+            cwd:
+              options.repositoryRoot,
+          },
+        );
+  
+        await execFileAsync(
+          "git",
+          [
+            "branch",
+            "-D",
+            options.branch,
+          ],
+          {
+            cwd:
+              options.repositoryRoot,
+          },
+        );
+  
+        await execFileAsync(
+          "git",
+          [
+            "worktree",
+            "prune",
+          ],
+          {
+            cwd:
+              options.repositoryRoot,
+          },
+        );
       },
     };
   
@@ -69,7 +141,8 @@ import type {
     value: string,
     label: string,
   ): string {
-    const trimmed = value.trim();
+    const trimmed =
+      value.trim();
   
     if (!trimmed) {
       throw new Error(
@@ -89,20 +162,27 @@ import type {
       private readonly revisionResolver:
         BenchmarkRevisionResolver =
           defaultRevisionResolver,
+  
+      private readonly worktreeCleaner:
+        BenchmarkWorktreeCleaner =
+          defaultWorktreeCleaner,
     ) {}
   
     async create(
-      request: BenchmarkWorkspaceRequest,
+      request:
+        BenchmarkWorkspaceRequest,
     ): Promise<BenchmarkWorkspace> {
-      const runId = requireIdentifier(
-        request.runId,
-        "Benchmark run ID",
-      );
+      const runId =
+        requireIdentifier(
+          request.runId,
+          "Benchmark run ID",
+        );
   
-      const strategyId = requireIdentifier(
-        request.strategyId,
-        "Benchmark strategy ID",
-      );
+      const strategyId =
+        requireIdentifier(
+          request.strategyId,
+          "Benchmark strategy ID",
+        );
   
       const baselineRevision =
         await this.revisionResolver.resolve(
@@ -137,8 +217,27 @@ import type {
   
         baselineRevision,
   
-        path: worktree.path,
-        branch: worktree.branch,
+        path:
+          worktree.path,
+  
+        branch:
+          worktree.branch,
       };
+    }
+  
+    async cleanup(
+      request:
+        BenchmarkWorkspaceCleanupRequest,
+    ): Promise<void> {
+      await this.worktreeCleaner.remove({
+        repositoryRoot:
+          request.repositoryRoot,
+  
+        worktreePath:
+          request.workspace.path,
+  
+        branch:
+          request.workspace.branch,
+      });
     }
   }

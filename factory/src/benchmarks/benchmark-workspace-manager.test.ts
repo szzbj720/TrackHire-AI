@@ -12,6 +12,7 @@ import {
   import {
     BenchmarkWorkspaceManager,
     type BenchmarkRevisionResolver,
+    type BenchmarkWorktreeCleaner,
     type BenchmarkWorktreeCreator,
   } from "./benchmark-workspace-manager.js";
   
@@ -23,6 +24,7 @@ import {
         async (options) => ({
           path:
             `/tmp/${options.taskId}`,
+  
           branch:
             `factory/${options.taskId}`,
         }),
@@ -36,219 +38,468 @@ import {
           "abc123def456",
       );
   
+    const remove =
+      vi.fn<
+        BenchmarkWorktreeCleaner["remove"]
+      >(
+        async () => {},
+      );
+  
     const manager =
       new BenchmarkWorkspaceManager(
-        { create },
-        { resolve },
+        {
+          create,
+        },
+        {
+          resolve,
+        },
+        {
+          remove,
+        },
       );
   
     return {
       manager,
       create,
       resolve,
+      remove,
     };
   }
   
   describe(
     "BenchmarkWorkspaceManager",
     () => {
-      it("resolves the benchmark baseline before creating a worktree", async () => {
-        const {
-          manager,
-          create,
-          resolve,
-        } = createDependencies();
+      it(
+        "resolves the benchmark baseline before creating a worktree",
+        async () => {
+          const {
+            manager,
+            create,
+            resolve,
+          } =
+            createDependencies();
   
-        const workspace =
-          await manager.create({
-            scenario:
-              trackHireInterviewDateBenchmark,
+          const workspace =
+            await manager.create({
+              scenario:
+                trackHireInterviewDateBenchmark,
   
-            runId: "run-001",
-            strategyId: "sequential",
+              runId:
+                "run-001",
   
-            repositoryRoot:
-              "/repo/trackhire",
+              strategyId:
+                "sequential",
   
-            baseRevision:
-              "main",
-          });
+              repositoryRoot:
+                "/repo/trackhire",
   
-        expect(resolve).toHaveBeenCalledWith(
-          "/repo/trackhire",
-          "main",
-        );
+              baseRevision:
+                "main",
+            });
   
-        expect(create).toHaveBeenCalledWith({
-          repositoryRoot:
+          expect(
+            resolve,
+          ).toHaveBeenCalledWith(
             "/repo/trackhire",
+            "main",
+          );
   
-          taskId:
-            "benchmark-trackhire-interview-date-run-001-sequential",
+          expect(
+            create,
+          ).toHaveBeenCalledWith({
+            repositoryRoot:
+              "/repo/trackhire",
   
-          baseBranch:
+            taskId:
+              "benchmark-trackhire-interview-date-run-001-sequential",
+  
+            baseBranch:
+              "abc123def456",
+          });
+  
+          expect(
+            workspace,
+          ).toEqual({
+            scenarioId:
+              "trackhire-interview-date",
+  
+            runId:
+              "run-001",
+  
+            strategyId:
+              "sequential",
+  
+            baselineRevision:
+              "abc123def456",
+  
+            path:
+              "/tmp/benchmark-trackhire-interview-date-run-001-sequential",
+  
+            branch:
+              "factory/benchmark-trackhire-interview-date-run-001-sequential",
+          });
+        },
+      );
+  
+      it(
+        "creates different workspaces for different strategies from the same baseline",
+        async () => {
+          const {
+            manager,
+            create,
+          } =
+            createDependencies();
+  
+          const sequential =
+            await manager.create({
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              runId:
+                "run-001",
+  
+              strategyId:
+                "sequential",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+            });
+  
+          const exploration =
+            await manager.create({
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              runId:
+                "run-001",
+  
+              strategyId:
+                "exploration",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+            });
+  
+          expect(
+            sequential
+              .baselineRevision,
+          ).toBe(
+            exploration
+              .baselineRevision,
+          );
+  
+          expect(
+            sequential.path,
+          ).not.toBe(
+            exploration.path,
+          );
+  
+          expect(
+            sequential.branch,
+          ).not.toBe(
+            exploration.branch,
+          );
+  
+          expect(
+            create,
+          ).toHaveBeenCalledTimes(
+            2,
+          );
+        },
+      );
+  
+      it(
+        "preserves the resolved immutable baseline revision",
+        async () => {
+          const {
+            manager,
+          } =
+            createDependencies();
+  
+          const workspace =
+            await manager.create({
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              runId:
+                "experiment-42",
+  
+              strategyId:
+                "parallel",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "feat/trackhire-benchmark",
+            });
+  
+          expect(
+            workspace
+              .baselineRevision,
+          ).toBe(
             "abc123def456",
-        });
+          );
+        },
+      );
   
-        expect(workspace).toEqual({
-          scenarioId:
-            "trackhire-interview-date",
+      it(
+        "cleans up the exact benchmark worktree and branch",
+        async () => {
+          const {
+            manager,
+            remove,
+          } =
+            createDependencies();
   
-          runId:
-            "run-001",
+          const workspace =
+            await manager.create({
+              scenario:
+                trackHireInterviewDateBenchmark,
   
-          strategyId:
-            "sequential",
+              runId:
+                "run-001",
   
-          baselineRevision:
-            "abc123def456",
+              strategyId:
+                "sequential",
   
-          path:
-            "/tmp/benchmark-trackhire-interview-date-run-001-sequential",
+              repositoryRoot:
+                "/repo/trackhire",
   
-          branch:
-            "factory/benchmark-trackhire-interview-date-run-001-sequential",
-        });
-      });
+              baseRevision:
+                "main",
+            });
   
-      it("creates different workspaces for different strategies from the same baseline", async () => {
-        const {
-          manager,
-          create,
-        } = createDependencies();
-  
-        const sequential =
-          await manager.create({
-            scenario:
-              trackHireInterviewDateBenchmark,
-  
-            runId: "run-001",
-            strategyId: "sequential",
-  
+          await manager.cleanup({
             repositoryRoot:
               "/repo/trackhire",
   
-            baseRevision:
-              "main",
+            workspace,
           });
   
-        const exploration =
-          await manager.create({
-            scenario:
-              trackHireInterviewDateBenchmark,
+          expect(
+            remove,
+          ).toHaveBeenCalledTimes(
+            1,
+          );
   
-            runId: "run-001",
-            strategyId: "exploration",
-  
+          expect(
+            remove,
+          ).toHaveBeenCalledWith({
             repositoryRoot:
               "/repo/trackhire",
   
-            baseRevision:
-              "main",
+            worktreePath:
+              "/tmp/benchmark-trackhire-interview-date-run-001-sequential",
+  
+            branch:
+              "factory/benchmark-trackhire-interview-date-run-001-sequential",
+          });
+        },
+      );
+  
+      it(
+        "does not resolve or create anything during cleanup",
+        async () => {
+          const {
+            manager,
+            create,
+            resolve,
+            remove,
+          } =
+            createDependencies();
+  
+          await manager.cleanup({
+            repositoryRoot:
+              "/repo/trackhire",
+  
+            workspace: {
+              scenarioId:
+                "trackhire-interview-date",
+  
+              runId:
+                "run-001",
+  
+              strategyId:
+                "sequential",
+  
+              baselineRevision:
+                "abc123def456",
+  
+              path:
+                "/tmp/existing-worktree",
+  
+              branch:
+                "factory/existing-worktree",
+            },
           });
   
-        expect(
-          sequential.baselineRevision,
-        ).toBe(
-          exploration.baselineRevision,
-        );
+          expect(
+            remove,
+          ).toHaveBeenCalledTimes(
+            1,
+          );
   
-        expect(
-          sequential.path,
-        ).not.toBe(
-          exploration.path,
-        );
+          expect(
+            create,
+          ).not.toHaveBeenCalled();
   
-        expect(
-          sequential.branch,
-        ).not.toBe(
-          exploration.branch,
-        );
+          expect(
+            resolve,
+          ).not.toHaveBeenCalled();
+        },
+      );
   
-        expect(create).toHaveBeenCalledTimes(
-          2,
-        );
-      });
+      it(
+        "propagates cleanup failures instead of hiding them",
+        async () => {
+          const create =
+            vi.fn<
+              BenchmarkWorktreeCreator[
+                "create"
+              ]
+            >();
   
-      it("preserves the resolved immutable baseline revision", async () => {
-        const {
-          manager,
-        } = createDependencies();
+          const resolve =
+            vi.fn<
+              BenchmarkRevisionResolver[
+                "resolve"
+              ]
+            >();
   
-        const workspace =
-          await manager.create({
-            scenario:
-              trackHireInterviewDateBenchmark,
+          const remove =
+            vi.fn<
+              BenchmarkWorktreeCleaner[
+                "remove"
+              ]
+            >(
+              async () => {
+                throw new Error(
+                  "cleanup failed",
+                );
+              },
+            );
   
-            runId: "experiment-42",
-            strategyId: "parallel",
+          const manager =
+            new BenchmarkWorkspaceManager(
+              {
+                create,
+              },
+              {
+                resolve,
+              },
+              {
+                remove,
+              },
+            );
   
-            repositoryRoot:
-              "/repo/trackhire",
+          await expect(
+            manager.cleanup({
+              repositoryRoot:
+                "/repo/trackhire",
   
-            baseRevision:
-              "feat/trackhire-benchmark",
-          });
+              workspace: {
+                scenarioId:
+                  "trackhire-interview-date",
   
-        expect(
-          workspace.baselineRevision,
-        ).toBe(
-          "abc123def456",
-        );
-      });
+                runId:
+                  "run-001",
   
-      it("rejects an empty benchmark run ID", async () => {
-        const {
-          manager,
-          create,
-        } = createDependencies();
+                strategyId:
+                  "baseline",
   
-        await expect(
-          manager.create({
-            scenario:
-              trackHireInterviewDateBenchmark,
+                baselineRevision:
+                  "abc123",
   
-            runId: "   ",
-            strategyId: "sequential",
+                path:
+                  "/tmp/worktree",
   
-            repositoryRoot:
-              "/repo/trackhire",
+                branch:
+                  "factory/worktree",
+              },
+            }),
+          ).rejects.toThrow(
+            "cleanup failed",
+          );
+        },
+      );
   
-            baseRevision:
-              "main",
-          }),
-        ).rejects.toThrow(
-          "Benchmark run ID cannot be empty.",
-        );
+      it(
+        "rejects an empty benchmark run ID",
+        async () => {
+          const {
+            manager,
+            create,
+          } =
+            createDependencies();
   
-        expect(create).not.toHaveBeenCalled();
-      });
+          await expect(
+            manager.create({
+              scenario:
+                trackHireInterviewDateBenchmark,
   
-      it("rejects an empty strategy ID", async () => {
-        const {
-          manager,
-          create,
-        } = createDependencies();
+              runId:
+                "   ",
   
-        await expect(
-          manager.create({
-            scenario:
-              trackHireInterviewDateBenchmark,
+              strategyId:
+                "sequential",
   
-            runId: "run-001",
-            strategyId: "",
+              repositoryRoot:
+                "/repo/trackhire",
   
-            repositoryRoot:
-              "/repo/trackhire",
+              baseRevision:
+                "main",
+            }),
+          ).rejects.toThrow(
+            "Benchmark run ID cannot be empty.",
+          );
   
-            baseRevision:
-              "main",
-          }),
-        ).rejects.toThrow(
-          "Benchmark strategy ID cannot be empty.",
-        );
+          expect(
+            create,
+          ).not.toHaveBeenCalled();
+        },
+      );
   
-        expect(create).not.toHaveBeenCalled();
-      });
+      it(
+        "rejects an empty strategy ID",
+        async () => {
+          const {
+            manager,
+            create,
+          } =
+            createDependencies();
+  
+          await expect(
+            manager.create({
+              scenario:
+                trackHireInterviewDateBenchmark,
+  
+              runId:
+                "run-001",
+  
+              strategyId:
+                "",
+  
+              repositoryRoot:
+                "/repo/trackhire",
+  
+              baseRevision:
+                "main",
+            }),
+          ).rejects.toThrow(
+            "Benchmark strategy ID cannot be empty.",
+          );
+  
+          expect(
+            create,
+          ).not.toHaveBeenCalled();
+        },
+      );
     },
   );
