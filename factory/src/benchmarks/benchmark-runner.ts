@@ -1,9 +1,19 @@
 import type {
     BenchmarkCriterionResult,
   } from "./benchmark-acceptance-evaluator.js";
+  
   import {
     BenchmarkAcceptanceEvaluator,
   } from "./benchmark-acceptance-evaluator.js";
+  
+  import type {
+    BenchmarkFixture,
+    InstalledBenchmarkFixture,
+  } from "./benchmark-fixture-manager.js";
+  
+  import {
+    BenchmarkFixtureManager,
+  } from "./benchmark-fixture-manager.js";
   
   import type {
     BenchmarkWorkspace,
@@ -59,6 +69,8 @@ import type {
     executor: BenchmarkStrategyExecutor;
   
     validator: Validator;
+  
+    fixtures?: BenchmarkFixture[];
   }
   
   export interface BenchmarkClock {
@@ -125,6 +137,9 @@ import type {
       private readonly clock:
         BenchmarkClock =
           defaultClock,
+  
+      private readonly fixtureManager =
+        new BenchmarkFixtureManager(),
     ) {}
   
     async run(
@@ -154,6 +169,20 @@ import type {
             request.baseRevision,
         });
   
+      let installedFixtures:
+        InstalledBenchmarkFixture[] = [];
+  
+      if (
+        request.fixtures &&
+        request.fixtures.length > 0
+      ) {
+        installedFixtures =
+          await this.fixtureManager.install(
+            workspace,
+            request.fixtures,
+          );
+      }
+  
       const execution =
         await request.executor.execute({
           scenario:
@@ -162,10 +191,30 @@ import type {
           workspace,
         });
   
+      if (
+        installedFixtures.length > 0
+      ) {
+        await this.fixtureManager
+          .assertUnchanged(
+            workspace,
+            installedFixtures,
+          );
+      }
+  
       const validation =
         await request.validator.validate(
           workspace.path,
         );
+  
+      if (
+        installedFixtures.length > 0
+      ) {
+        await this.fixtureManager
+          .assertUnchanged(
+            workspace,
+            installedFixtures,
+          );
+      }
   
       const acceptance =
         this.acceptanceEvaluator.evaluate(
