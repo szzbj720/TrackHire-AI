@@ -162,6 +162,45 @@ SQLite Backend Database
 
 ---
 
+## AI Engineering Factory
+
+As TrackHire grew, I started using the project to explore a second engineering problem: how can AI coding agents be coordinated and evaluated without blindly trusting the code they generate?
+
+I built an AI software engineering factory around the TrackHire repository that treats AI-generated code as something to verify rather than automatically accept. Given an engineering task, the system builds context from the repository, evaluates the task's complexity and risk, creates an implementation plan, and selects an execution strategy based on the work required.
+
+Implementation happens in isolated Git worktrees so agent-generated changes do not directly modify the main repository. The resulting code is checked through deterministic validation such as static analysis and tests. When validation fails, the system can classify and diagnose the failure, perform bounded repair attempts, revalidate the result, or escalate the task for human input when confidence is insufficient.
+
+The factory also supports different agent and model strategies, human approval gates, independent review, and evaluation infrastructure for measuring success rate, quality, latency, cost, retries, disagreement, and human intervention.
+
+TrackHire serves as the first real-world codebase for developing and evaluating this system. The goal is not to make TrackHire itself autonomous or expose these agents to its users. The goal is to understand when AI engineering agents are useful, when additional orchestration actually improves results, and what evidence should be required before AI-generated engineering work is trusted.
+
+### Factory Workflow
+
+```text
+Engineering Task
+       ↓
+Repository Intelligence
+       ↓
+Complexity + Risk Analysis
+       ↓
+Planning + Human Approval
+       ↓
+Execution Strategy
+       ↓
+Isolated Implementation
+       ↓
+Deterministic Validation
+     ↙             ↘
+  Passed           Failed
+     ↓               ↓
+  Review          Diagnosis
+     ↓               ↓
+  Human         Bounded Repair
+ Approval            ↓
+                 Revalidation
+```
+
+
 ## Tech Stack
 
 ### Frontend
