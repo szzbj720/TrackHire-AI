@@ -2,7 +2,6 @@ import {
     describe,
     expect,
     it,
-    vi,
   } from "vitest";
   
   import {
@@ -16,9 +15,22 @@ import {
       it(
         "sends a deterministic local generation request",
         async () => {
-          const fetchMock =
-            vi.fn(
-              async () => ({
+          let requestedUrl = "";
+          let requestedBody = "";
+  
+          const fetchMock:
+            OllamaFetch =
+            async (
+              input,
+              init,
+            ) => {
+              requestedUrl =
+                input;
+  
+              requestedBody =
+                init?.body ?? "";
+  
+              return {
                 ok:
                   true,
   
@@ -40,13 +52,13 @@ import {
                       10,
                   };
                 },
-              }),
-            );
+              };
+            };
   
           const provider =
             new OllamaProvider({
               fetch:
-                fetchMock as OllamaFetch,
+                fetchMock,
             });
   
           const result =
@@ -59,46 +71,36 @@ import {
             });
   
           expect(
-            fetchMock,
-          ).toHaveBeenCalledOnce();
+            requestedUrl,
+          ).toBe(
+            "http://127.0.0.1:11434/api/generate",
+          );
   
           expect(
-            fetchMock,
-          ).toHaveBeenCalledWith(
-            "http://127.0.0.1:11434/api/generate",
-            {
-              method:
-                "POST",
+            JSON.parse(
+              requestedBody,
+            ),
+          ).toEqual({
+            model:
+              "qwen2.5-coder:7b",
   
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
+            system:
+              "Return JSON.",
   
-              body:
-                JSON.stringify({
-                  model:
-                    "qwen2.5-coder:7b",
+            prompt:
+              "Review this change.",
   
-                  system:
-                    "Return JSON.",
+            stream:
+              false,
   
-                  prompt:
-                    "Review this change.",
+            format:
+              "json",
   
-                  stream:
-                    false,
-  
-                  format:
-                    "json",
-  
-                  options: {
-                    temperature:
-                      0,
-                  },
-                }),
+            options: {
+              temperature:
+                0,
             },
-          );
+          });
   
           expect(
             result,
@@ -124,11 +126,100 @@ import {
       );
   
       it(
+        "passes a structured output schema to Ollama",
+        async () => {
+          let requestedBody = "";
+  
+          const fetchMock:
+            OllamaFetch =
+            async (
+              _input,
+              init,
+            ) => {
+              requestedBody =
+                init?.body ?? "";
+  
+              return {
+                ok:
+                  true,
+  
+                status:
+                  200,
+  
+                async json() {
+                  return {
+                    model:
+                      "qwen2.5-coder:7b",
+  
+                    response:
+                      "{\"value\":true}",
+                  };
+                },
+              };
+            };
+  
+          const provider =
+            new OllamaProvider({
+              fetch:
+                fetchMock,
+            });
+  
+          const responseSchema = {
+            type:
+              "object",
+  
+            properties: {
+              value: {
+                type:
+                  "boolean",
+              },
+            },
+  
+            required: [
+              "value",
+            ],
+  
+            additionalProperties:
+              false,
+          };
+  
+          await provider.generate({
+            systemPrompt:
+              "Return structured JSON.",
+  
+            userPrompt:
+              "Return true.",
+  
+            responseSchema,
+          });
+  
+          const parsedBody =
+            JSON.parse(
+              requestedBody,
+            );
+  
+          expect(
+            parsedBody.format,
+          ).toEqual(
+            responseSchema,
+          );
+        },
+      );
+  
+      it(
         "allows the model and base URL to be configured",
         async () => {
-          const fetchMock =
-            vi.fn(
-              async () => ({
+          let requestedUrl = "";
+  
+          const fetchMock:
+            OllamaFetch =
+            async (
+              input,
+            ) => {
+              requestedUrl =
+                input;
+  
+              return {
                 ok:
                   true,
   
@@ -144,8 +235,8 @@ import {
                       "{}",
                   };
                 },
-              }),
-            );
+              };
+            };
   
           const provider =
             new OllamaProvider({
@@ -156,7 +247,7 @@ import {
                 "http://localhost:9999/",
   
               fetch:
-                fetchMock as OllamaFetch,
+                fetchMock,
             });
   
           await provider.generate({
@@ -168,12 +259,9 @@ import {
           });
   
           expect(
-            fetchMock,
-          ).toHaveBeenCalledWith(
+            requestedUrl,
+          ).toBe(
             "http://localhost:9999/api/generate",
-            expect.any(
-              Object,
-            ),
           );
         },
       );

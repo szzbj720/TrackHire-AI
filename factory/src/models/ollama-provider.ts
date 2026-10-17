@@ -21,7 +21,10 @@ import type {
     input: string,
     init?: {
       method?: string;
-      headers?: Record<string, string>;
+      headers?: Record<
+        string,
+        string
+      >;
       body?: string;
     },
   ) => Promise<OllamaHttpResponse>;
@@ -36,7 +39,10 @@ import type {
     input: string,
     init?: {
       method?: string;
-      headers?: Record<string, string>;
+      headers?: Record<
+        string,
+        string
+      >;
       body?: string;
     },
   ): Promise<OllamaHttpResponse> {
@@ -59,7 +65,10 @@ import type {
     }
   
     const candidate =
-      value as Record<string, unknown>;
+      value as Record<
+        string,
+        unknown
+      >;
   
     if (
       typeof candidate.model !==
@@ -163,6 +172,7 @@ import type {
                   false,
   
                 format:
+                  request.responseSchema ??
                   "json",
   
                 options: {

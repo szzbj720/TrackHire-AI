@@ -11,6 +11,7 @@
     "factory:demo": "tsx src/run-sequential-demo.ts",
     "factory:deliver": "tsx src/runtime/run-factory-delivery.ts",
     "factory:ollama-smoke": "tsx src/models/run-ollama-smoke.ts",
+    "factory:local-plan": "tsx src/run-local-planning.ts",
     "benchmark:baseline": "tsx src/benchmarks/run-trackhire-baseline.ts"
   },
   "keywords": [],
