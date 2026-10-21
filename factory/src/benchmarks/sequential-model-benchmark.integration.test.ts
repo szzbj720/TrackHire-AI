@@ -24,6 +24,12 @@ import {
     ModelBuilder,
   } from "../agents/builder.js";
   
+  import type {
+    ModelProvider,
+    ModelRequest,
+    ModelResponse,
+  } from "../models/provider.js";
+  
   import {
     ImplementationWorkflow,
   } from "../orchestrator/implementation-workflow.js";
@@ -44,10 +50,6 @@ import {
     BenchmarkModelProvider,
   } from "./benchmark-model-provider.js";
   
-  import {
-    DeterministicCodeChangeProvider,
-  } from "./deterministic-code-change-provider.js";
-  
   import type {
     BenchmarkAcceptanceCollector,
   } from "./sequential-benchmark-executor.js";
@@ -59,6 +61,39 @@ import {
   import {
     trackHireInterviewDateBenchmark,
   } from "./trackhire-interview-date.js";
+  
+  class PlainSourceProvider
+    implements ModelProvider {
+    readonly requests:
+      ModelRequest[] = [];
+  
+    async generate(
+      request: ModelRequest,
+    ): Promise<ModelResponse> {
+      this.requests.push(
+        request,
+      );
+  
+      return {
+        content:
+          "after\n",
+  
+        model:
+          "deterministic-integration-coder",
+  
+        usage: {
+          inputTokens:
+            321,
+  
+          outputTokens:
+            123,
+  
+          estimatedCostUsd:
+            0,
+        },
+      };
+    }
+  }
   
   class PassingValidator
     implements Validator {
@@ -73,7 +108,8 @@ import {
       );
   
       return {
-        passed: true,
+        passed:
+          true,
   
         checks: [
           {
@@ -83,24 +119,31 @@ import {
             command:
               "test",
   
-            args: [],
+            args:
+              [],
   
-            exitCode: 0,
+            exitCode:
+              0,
   
             stdout:
               "validation passed",
   
-            stderr: "",
+            stderr:
+              "",
   
-            durationMs: 1,
+            durationMs:
+              1,
   
-            passed: true,
+            passed:
+              true,
           },
         ],
   
-        failedChecks: [],
+        failedChecks:
+          [],
   
-        durationMs: 1,
+        durationMs:
+          1,
       };
     }
   }
@@ -115,11 +158,14 @@ import {
       return input.scenario
         .acceptanceCriteria
         .map(
-          (criterion) => ({
+          (
+            criterion,
+          ) => ({
             criterionId:
               criterion.id,
   
-            passed: true,
+            passed:
+              true,
   
             evidence: [
               `Verified ${criterion.id}`,
@@ -137,7 +183,8 @@ import {
   
       steps: [
         {
-          order: 1,
+          order:
+            1,
   
           description:
             "Update the approved file.",
@@ -159,11 +206,14 @@ import {
         "deterministic validation",
       ],
   
-      risks: [],
+      risks:
+        [],
   
-      assumptions: [],
+      assumptions:
+        [],
   
-      requiresHumanInput: false,
+      requiresHumanInput:
+        false,
     };
   }
   
@@ -179,12 +229,17 @@ import {
             temporaryDirectories
               .splice(0)
               .map(
-                async (directory) => {
+                async (
+                  directory,
+                ) => {
                   await rm(
                     directory,
                     {
-                      recursive: true,
-                      force: true,
+                      recursive:
+                        true,
+  
+                      force:
+                        true,
                     },
                   );
                 },
@@ -217,45 +272,12 @@ import {
             "utf8",
           );
   
-          const deterministicProvider =
-            new DeterministicCodeChangeProvider({
-              model:
-                "deterministic-integration-coder",
-  
-              changeSet: {
-                summary:
-                  "Updated the approved fixture.",
-  
-                writes: [
-                  {
-                    path:
-                      "fixture.txt",
-  
-                    content:
-                      "after\n",
-  
-                    summary:
-                      "Changed the fixture contents.",
-                  },
-                ],
-  
-                assumptions: [],
-  
-                warnings: [],
-  
-                requiresHumanInput: false,
-              },
-  
-              inputTokens: 321,
-  
-              outputTokens: 123,
-  
-              estimatedCostUsd: 0,
-            });
+          const plainSourceProvider =
+            new PlainSourceProvider();
   
           const benchmarkProvider =
             new BenchmarkModelProvider(
-              deterministicProvider,
+              plainSourceProvider,
             );
   
           const builder =
@@ -332,9 +354,17 @@ import {
           );
   
           expect(
-            deterministicProvider
+            plainSourceProvider
               .requests,
-          ).toHaveLength(1);
+          ).toHaveLength(
+            1,
+          );
+  
+          expect(
+            plainSourceProvider
+              .requests[0]
+              ?.responseSchema,
+          ).toBeUndefined();
   
           expect(
             validator.workspacePaths,
@@ -353,14 +383,21 @@ import {
           expect(
             result.usage,
           ).toEqual({
-            inputTokens: 321,
-            outputTokens: 123,
-            estimatedCostUsd: 0,
+            inputTokens:
+              321,
+  
+            outputTokens:
+              123,
+  
+            estimatedCostUsd:
+              0,
           });
   
           expect(
             result.humanInterventions,
-          ).toBe(1);
+          ).toBe(
+            1,
+          );
   
           const evidence =
             benchmarkProvider
@@ -368,26 +405,37 @@ import {
   
           expect(
             evidence.successfulCalls,
-          ).toBe(1);
+          ).toBe(
+            1,
+          );
   
           expect(
             evidence.failedCalls,
-          ).toBe(0);
+          ).toBe(
+            0,
+          );
   
           expect(
             evidence.inputTokens,
-          ).toBe(321);
+          ).toBe(
+            321,
+          );
   
           expect(
             evidence.outputTokens,
-          ).toBe(123);
+          ).toBe(
+            123,
+          );
   
           expect(
             evidence.estimatedCostUsd,
-          ).toBe(0);
+          ).toBe(
+            0,
+          );
   
           expect(
-            evidence.calls[0]?.model,
+            evidence.calls[0]
+              ?.model,
           ).toBe(
             "deterministic-integration-coder",
           );

@@ -145,6 +145,37 @@ import type {
     async generate(
       request: ModelRequest,
     ): Promise<ModelResponse> {
+      const requestBody:
+        Record<
+          string,
+          unknown
+        > = {
+          model:
+            this.model,
+  
+          system:
+            request.systemPrompt,
+  
+          prompt:
+            request.userPrompt,
+  
+          stream:
+            false,
+  
+          options: {
+            temperature:
+              0,
+          },
+        };
+  
+      if (
+        request.responseSchema !==
+        undefined
+      ) {
+        requestBody.format =
+          request.responseSchema;
+      }
+  
       const response =
         await this.fetchImpl(
           `${this.baseUrl}/api/generate`,
@@ -158,34 +189,31 @@ import type {
             },
   
             body:
-              JSON.stringify({
-                model:
-                  this.model,
-  
-                system:
-                  request.systemPrompt,
-  
-                prompt:
-                  request.userPrompt,
-  
-                stream:
-                  false,
-  
-                format:
-                  request.responseSchema ??
-                  "json",
-  
-                options: {
-                  temperature:
-                    0,
-                },
-              }),
+              JSON.stringify(
+                requestBody,
+              ),
           },
         );
   
       if (!response.ok) {
+        let detail =
+          "";
+  
+        try {
+          const errorPayload =
+            await response.json();
+  
+          detail =
+            ` ${JSON.stringify(
+              errorPayload,
+            )}`;
+        } catch {
+          detail =
+            "";
+        }
+  
         throw new Error(
-          `Ollama request failed with status ${response.status}.`,
+          `Ollama request failed with status ${response.status}.${detail}`,
         );
       }
   

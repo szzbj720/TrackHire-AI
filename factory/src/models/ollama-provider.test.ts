@@ -13,10 +13,13 @@ import {
     "OllamaProvider",
     () => {
       it(
-        "sends a deterministic local generation request",
+        "sends a deterministic plain-text generation request when no schema is supplied",
         async () => {
-          let requestedUrl = "";
-          let requestedBody = "";
+          let requestedUrl =
+            "";
+  
+          let requestedBody =
+            "";
   
           const fetchMock:
             OllamaFetch =
@@ -43,7 +46,7 @@ import {
                       "qwen2.5-coder:7b",
   
                     response:
-                      "{\"approved\":true}",
+                      "class JobApplication {}\n",
   
                     prompt_eval_count:
                       25,
@@ -64,10 +67,10 @@ import {
           const result =
             await provider.generate({
               systemPrompt:
-                "Return JSON.",
+                "Return source code.",
   
               userPrompt:
-                "Review this change.",
+                "Modify this file.",
             });
   
           expect(
@@ -85,16 +88,13 @@ import {
               "qwen2.5-coder:7b",
   
             system:
-              "Return JSON.",
+              "Return source code.",
   
             prompt:
-              "Review this change.",
+              "Modify this file.",
   
             stream:
               false,
-  
-            format:
-              "json",
   
             options: {
               temperature:
@@ -106,7 +106,7 @@ import {
             result,
           ).toEqual({
             content:
-              "{\"approved\":true}",
+              "class JobApplication {}\n",
   
             model:
               "qwen2.5-coder:7b",
@@ -126,9 +126,10 @@ import {
       );
   
       it(
-        "passes a structured output schema to Ollama",
+        "passes a structured output schema to Ollama when supplied",
         async () => {
-          let requestedBody = "";
+          let requestedBody =
+            "";
   
           const fetchMock:
             OllamaFetch =
@@ -209,7 +210,8 @@ import {
       it(
         "allows the model and base URL to be configured",
         async () => {
-          let requestedUrl = "";
+          let requestedUrl =
+            "";
   
           const fetchMock:
             OllamaFetch =
@@ -232,7 +234,7 @@ import {
                       "custom-model",
   
                     response:
-                      "{}",
+                      "source",
                   };
                 },
               };
@@ -267,7 +269,7 @@ import {
       );
   
       it(
-        "reports Ollama HTTP failures",
+        "reports Ollama HTTP failures with server details",
         async () => {
           const fetchMock:
             OllamaFetch =
@@ -279,7 +281,10 @@ import {
                 500,
   
               async json() {
-                return {};
+                return {
+                  error:
+                    "generation failed",
+                };
               },
             });
   
@@ -361,7 +366,7 @@ import {
                     "qwen2.5-coder:7b",
   
                   response:
-                    "{}",
+                    "source",
                 };
               },
             });
