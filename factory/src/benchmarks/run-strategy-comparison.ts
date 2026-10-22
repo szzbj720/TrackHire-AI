@@ -48,12 +48,20 @@ import {
   } from "../validation/validator.js";
   
   import {
+    BenchmarkComparisonReporter,
+  } from "./benchmark-comparison-reporter.js";
+  
+  import {
     BenchmarkExperiment,
   } from "./benchmark-experiment.js";
   
   import {
     BenchmarkModelProvider,
   } from "./benchmark-model-provider.js";
+  
+  import {
+    BenchmarkResultAggregator,
+  } from "./benchmark-result-aggregator.js";
   
   import {
     BenchmarkRunner,
@@ -91,19 +99,24 @@ import {
         {
           name:
             "flutter analyze",
+  
           command:
             "flutter",
+  
           args: [
             "analyze",
             "lib",
             "backend",
           ],
         },
+  
         {
           name:
             "flutter test",
+  
           command:
             "flutter",
+  
           args: [
             "test",
           ],
@@ -121,41 +134,56 @@ import {
       steps: [
         {
           order: 1,
+  
           description:
             "Add an optional interview date to the job application model and preserve it through serialization and deserialization.",
+  
           files: [
             "lib/models/job_application.dart",
           ],
+  
           rationale:
             "The model must represent and persist the optional interview date.",
         },
+  
         {
           order: 2,
+  
           description:
             "Add provider support for deriving upcoming interviews in chronological order.",
+  
           files: [
             "lib/providers/application_provider.dart",
           ],
+  
           rationale:
             "The application needs a deterministic way to derive upcoming interviews.",
         },
+  
         {
           order: 3,
+  
           description:
             "Add optional interview date input to the add/edit application flow.",
+  
           files: [
             "lib/screens/add_edit_job_screen.dart",
           ],
+  
           rationale:
             "Users need to be able to add and edit the interview date.",
         },
+  
         {
           order: 4,
+  
           description:
             "Update the existing job application tests for optional interview date behavior and serialization.",
+  
           files: [
             "test/job_application_test.dart",
           ],
+  
           rationale:
             "The new model behavior should be covered while preserving existing behavior.",
         },
@@ -368,6 +396,7 @@ import {
             validator:
               lightweightValidator,
           },
+  
           {
             strategy:
               "sequential",
@@ -394,8 +423,65 @@ import {
       `\nExperiment completed in ${totalDurationSeconds}s.`,
     );
   
+    const aggregator =
+      new BenchmarkResultAggregator();
+  
+    const aggregates =
+      [
+        "lightweight",
+        "sequential",
+      ].map(
+        (strategy) => {
+          const strategyResults =
+            result.results.filter(
+              (run) =>
+                run.strategy ===
+                strategy,
+            );
+  
+          if (
+            strategyResults.length ===
+            0
+          ) {
+            throw new Error(
+              `No benchmark results found for strategy ${strategy}.`,
+            );
+          }
+  
+          return aggregator.aggregate({
+            targetId:
+              `${model}-${strategy}`,
+  
+            strategy:
+              strategyResults[0]!
+                .strategy,
+  
+            results:
+              strategyResults,
+          });
+        },
+      );
+  
+    const reporter =
+      new BenchmarkComparisonReporter();
+  
+    const comparison =
+      reporter.create(
+        aggregates,
+      );
+  
     console.log(
-      "\n=== Comparison ===\n",
+      "\n=== Comparison Report ===\n",
+    );
+  
+    console.log(
+      reporter.format(
+        comparison,
+      ),
+    );
+  
+    console.log(
+      "\n=== Individual Runs ===\n",
     );
   
     for (
@@ -465,7 +551,7 @@ import {
       JSON.stringify(
         {
           experimentVersion:
-            2,
+            3,
   
           experimentType:
             "lightweight-vs-bounded-recovery",
@@ -474,6 +560,10 @@ import {
   
           experiment:
             result,
+  
+          aggregates,
+  
+          comparison,
         },
         null,
         2,
