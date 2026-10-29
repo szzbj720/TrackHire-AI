@@ -20,6 +20,7 @@ import {
         ).toEqual([
           "trackhire-interview-date",
           "trackhire-status-summary",
+          "trackhire-application-source",
         ]);
       });
   
@@ -46,6 +47,12 @@ import {
         expect(
           categories.size,
         ).toBeGreaterThan(1);
+  
+        expect(
+          categories,
+        ).toContain(
+          "persistence",
+        );
       });
   
       it("covers multiple benchmark difficulties", () => {
@@ -88,6 +95,18 @@ import {
         ).toContain(
           "state-consistency",
         );
+  
+        expect(
+          failureModes,
+        ).toContain(
+          "persistence-loss",
+        );
+  
+        expect(
+          failureModes,
+        ).toContain(
+          "api-mismatch",
+        );
       });
   
       it("retrieves a scenario by ID", () => {
@@ -103,6 +122,27 @@ import {
         expect(
           scenario?.category,
         ).toBe("cross-layer");
+      });
+  
+      it("retrieves the application-source scenario", () => {
+        const scenario =
+          getFactoryBenchScenario(
+            "trackhire-application-source",
+          );
+  
+        expect(
+          scenario?.category,
+        ).toBe("persistence");
+  
+        expect(
+          scenario?.difficulty,
+        ).toBe("hard");
+  
+        expect(
+          scenario?.failureModes,
+        ).toContain(
+          "persistence-loss",
+        );
       });
   
       it("returns undefined for an unknown scenario", () => {

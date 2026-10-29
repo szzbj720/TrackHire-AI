@@ -10,10 +10,15 @@ import type {
     trackHireStatusSummaryBenchmark,
   } from "./trackhire-status-summary.js";
   
+  import {
+    trackHireApplicationSourceBenchmark,
+  } from "./trackhire-application-source.js";
+  
   export const factoryBenchScenarios:
     readonly BenchmarkScenario[] = [
       trackHireInterviewDateBenchmark,
       trackHireStatusSummaryBenchmark,
+      trackHireApplicationSourceBenchmark,
     ];
   
   export function getFactoryBenchScenario(
