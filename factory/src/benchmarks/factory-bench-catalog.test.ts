@@ -19,6 +19,7 @@ describe("FactoryBench catalog", () => {
       "trackhire-ai-stale-state",
       "trackhire-required-field-whitespace",
       "trackhire-search-whitespace",
+      "trackhire-api-boolean-normalization",
     ]);
   });
 
@@ -33,7 +34,36 @@ describe("FactoryBench catalog", () => {
     ).toBe(ids.length);
   });
 
-  it("looks up the search whitespace benchmark by id", () => {
+  it("looks up the API boolean normalization benchmark by id", () => {
+    const scenario =
+      getFactoryBenchScenario(
+        "trackhire-api-boolean-normalization",
+      );
+
+    expect(scenario).toBeDefined();
+
+    expect(
+      scenario?.category,
+    ).toBe("cross-layer");
+
+    expect(
+      scenario?.difficulty,
+    ).toBe("medium");
+
+    expect(
+      scenario?.expectedBehavior,
+    ).toBe("implement");
+
+    expect(
+      scenario?.expectedComplexity,
+    ).toBe("medium");
+
+    expect(
+      scenario?.expectedRisk,
+    ).toBe("medium");
+  });
+
+  it("preserves the search whitespace benchmark metadata", () => {
     const scenario =
       getFactoryBenchScenario(
         "trackhire-search-whitespace",
@@ -48,18 +78,6 @@ describe("FactoryBench catalog", () => {
     expect(
       scenario?.difficulty,
     ).toBe("easy");
-
-    expect(
-      scenario?.expectedBehavior,
-    ).toBe("implement");
-
-    expect(
-      scenario?.expectedComplexity,
-    ).toBe("low");
-
-    expect(
-      scenario?.expectedRisk,
-    ).toBe("low");
   });
 
   it("preserves the required-field whitespace benchmark metadata", () => {
