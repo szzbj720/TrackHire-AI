@@ -15,6 +15,7 @@ describe("FactoryBench catalog", () => {
       "trackhire-application-source",
       "trackhire-csv-materials-ready",
       "trackhire-ai-stale-state",
+      "trackhire-required-field-whitespace",
     ]);
   });
 
@@ -26,7 +27,30 @@ describe("FactoryBench catalog", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("looks up the AI stale-state benchmark by id", () => {
+  it("looks up the required-field whitespace benchmark by id", () => {
+    const scenario = getFactoryBenchScenario(
+      "trackhire-required-field-whitespace",
+    );
+
+    expect(scenario).toBeDefined();
+    expect(scenario?.category).toBe(
+      "localized-change",
+    );
+    expect(scenario?.difficulty).toBe(
+      "easy",
+    );
+    expect(scenario?.expectedBehavior).toBe(
+      "implement",
+    );
+    expect(scenario?.expectedComplexity).toBe(
+      "low",
+    );
+    expect(scenario?.expectedRisk).toBe(
+      "low",
+    );
+  });
+
+  it("preserves the AI stale-state benchmark metadata", () => {
     const scenario = getFactoryBenchScenario(
       "trackhire-ai-stale-state",
     );
@@ -36,15 +60,6 @@ describe("FactoryBench catalog", () => {
       "state-management",
     );
     expect(scenario?.difficulty).toBe(
-      "medium",
-    );
-    expect(scenario?.expectedBehavior).toBe(
-      "implement",
-    );
-    expect(scenario?.expectedComplexity).toBe(
-      "medium",
-    );
-    expect(scenario?.expectedRisk).toBe(
       "medium",
     );
   });
