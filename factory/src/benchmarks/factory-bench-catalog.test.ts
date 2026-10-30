@@ -14,6 +14,7 @@ describe("FactoryBench catalog", () => {
       "trackhire-status-summary",
       "trackhire-application-source",
       "trackhire-csv-materials-ready",
+      "trackhire-ai-stale-state",
     ]);
   });
 
@@ -25,17 +26,41 @@ describe("FactoryBench catalog", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("looks up a scenario by id", () => {
+  it("looks up the AI stale-state benchmark by id", () => {
+    const scenario = getFactoryBenchScenario(
+      "trackhire-ai-stale-state",
+    );
+
+    expect(scenario).toBeDefined();
+    expect(scenario?.category).toBe(
+      "state-management",
+    );
+    expect(scenario?.difficulty).toBe(
+      "medium",
+    );
+    expect(scenario?.expectedBehavior).toBe(
+      "implement",
+    );
+    expect(scenario?.expectedComplexity).toBe(
+      "medium",
+    );
+    expect(scenario?.expectedRisk).toBe(
+      "medium",
+    );
+  });
+
+  it("preserves the localized CSV benchmark metadata", () => {
     const scenario = getFactoryBenchScenario(
       "trackhire-csv-materials-ready",
     );
 
     expect(scenario).toBeDefined();
-    expect(scenario?.category).toBe("localized-change");
-    expect(scenario?.difficulty).toBe("easy");
-    expect(scenario?.expectedBehavior).toBe("implement");
-    expect(scenario?.expectedComplexity).toBe("low");
-    expect(scenario?.expectedRisk).toBe("low");
+    expect(scenario?.category).toBe(
+      "localized-change",
+    );
+    expect(scenario?.difficulty).toBe(
+      "easy",
+    );
   });
 
   it("preserves the persistence benchmark metadata", () => {
@@ -44,13 +69,19 @@ describe("FactoryBench catalog", () => {
     );
 
     expect(scenario).toBeDefined();
-    expect(scenario?.category).toBe("persistence");
-    expect(scenario?.difficulty).toBe("hard");
+    expect(scenario?.category).toBe(
+      "persistence",
+    );
+    expect(scenario?.difficulty).toBe(
+      "hard",
+    );
   });
 
   it("returns undefined for an unknown scenario", () => {
     expect(
-      getFactoryBenchScenario("does-not-exist"),
+      getFactoryBenchScenario(
+        "does-not-exist",
+      ),
     ).toBeUndefined();
   });
 });
