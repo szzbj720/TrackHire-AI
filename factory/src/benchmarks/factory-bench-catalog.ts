@@ -5,6 +5,7 @@ import { trackHireApplicationSourceBenchmark } from "./trackhire-application-sou
 import { trackHireCsvMaterialsReadyBenchmark } from "./trackhire-csv-materials-ready.js";
 import { trackHireAiStaleStateBenchmark } from "./trackhire-ai-stale-state.js";
 import { trackHireRequiredFieldWhitespaceBenchmark } from "./trackhire-required-field-whitespace.js";
+import { trackHireSearchWhitespaceBenchmark } from "./trackhire-search-whitespace.js";
 
 export const factoryBenchScenarios: readonly BenchmarkScenario[] = [
   trackHireInterviewDateBenchmark,
@@ -13,6 +14,7 @@ export const factoryBenchScenarios: readonly BenchmarkScenario[] = [
   trackHireCsvMaterialsReadyBenchmark,
   trackHireAiStaleStateBenchmark,
   trackHireRequiredFieldWhitespaceBenchmark,
+  trackHireSearchWhitespaceBenchmark,
 ];
 
 export function getFactoryBenchScenario(
