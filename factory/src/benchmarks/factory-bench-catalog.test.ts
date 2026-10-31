@@ -21,6 +21,7 @@ describe("FactoryBench catalog", () => {
       "trackhire-search-whitespace",
       "trackhire-api-boolean-normalization",
       "trackhire-save-error-response",
+      "trackhire-ambiguous-sorting",
     ]);
   });
 
@@ -33,6 +34,43 @@ describe("FactoryBench catalog", () => {
     expect(
       new Set(ids).size,
     ).toBe(ids.length);
+  });
+
+  it("looks up the ambiguous sorting benchmark by id", () => {
+    const scenario =
+      getFactoryBenchScenario(
+        "trackhire-ambiguous-sorting",
+      );
+
+    expect(scenario).toBeDefined();
+
+    expect(
+      scenario?.category,
+    ).toBe(
+      "ambiguous-requirement",
+    );
+
+    expect(
+      scenario?.difficulty,
+    ).toBe("medium");
+
+    expect(
+      scenario?.expectedBehavior,
+    ).toBe("clarify");
+
+    expect(
+      scenario?.expectedComplexity,
+    ).toBe("medium");
+
+    expect(
+      scenario?.expectedRisk,
+    ).toBe("medium");
+
+    expect(
+      scenario?.failureModes,
+    ).toContain(
+      "requirement-ambiguity",
+    );
   });
 
   it("looks up the saved-status error-response benchmark by id", () => {

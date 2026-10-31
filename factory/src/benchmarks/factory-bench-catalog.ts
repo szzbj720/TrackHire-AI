@@ -18,6 +18,8 @@ import { trackHireApiBooleanNormalizationBenchmark } from "./trackhire-api-boole
 
 import { trackHireSaveErrorResponseBenchmark } from "./trackhire-save-error-response.js";
 
+import { trackHireAmbiguousSortingBenchmark } from "./trackhire-ambiguous-sorting.js";
+
 export const factoryBenchScenarios: readonly BenchmarkScenario[] = [
   trackHireInterviewDateBenchmark,
   trackHireStatusSummaryBenchmark,
@@ -28,6 +30,7 @@ export const factoryBenchScenarios: readonly BenchmarkScenario[] = [
   trackHireSearchWhitespaceBenchmark,
   trackHireApiBooleanNormalizationBenchmark,
   trackHireSaveErrorResponseBenchmark,
+  trackHireAmbiguousSortingBenchmark,
 ];
 
 export function getFactoryBenchScenario(
