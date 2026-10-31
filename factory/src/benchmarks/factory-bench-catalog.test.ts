@@ -20,6 +20,7 @@ describe("FactoryBench catalog", () => {
       "trackhire-required-field-whitespace",
       "trackhire-search-whitespace",
       "trackhire-api-boolean-normalization",
+      "trackhire-save-error-response",
     ]);
   });
 
@@ -32,6 +33,35 @@ describe("FactoryBench catalog", () => {
     expect(
       new Set(ids).size,
     ).toBe(ids.length);
+  });
+
+  it("looks up the saved-status error-response benchmark by id", () => {
+    const scenario =
+      getFactoryBenchScenario(
+        "trackhire-save-error-response",
+      );
+
+    expect(scenario).toBeDefined();
+
+    expect(
+      scenario?.category,
+    ).toBe("regression");
+
+    expect(
+      scenario?.difficulty,
+    ).toBe("medium");
+
+    expect(
+      scenario?.expectedBehavior,
+    ).toBe("implement");
+
+    expect(
+      scenario?.expectedComplexity,
+    ).toBe("low");
+
+    expect(
+      scenario?.expectedRisk,
+    ).toBe("medium");
   });
 
   it("looks up the API boolean normalization benchmark by id", () => {
