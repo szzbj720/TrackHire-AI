@@ -295,18 +295,22 @@ export class SequentialFactory {
       repairs.push(retryResult.repair);
     }
 
+    const {
+      verificationPlan: _verificationPlan,
+      verification: _verification,
+      review: _review,
+      multiModelReview: _multiModelReview,
+      changeEvidence: _changeEvidence,
+      trustDecision: _trustDecision,
+      ...runWithoutStaleTrustEvidence
+    } = run;
+
     const nextRun: SequentialFactoryRun = {
-      ...run,
+      ...runWithoutStaleTrustEvidence,
       task: retryResult.task,
       validation: retryResult.validation,
       diagnosis: retryResult.diagnosis,
       repairs,
-      verificationPlan: undefined,
-      verification: undefined,
-      review: undefined,
-      multiModelReview: undefined,
-      changeEvidence: undefined,
-      trustDecision: undefined,
     };
 
     await this.persistRun(nextRun);
