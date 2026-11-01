@@ -127,7 +127,11 @@ export class TrustRetryWorkflow {
       };
     }
 
-    input.task.repairAttempts += 1;
+    const repairAttempts =
+      input.task.repairAttempts + 1;
+
+    input.task.repairAttempts =
+      repairAttempts;
     input.task.updatedAt =
       new Date().toISOString();
 
@@ -146,8 +150,12 @@ export class TrustRetryWorkflow {
       );
     }
 
+    const task = orchestrator.getTask();
+    task.repairAttempts = repairAttempts;
+    task.updatedAt = input.task.updatedAt;
+
     return {
-      task: orchestrator.getTask(),
+      task,
       repair,
       validation,
       diagnosis,
