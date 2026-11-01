@@ -55,6 +55,10 @@ export interface SequentialFactoryAdapter {
     baseBranch: string,
   ): Promise<SequentialFactoryResult>;
 
+  resumeAfterTrustRetry(
+    run: SequentialFactoryRun,
+  ): Promise<SequentialFactoryResult>;
+
   resumeAfterFinalApproval(
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult>;
@@ -225,6 +229,40 @@ export class AdaptiveFactory {
           result,
         );
     }
+  }
+
+  async resumeAfterTrustRetry(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "TRUST_RETRY_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume trust retry from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !==
+      "SEQUENTIAL"
+    ) {
+      throw new Error(
+        "Trust retry is only supported for sequential adaptive execution.",
+      );
+    }
+
+    const sequentialResult =
+      await this.sequentialFactory.resumeAfterTrustRetry(
+        result.run,
+      );
+
+    return {
+      run: sequentialResult.run,
+      route: result.route,
+      stopReason:
+        sequentialResult.stopReason,
+    };
   }
 
   async resumeAfterParallelApproval(
