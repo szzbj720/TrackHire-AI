@@ -55,7 +55,7 @@ export interface SequentialFactoryAdapter {
     baseBranch: string,
   ): Promise<SequentialFactoryResult>;
 
-  resumeAfterTrustRetry(
+  resumeAfterTrustRetry?(
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult>;
 
@@ -249,6 +249,14 @@ export class AdaptiveFactory {
     ) {
       throw new Error(
         "Trust retry is only supported for sequential adaptive execution.",
+      );
+    }
+
+    if (
+      !this.sequentialFactory.resumeAfterTrustRetry
+    ) {
+      throw new Error(
+        "Cannot resume trust retry because the sequential factory does not support trust retry.",
       );
     }
 
