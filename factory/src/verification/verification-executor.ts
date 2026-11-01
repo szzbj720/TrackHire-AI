@@ -6,10 +6,14 @@ import type {
 import type {
   CommandRunner,
 } from "../validation/command-runner.js";
+import type {
+  VerificationProbePolicy,
+} from "./verification-probe-policy.js";
 
 export class VerificationExecutor {
   constructor(
     private readonly runner: CommandRunner,
+    private readonly policy: VerificationProbePolicy,
   ) {}
 
   async execute(
@@ -20,6 +24,10 @@ export class VerificationExecutor {
       throw new Error(
         "At least one verification probe is required.",
       );
+    }
+
+    for (const probe of probes) {
+      this.policy.assertAllowed(probe);
     }
 
     const startedAt = Date.now();

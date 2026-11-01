@@ -5,18 +5,23 @@ import {
 } from "vitest";
 
 import type {
-  CommandRunner,
-} from "../validation/command-runner.js";
-import type {
   VerificationProbe,
 } from "../schemas/verification.js";
+import type {
+  CommandRunner,
+} from "../validation/command-runner.js";
 import {
   VerificationExecutor,
 } from "./verification-executor.js";
+import {
+  AllowlistedVerificationProbePolicy,
+} from "./verification-probe-policy.js";
 
 class FakeCommandRunner
   implements CommandRunner
 {
+  calls = 0;
+
   constructor(
     private readonly exitCodes:
       number[],
@@ -27,6 +32,8 @@ class FakeCommandRunner
     args: string[],
     _cwd: string,
   ) {
+    this.calls += 1;
+
     const exitCode =
       this.exitCodes.shift() ?? 0;
 
@@ -82,7 +89,7 @@ describe(
   "VerificationExecutor",
   () => {
     it(
-      "executes every probe and collects evidence",
+      "executes every allowed probe and collects evidence",
       async () => {
         const executor =
           new VerificationExecutor(
@@ -90,6 +97,7 @@ describe(
               0,
               0,
             ]),
+            new AllowlistedVerificationProbePolicy(),
           );
 
         const result =
@@ -121,6 +129,7 @@ describe(
               0,
               1,
             ]),
+            new AllowlistedVerificationProbePolicy(),
           );
 
         const result =
@@ -151,6 +160,7 @@ describe(
         const executor =
           new VerificationExecutor(
             new FakeCommandRunner([]),
+            new AllowlistedVerificationProbePolicy(),
           );
 
         await expect(
@@ -161,6 +171,46 @@ describe(
         ).rejects.toThrow(
           "At least one verification probe is required.",
         );
+      },
+    );
+
+    it(
+      "rejects a disallowed probe before executing any probes",
+      async () => {
+        const runner =
+          new FakeCommandRunner([0]);
+
+        const executor =
+          new VerificationExecutor(
+            runner,
+            new AllowlistedVerificationProbePolicy(),
+          );
+
+        const unsafeProbe:
+          VerificationProbe = {
+          id: "unsafe-probe",
+          hypothesis:
+            "A destructive command could be executed.",
+          rationale:
+            "Model-generated commands must be constrained.",
+          command: "rm",
+          args: ["-rf", "."],
+          expectedOutcome:
+            "The command is rejected.",
+        };
+
+        await expect(
+          executor.execute(
+            [unsafeProbe],
+            "/tmp/worktree",
+          ),
+        ).rejects.toThrow(
+          'Verification probe "unsafe-probe" uses disallowed command "rm".',
+        );
+
+        expect(
+          runner.calls,
+        ).toBe(0);
       },
     );
   },
