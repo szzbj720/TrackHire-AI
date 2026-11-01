@@ -20,6 +20,9 @@ import type {
   EngineeringTask,
 } from "../schemas/task.js";
 import type {
+  TrustDecision,
+} from "../schemas/trust-decision.js";
+import type {
   ValidationResult,
 } from "../schemas/validation.js";
 import type {
@@ -61,6 +64,9 @@ import {
 import type {
   ReviewWorkflow,
 } from "./review-workflow.js";
+import type {
+  TrustDecisionWorkflow,
+} from "./trust-decision-workflow.js";
 
 export interface SequentialFactoryRun {
   task: EngineeringTask;
@@ -74,11 +80,13 @@ export interface SequentialFactoryRun {
   review?: ReviewResult;
   multiModelReview?: MultiModelReviewResult;
   changeEvidence?: ChangeEvidence;
+  trustDecision?: TrustDecision;
 }
 
 export type SequentialFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
+  | "TRUST_RETRY_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
   | "FAILED";
@@ -104,6 +112,8 @@ export class SequentialFactory {
       RunArtifactStore,
     private readonly verificationWorkflow?:
       VerificationWorkflow,
+    private readonly trustDecisionWorkflow?:
+      TrustDecisionWorkflow,
   ) {}
 
   async start(
@@ -621,7 +631,7 @@ export class SequentialFactory {
         reviewResult,
       );
 
-    const nextRun: SequentialFactoryRun = {
+    let nextRun: SequentialFactoryRun = {
       ...run,
       task: reviewResult.task,
       changeEvidence:
@@ -629,7 +639,49 @@ export class SequentialFactory {
       ...reviewEvidence,
     };
 
+    if (
+      this.trustDecisionWorkflow &&
+      nextRun.validation &&
+      nextRun.verification &&
+      nextRun.review
+    ) {
+      const trustDecision =
+        this.trustDecisionWorkflow.run({
+          task: nextRun.task,
+          validation: nextRun.validation,
+          verification: nextRun.verification,
+          review: nextRun.review,
+        });
+
+      nextRun = {
+        ...nextRun,
+        trustDecision,
+      };
+    }
+
     await this.persistRun(nextRun);
+
+    if (
+      nextRun.trustDecision?.action ===
+      "RETRY"
+    ) {
+      return {
+        run: nextRun,
+        stopReason:
+          "TRUST_RETRY_REQUIRED",
+      };
+    }
+
+    if (
+      nextRun.trustDecision?.action ===
+      "ESCALATE"
+    ) {
+      return {
+        run: nextRun,
+        stopReason:
+          "HUMAN_INPUT_REQUIRED",
+      };
+    }
 
     if (
       nextRun.task.status ===
@@ -767,6 +819,14 @@ export class SequentialFactory {
         runId,
         "change-evidence",
         run.changeEvidence,
+      );
+    }
+
+    if (run.trustDecision) {
+      await this.artifactStore.writeJson(
+        runId,
+        "trust-decision",
+        run.trustDecision,
       );
     }
 
