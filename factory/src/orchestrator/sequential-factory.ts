@@ -67,6 +67,9 @@ import type {
 import type {
   TrustDecisionWorkflow,
 } from "./trust-decision-workflow.js";
+import type {
+  TrustRetryWorkflow,
+} from "./trust-retry-workflow.js";
 
 export interface SequentialFactoryRun {
   task: EngineeringTask;
@@ -114,6 +117,8 @@ export class SequentialFactory {
       VerificationWorkflow,
     private readonly trustDecisionWorkflow?:
       TrustDecisionWorkflow,
+    private readonly trustRetryWorkflow?:
+      TrustRetryWorkflow,
   ) {}
 
   async start(
@@ -226,6 +231,87 @@ export class SequentialFactory {
     return this.continueAfterValidation(
       nextRun,
     );
+  }
+
+  async resumeAfterTrustRetry(
+    run: SequentialFactoryRun,
+  ): Promise<SequentialFactoryResult> {
+    if (!this.trustRetryWorkflow) {
+      throw new Error(
+        "Sequential factory does not have a trust retry workflow.",
+      );
+    }
+
+    if (!run.worktree) {
+      throw new Error(
+        "Cannot retry trust decision without a worktree.",
+      );
+    }
+
+    if (!run.implementation) {
+      throw new Error(
+        "Cannot retry trust decision without an implementation result.",
+      );
+    }
+
+    if (!run.validation) {
+      throw new Error(
+        "Cannot retry trust decision without validation evidence.",
+      );
+    }
+
+    if (!run.verification) {
+      throw new Error(
+        "Cannot retry trust decision without verification evidence.",
+      );
+    }
+
+    if (!run.review) {
+      throw new Error(
+        "Cannot retry trust decision without review evidence.",
+      );
+    }
+
+    if (run.trustDecision?.action !== "RETRY") {
+      throw new Error(
+        "Cannot retry trust decision unless the trust action is RETRY.",
+      );
+    }
+
+    const retryResult =
+      await this.trustRetryWorkflow.run({
+        task: run.task,
+        implementation: run.implementation,
+        validation: run.validation,
+        verification: run.verification,
+        review: run.review,
+        trustDecision: run.trustDecision,
+        worktreePath: run.worktree.path,
+      });
+
+    const repairs = [...run.repairs];
+
+    if (retryResult.repair) {
+      repairs.push(retryResult.repair);
+    }
+
+    const nextRun: SequentialFactoryRun = {
+      ...run,
+      task: retryResult.task,
+      validation: retryResult.validation,
+      diagnosis: retryResult.diagnosis,
+      repairs,
+      verificationPlan: undefined,
+      verification: undefined,
+      review: undefined,
+      multiModelReview: undefined,
+      changeEvidence: undefined,
+      trustDecision: undefined,
+    };
+
+    await this.persistRun(nextRun);
+
+    return this.continueAfterValidation(nextRun);
   }
 
   async resumeAfterFinalApproval(
