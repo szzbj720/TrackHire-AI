@@ -23,11 +23,23 @@ import type {
   ValidationResult,
 } from "../schemas/validation.js";
 import type {
+  VerificationResult,
+} from "../schemas/verification.js";
+import type {
   Worktree,
 } from "../tools/git-worktree.js";
 import {
+  Workspace,
+} from "../tools/workspace.js";
+import {
   combineImplementationEvidence,
 } from "../evidence/implementation-evidence.js";
+import type {
+  VerificationPlan,
+} from "../verification/verification-planner.js";
+import type {
+  VerificationWorkflow,
+} from "../verification/verification-workflow.js";
 import type {
   DiagnosisWorkflow,
 } from "./diagnosis-workflow.js";
@@ -55,6 +67,8 @@ export interface SequentialFactoryRun {
   worktree?: Worktree;
   implementation?: ImplementationResult;
   validation?: ValidationResult;
+  verificationPlan?: VerificationPlan;
+  verification?: VerificationResult;
   diagnosis?: FailureDiagnosis;
   repairs: ImplementationResult[];
   review?: ReviewResult;
@@ -88,6 +102,8 @@ export class SequentialFactory {
       ReviewWorkflow,
     private readonly artifactStore?:
       RunArtifactStore,
+    private readonly verificationWorkflow?:
+      VerificationWorkflow,
   ) {}
 
   async start(
@@ -236,7 +252,7 @@ export class SequentialFactory {
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult> {
     if (run.task.status === "REVIEWING") {
-      return this.reviewImplementation(
+      return this.verifyAndReviewImplementation(
         run,
       );
     }
@@ -324,7 +340,7 @@ export class SequentialFactory {
         currentRun.task.status ===
         "REVIEWING"
       ) {
-        return this.reviewImplementation(
+        return this.verifyAndReviewImplementation(
           currentRun,
         );
       }
@@ -477,6 +493,80 @@ export class SequentialFactory {
     return nextRun;
   }
 
+  private async verifyAndReviewImplementation(
+    run: SequentialFactoryRun,
+  ): Promise<SequentialFactoryResult> {
+    if (!this.verificationWorkflow) {
+      return this.reviewImplementation(run);
+    }
+
+    if (!run.worktree) {
+      throw new Error(
+        "Cannot verify without a worktree.",
+      );
+    }
+
+    if (!run.implementation) {
+      throw new Error(
+        "Cannot verify without an implementation result.",
+      );
+    }
+
+    if (!run.validation) {
+      throw new Error(
+        "Cannot verify without validation evidence.",
+      );
+    }
+
+    if (!run.validation.passed) {
+      throw new Error(
+        "Cannot run independent verification after failed deterministic validation.",
+      );
+    }
+
+    const implementationEvidence =
+      combineImplementationEvidence(
+        run.implementation,
+        run.repairs,
+      );
+
+    const workspace =
+      new Workspace(run.worktree.path);
+
+    const changedFiles = await Promise.all(
+      implementationEvidence.changedFiles
+        .filter(
+          (change) =>
+            change.changeType !== "deleted",
+        )
+        .map(async (change) => ({
+          path: change.path,
+          content:
+            await workspace.read(change.path),
+        })),
+    );
+
+    const verificationResult =
+      await this.verificationWorkflow.run({
+        task: run.task,
+        validation: run.validation,
+        changedFiles,
+        worktreePath: run.worktree.path,
+      });
+
+    const nextRun: SequentialFactoryRun = {
+      ...run,
+      verificationPlan:
+        verificationResult.plan,
+      verification:
+        verificationResult.verification,
+    };
+
+    await this.persistRun(nextRun);
+
+    return this.reviewImplementation(nextRun);
+  }
+
   private async reviewImplementation(
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult> {
@@ -516,6 +606,12 @@ export class SequentialFactory {
         implementation:
           implementationEvidence,
         validation: run.validation,
+        ...(run.verification
+          ? {
+              verification:
+                run.verification,
+            }
+          : {}),
         worktreePath:
           run.worktree.path,
       });
@@ -615,6 +711,22 @@ export class SequentialFactory {
         runId,
         "validation",
         run.validation,
+      );
+    }
+
+    if (run.verificationPlan) {
+      await this.artifactStore.writeJson(
+        runId,
+        "verification-plan",
+        run.verificationPlan,
+      );
+    }
+
+    if (run.verification) {
+      await this.artifactStore.writeJson(
+        runId,
+        "verification",
+        run.verification,
       );
     }
 
