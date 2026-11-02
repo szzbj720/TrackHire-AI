@@ -4,12 +4,16 @@ import type {
 import type {
   EngineeringTask,
 } from "../schemas/task.js";
+import type {
+  AdaptiveRoutingDecision,
+} from "./adaptive-routing.js";
 import {
   startFactoryRunTrace,
 } from "./factory-run-trace.js";
 import type {
-  AdaptiveRoutingDecision,
-} from "./adaptive-routing.js";
+  LightweightWorkflow,
+  LightweightWorkflowResult,
+} from "./lightweight-workflow.js";
 import type {
   SequentialFactory,
   SequentialFactoryResult,
@@ -17,6 +21,7 @@ import type {
 
 export interface FactoryRunnerResult {
   decision: AdaptiveRoutingDecision;
+  lightweightResult?: LightweightWorkflowResult;
   sequentialResult?: SequentialFactoryResult;
   trace: FactoryRunTrace;
 }
@@ -24,17 +29,41 @@ export interface FactoryRunnerResult {
 export class FactoryRunner {
   constructor(
     private readonly sequentialFactory: SequentialFactory,
+    private readonly lightweightWorkflow?: LightweightWorkflow,
   ) {}
 
   async run(
     task: EngineeringTask,
     repositoryRoot: string,
     timestamp = new Date().toISOString(),
+    baseBranch = "main",
   ): Promise<FactoryRunnerResult> {
     const session = startFactoryRunTrace(
       task,
       timestamp,
     );
+
+    if (session.decision.route === "LIGHTWEIGHT") {
+      if (!this.lightweightWorkflow) {
+        return {
+          decision: session.decision,
+          trace: session.snapshot(),
+        };
+      }
+
+      const lightweightResult =
+        await this.lightweightWorkflow.run(
+          task,
+          repositoryRoot,
+          baseBranch,
+        );
+
+      return {
+        decision: session.decision,
+        lightweightResult,
+        trace: session.snapshot(),
+      };
+    }
 
     if (session.decision.route !== "SEQUENTIAL") {
       return {
