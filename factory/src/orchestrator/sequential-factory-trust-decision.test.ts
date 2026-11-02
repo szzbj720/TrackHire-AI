@@ -269,6 +269,7 @@ describe("SequentialFactory trust decisions", () => {
 
     expect(result.stopReason).toBe("FINAL_APPROVAL_REQUIRED");
     expect(result.run.trustDecision?.action).toBe("MERGE");
+    expect(result.run.task.status).toBe("AWAITING_FINAL_APPROVAL");
     expect(trustInput?.verification.passed).toBe(true);
     expect(trustInput?.review.approved).toBe(true);
   });
