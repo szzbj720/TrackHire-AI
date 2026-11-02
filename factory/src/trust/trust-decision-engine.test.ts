@@ -170,6 +170,29 @@ describe(
     );
 
     it(
+      "allows verified high-risk work to reach final approval",
+      () => {
+        const engine =
+          new TrustDecisionEngine();
+
+        const decision =
+          engine.decide({
+            task: createTask(0, "high"),
+            validation:
+              createValidation(),
+            verification:
+              createVerification(),
+            review:
+              createReview(),
+          });
+
+        expect(decision.action).toBe(
+          "MERGE",
+        );
+      },
+    );
+
+    it(
       "retries when independent verification finds an actionable failure",
       () => {
         const engine =
