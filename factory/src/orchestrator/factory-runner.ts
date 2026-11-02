@@ -89,10 +89,19 @@ export class FactoryRunner {
         };
       }
 
-      const adaptiveResult =
-        await this.adaptiveFactory.start(
+      const plannedResult: AdaptiveFactoryResult = {
+        run: {
           task,
+          repairs: [],
+        },
+        route: session.decision,
+        stopReason: "PLAN_APPROVAL_REQUIRED",
+      };
+      const adaptiveResult =
+        await this.adaptiveFactory.resumeAfterPlanApproval(
+          plannedResult,
           repositoryRoot,
+          baseBranch,
         );
 
       return {
