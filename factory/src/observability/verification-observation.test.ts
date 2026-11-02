@@ -3,12 +3,24 @@ import type { EngineeringTask } from "../schemas/task.js";
 import type { VerificationResult } from "../schemas/verification.js";
 import { createVerificationObservation } from "./verification-observation.js";
 
+function createTask(): EngineeringTask {
+  const timestamp = "2026-11-02T17:51:00.000Z";
+
+  return {
+    id: "task-1",
+    request: "Verify the implementation independently.",
+    status: "REVIEWING",
+    requirements: [],
+    acceptanceCriteria: [],
+    constraints: [],
+    repairAttempts: 0,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
 describe("createVerificationObservation", () => {
   it("summarizes failed independent verification evidence", () => {
-    const task = {
-      id: "task-1",
-      status: "VERIFYING",
-    } as EngineeringTask;
     const verification: VerificationResult = {
       passed: false,
       probes: [
@@ -39,21 +51,20 @@ describe("createVerificationObservation", () => {
 
     expect(
       createVerificationObservation(
-        task,
+        createTask(),
         verification,
         "2026-11-02T17:51:00.000Z",
       ),
     ).toEqual({
       type: "VERIFICATION_RESULT",
       timestamp: "2026-11-02T17:51:00.000Z",
-      stage: "VERIFYING",
+      stage: "REVIEWING",
       summary: "Independent verification failed.",
       details: {
         passed: false,
         probeCount: 2,
-        passedProbeCount: 1,
-        failedProbeCount: 1,
-        failedProbes: "probe-2",
+        passedProbes: 1,
+        failedProbes: 1,
         durationMs: 50,
       },
     });
