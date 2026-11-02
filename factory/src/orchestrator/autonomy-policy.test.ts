@@ -160,6 +160,22 @@ describe("evaluateAutonomyPolicy", () => {
     ).toBe(0);
   });
 
+  it("does not increase the repair budget just because low-risk confidence is below the plan threshold", () => {
+    const decision = evaluateAutonomyPolicy(
+      createTask({
+        risk: "low",
+        confidence: 0.89,
+      }),
+    );
+
+    expect(decision.planApproval).toBe(
+      "REQUIRED",
+    );
+    expect(
+      decision.maxAutonomousRepairAttempts,
+    ).toBe(2);
+  });
+
   it("disables autonomous repairs when human input is required", () => {
     const decision = evaluateAutonomyPolicy(
       createTask({
