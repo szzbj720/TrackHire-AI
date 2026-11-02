@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { AdaptiveFactoryResult } from "./adaptive-factory.js";
 import type { EngineeringTask } from "../schemas/task.js";
 import type { SequentialFactoryResult } from "./sequential-factory.js";
 import { startFactoryRunTrace } from "./factory-run-trace.js";
@@ -103,5 +104,60 @@ describe("startFactoryRunTrace", () => {
       },
     });
     expect(session.snapshot()).toEqual(trace);
+  });
+
+  it("records the parallel approval boundary from an adaptive result", () => {
+    const baseTask = createTask();
+    const task: EngineeringTask = {
+      ...baseTask,
+      status: "AWAITING_PLAN_APPROVAL",
+      strategy: {
+        mode: "parallel",
+        reasoning: "Use parallel execution.",
+      },
+    };
+    const parallelTask: EngineeringTask = {
+      ...task,
+      status: "AWAITING_PARALLEL_APPROVAL",
+      updatedAt: "2026-11-02T19:47:00.000Z",
+    };
+    const session = startFactoryRunTrace(
+      task,
+      "2026-11-02T19:45:00.000Z",
+    );
+    const result = {
+      run: {
+        task: parallelTask,
+        repairs: [],
+      },
+      route: session.decision,
+      stopReason: "PARALLEL_APPROVAL_REQUIRED",
+    } as AdaptiveFactoryResult;
+
+    const trace = session.recordAdaptiveResult(
+      result,
+      "2026-11-02T19:47:00.000Z",
+    );
+
+    expect(session.decision.route).toBe("PARALLEL");
+    expect(trace.completedAt).toBeUndefined();
+    expect(trace.observations.map((observation) => observation.type)).toEqual([
+      "ROUTING_DECISION",
+      "AUTONOMY_DECISION",
+      "HUMAN_GATE",
+      "RUN_OUTCOME",
+    ]);
+    expect(trace.observations.at(-2)).toMatchObject({
+      type: "HUMAN_GATE",
+      details: {
+        gate: "PARALLEL_APPROVAL",
+      },
+    });
+    expect(trace.observations.at(-1)).toMatchObject({
+      type: "RUN_OUTCOME",
+      details: {
+        outcome: "PARALLEL_APPROVAL_REQUIRED",
+      },
+    });
   });
 });
