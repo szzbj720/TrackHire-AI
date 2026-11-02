@@ -103,11 +103,14 @@ export class FactoryRunner {
           repositoryRoot,
           baseBranch,
         );
+      const trace = session.recordAdaptiveResult(
+        adaptiveResult,
+      );
 
       return {
         decision: session.decision,
         adaptiveResult,
-        trace: session.snapshot(),
+        trace,
       };
     }
 
