@@ -292,7 +292,11 @@ async function main(): Promise<void> {
 
     if (result.stopReason === "PARALLEL_VALIDATION_REQUIRED") {
       console.log("\nParallel implementation completed in isolated worktrees. Running integrated validation...\n");
-      result = await adaptiveFactory.resumeAfterParallelValidation(result);
+      execution = await factoryRunner.resumeAfterParallelValidation(
+        result,
+        execution.trace,
+      );
+      result = execution.adaptiveResult!;
 
       console.log("\n=== Parallel Validation Result ===\n");
       console.log(JSON.stringify({
@@ -305,7 +309,11 @@ async function main(): Promise<void> {
 
     while (result.stopReason === "PARALLEL_DIAGNOSIS_REQUIRED") {
       console.log(`\n=== Parallel Failure Diagnosis ${result.run.task.repairAttempts + 1} ===\n`);
-      result = await adaptiveFactory.resumeAfterParallelDiagnosis(result);
+      execution = await factoryRunner.resumeAfterParallelDiagnosis(
+        result,
+        execution.trace,
+      );
+      result = execution.adaptiveResult!;
       console.log(JSON.stringify(result.diagnosis, null, 2));
 
       if (result.stopReason !== "PARALLEL_REPAIR_REQUIRED") {
@@ -313,14 +321,25 @@ async function main(): Promise<void> {
       }
 
       console.log(`\n=== Parallel Repair Attempt ${result.run.task.repairAttempts + 1} ===\n`);
-      result = await adaptiveFactory.resumeAfterParallelRepair(result);
+      execution = await factoryRunner.resumeAfterParallelRepair(
+        result,
+        execution.trace,
+      );
+      result = execution.adaptiveResult!;
       printValidation(result.run.validation);
 
       if (result.stopReason === "PARALLEL_REVIEW_REQUIRED") {
         console.log("\nParallel repair passed validation. Running integrated review...\n");
-        result = await adaptiveFactory.resumeAfterParallelReview(result);
+        execution = await factoryRunner.resumeAfterParallelReview(
+          result,
+          execution.trace,
+        );
+        result = execution.adaptiveResult!;
       }
     }
+
+    console.log("\n=== Continued Run Trace ===\n");
+    console.log(JSON.stringify(execution.trace, null, 2));
 
     if (result.stopReason === "FINAL_APPROVAL_REQUIRED") {
       console.log("\nThe integrated parallel implementation passed validation and review and reached the final human approval gate.");
