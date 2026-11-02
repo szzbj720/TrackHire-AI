@@ -63,6 +63,36 @@ describe("adaptive routing autonomy integration", () => {
     );
   });
 
+  it("carries the low-risk autonomous repair budget into the routing decision", () => {
+    const decision = routeTask(
+      createTask("low", 0.95),
+    );
+
+    expect(
+      decision.autonomy?.maxAutonomousRepairAttempts,
+    ).toBe(2);
+  });
+
+  it("carries the medium-risk autonomous repair budget into the routing decision", () => {
+    const decision = routeTask(
+      createTask("medium", 0.99),
+    );
+
+    expect(
+      decision.autonomy?.maxAutonomousRepairAttempts,
+    ).toBe(1);
+  });
+
+  it("carries the high-risk no-retry boundary into the routing decision", () => {
+    const decision = routeTask(
+      createTask("high", 0.99),
+    );
+
+    expect(
+      decision.autonomy?.maxAutonomousRepairAttempts,
+    ).toBe(0);
+  });
+
   it("keeps plan approval for higher-risk work", () => {
     const decision = routeTask(
       createTask("high", 0.99),
