@@ -12,6 +12,7 @@ import type {
   AdaptiveRoutingDecision,
 } from "./adaptive-routing.js";
 import {
+  resumeFactoryRunTrace,
   startFactoryRunTrace,
 } from "./factory-run-trace.js";
 import type {
@@ -130,6 +131,52 @@ export class FactoryRunner {
       decision: session.decision,
       sequentialResult,
       trace,
+    };
+  }
+
+  async resumeAfterParallelApproval(
+    result: AdaptiveFactoryResult,
+    trace: FactoryRunTrace,
+    repositoryRoot: string,
+    baseBranch = "main",
+  ): Promise<FactoryRunnerResult> {
+    if (!this.adaptiveFactory) {
+      throw new Error(
+        "FactoryRunner requires an adaptive factory to resume parallel execution.",
+      );
+    }
+
+    if (result.stopReason !== "PARALLEL_APPROVAL_REQUIRED") {
+      throw new Error(
+        `FactoryRunner cannot resume parallel approval from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    const session = resumeFactoryRunTrace(
+      result.run.task,
+      trace,
+    );
+
+    if (session.decision.route !== "PARALLEL") {
+      throw new Error(
+        "FactoryRunner can only resume parallel approval for PARALLEL routing.",
+      );
+    }
+
+    const adaptiveResult =
+      await this.adaptiveFactory.resumeAfterParallelApproval(
+        result,
+        repositoryRoot,
+        baseBranch,
+      );
+    const continuedTrace = session.recordAdaptiveResult(
+      adaptiveResult,
+    );
+
+    return {
+      decision: session.decision,
+      adaptiveResult,
+      trace: continuedTrace,
     };
   }
 }
