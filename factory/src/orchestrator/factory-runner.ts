@@ -5,6 +5,10 @@ import type {
   EngineeringTask,
 } from "../schemas/task.js";
 import type {
+  AdaptiveFactory,
+  AdaptiveFactoryResult,
+} from "./adaptive-factory.js";
+import type {
   AdaptiveRoutingDecision,
 } from "./adaptive-routing.js";
 import {
@@ -21,6 +25,7 @@ import type {
 
 export interface FactoryRunnerResult {
   decision: AdaptiveRoutingDecision;
+  adaptiveResult?: AdaptiveFactoryResult;
   lightweightResult?: LightweightWorkflowResult;
   sequentialResult?: SequentialFactoryResult;
   trace: FactoryRunTrace;
@@ -30,6 +35,7 @@ export class FactoryRunner {
   constructor(
     private readonly sequentialFactory: SequentialFactory,
     private readonly lightweightWorkflow?: LightweightWorkflow,
+    private readonly adaptiveFactory?: AdaptiveFactory,
   ) {}
 
   async run(
@@ -65,9 +71,23 @@ export class FactoryRunner {
       };
     }
 
-    if (session.decision.route !== "SEQUENTIAL") {
+    if (session.decision.route === "PARALLEL") {
+      if (!this.adaptiveFactory) {
+        return {
+          decision: session.decision,
+          trace: session.snapshot(),
+        };
+      }
+
+      const adaptiveResult =
+        await this.adaptiveFactory.start(
+          task,
+          repositoryRoot,
+        );
+
       return {
         decision: session.decision,
+        adaptiveResult,
         trace: session.snapshot(),
       };
     }
