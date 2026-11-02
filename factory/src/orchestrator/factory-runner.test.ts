@@ -47,6 +47,28 @@ function createTask(): EngineeringTask {
 }
 
 describe("FactoryRunner", () => {
+  it("rejects tasks that have not completed planning", async () => {
+    const plannedTask = createTask();
+    const { strategy: _strategy, ...unplannedTask } = plannedTask;
+    const start = vi.fn();
+    const sequentialFactory = {
+      start,
+    } as unknown as SequentialFactory;
+    const runner = new FactoryRunner(sequentialFactory);
+
+    await expect(
+      runner.run(
+        unplannedTask,
+        "/repo",
+        "2026-11-02T19:49:00.000Z",
+      ),
+    ).rejects.toThrow(
+      "FactoryRunner requires a planned task with an execution strategy.",
+    );
+
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it("routes sequential work through the sequential factory and preserves one trace", async () => {
     const task = createTask();
     const finalTask: EngineeringTask = {
