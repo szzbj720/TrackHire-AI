@@ -67,24 +67,6 @@ export class TrustDecisionEngine {
       });
     }
 
-    const repairBudget =
-      this.getRepairBudget(input.task);
-
-    if (
-      input.task.repairAttempts >=
-      repairBudget
-    ) {
-      return this.createDecision({
-        action: "ESCALATE",
-        confidence:
-          input.review.confidence,
-        reasons: [
-          "The repair attempt budget has been exhausted.",
-        ],
-        evidence,
-      });
-    }
-
     if (
       input.validation.passed &&
       input.verification.passed &&
@@ -100,6 +82,24 @@ export class TrustDecisionEngine {
           "Deterministic validation passed.",
           "Independent verification passed.",
           "Independent review approved the implementation with sufficient confidence.",
+        ],
+        evidence,
+      });
+    }
+
+    const repairBudget =
+      this.getRepairBudget(input.task);
+
+    if (
+      input.task.repairAttempts >=
+      repairBudget
+    ) {
+      return this.createDecision({
+        action: "ESCALATE",
+        confidence:
+          input.review.confidence,
+        reasons: [
+          "The repair attempt budget has been exhausted.",
         ],
         evidence,
       });
