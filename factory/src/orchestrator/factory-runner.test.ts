@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { FactoryRunTrace } from "../schemas/run-observation.js";
 import type { EngineeringTask } from "../schemas/task.js";
 import type {
   AdaptiveFactory,
@@ -376,7 +377,7 @@ describe("FactoryRunner", () => {
       },
       stopReason: "PARALLEL_VALIDATION_REQUIRED",
     } as unknown as AdaptiveFactoryResult;
-    const trace = {
+    const trace: FactoryRunTrace = {
       taskId: task.id,
       startedAt: "2026-11-02T19:55:00.000Z",
       observations: [
@@ -401,7 +402,7 @@ describe("FactoryRunner", () => {
           },
         },
       ],
-    } as const;
+    };
     const resumeAfterParallelApproval = vi.fn().mockResolvedValue(executionResult);
     const sequentialFactory = {
       start: vi.fn(),
