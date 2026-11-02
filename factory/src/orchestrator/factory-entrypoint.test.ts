@@ -8,7 +8,10 @@ import type {
   EngineeringTask,
 } from "../schemas/task.js";
 import { FactoryEntrypoint } from "./factory-entrypoint.js";
-import type { FactoryRunner } from "./factory-runner.js";
+import type {
+  FactoryRunner,
+  FactoryRunnerResult,
+} from "./factory-runner.js";
 import type { PlanningWorkflow } from "./planning-workflow.js";
 
 function createTask(
@@ -94,11 +97,12 @@ describe("FactoryEntrypoint", () => {
       },
     };
     const factoryRunner = createFactoryRunner();
-    const execution = {
+    const execution: FactoryRunnerResult = {
       decision: {
-        route: "SEQUENTIAL" as const,
+        route: "SEQUENTIAL",
         policy: {
-          disposition: "SUPPORTED_SEQUENTIAL" as const,
+          mode: "sequential",
+          disposition: "SUPPORTED_SEQUENTIAL",
           reasoning: "Sequential strategy is supported.",
         },
       },
