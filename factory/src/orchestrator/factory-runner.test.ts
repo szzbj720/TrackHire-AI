@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { EngineeringTask } from "../schemas/task.js";
 import type {
+  AdaptiveFactory,
+  AdaptiveFactoryResult,
+} from "./adaptive-factory.js";
+import type {
   LightweightWorkflow,
   LightweightWorkflowResult,
 } from "./lightweight-workflow.js";
@@ -169,6 +173,64 @@ describe("FactoryRunner", () => {
     expect(result.sequentialResult).toBeUndefined();
     expect(result.trace.taskId).toBe(task.id);
     expect(result.trace.startedAt).toBe("2026-11-02T19:53:00.000Z");
+    expect(
+      result.trace.observations.map(
+        (observation) => observation.type,
+      ),
+    ).toEqual([
+      "ROUTING_DECISION",
+      "AUTONOMY_DECISION",
+    ]);
+  });
+
+  it("delegates parallel work to the adaptive factory", async () => {
+    const baseTask = createTask();
+    const task: EngineeringTask = {
+      ...baseTask,
+      strategy: {
+        mode: "parallel",
+        reasoning: "Use parallel execution.",
+      },
+    };
+    const adaptiveResult = {
+      run: {
+        task,
+        repairs: [],
+      },
+      stopReason: "PLAN_APPROVAL_REQUIRED",
+    } as AdaptiveFactoryResult;
+    const sequentialStart = vi.fn();
+    const lightweightRun = vi.fn();
+    const adaptiveStart = vi.fn().mockResolvedValue(adaptiveResult);
+    const sequentialFactory = {
+      start: sequentialStart,
+    } as unknown as SequentialFactory;
+    const lightweightWorkflow = {
+      run: lightweightRun,
+    } as unknown as LightweightWorkflow;
+    const adaptiveFactory = {
+      start: adaptiveStart,
+    } as unknown as AdaptiveFactory;
+    const runner = new FactoryRunner(
+      sequentialFactory,
+      lightweightWorkflow,
+      adaptiveFactory,
+    );
+
+    const result = await runner.run(
+      task,
+      "/repo",
+      "2026-11-02T19:55:00.000Z",
+    );
+
+    expect(result.decision.route).toBe("PARALLEL");
+    expect(adaptiveStart).toHaveBeenCalledOnce();
+    expect(adaptiveStart).toHaveBeenCalledWith(task, "/repo");
+    expect(sequentialStart).not.toHaveBeenCalled();
+    expect(lightweightRun).not.toHaveBeenCalled();
+    expect(result.adaptiveResult).toBe(adaptiveResult);
+    expect(result.trace.taskId).toBe(task.id);
+    expect(result.trace.startedAt).toBe("2026-11-02T19:55:00.000Z");
     expect(
       result.trace.observations.map(
         (observation) => observation.type,
