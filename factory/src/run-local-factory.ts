@@ -198,6 +198,11 @@ async function main(): Promise<void> {
     provider,
     sequentialFactory,
     lightweightWorkflow,
+    builder,
+    validator,
+    diagnosisWorkflow,
+    repairWorkflow,
+    reviewWorkflow,
   );
   const factoryRunner = new FactoryRunner(
     sequentialFactory,
