@@ -238,6 +238,7 @@ describe("FactoryRunner", () => {
     const baseTask = createTask();
     const task: EngineeringTask = {
       ...baseTask,
+      status: "AWAITING_PLAN_APPROVAL",
       strategy: {
         mode: "parallel",
         reasoning: "Use parallel execution.",
@@ -245,14 +246,29 @@ describe("FactoryRunner", () => {
     };
     const adaptiveResult = {
       run: {
-        task,
+        task: {
+          ...task,
+          status: "AWAITING_PARALLEL_APPROVAL",
+        },
         repairs: [],
       },
-      stopReason: "PLAN_APPROVAL_REQUIRED",
-    } as AdaptiveFactoryResult;
+      route: {
+        route: "PARALLEL",
+        policy: {
+          disposition: "SUPPORTED_PARALLEL",
+          reasoning: "Use parallel execution.",
+        },
+      },
+      workGraph: {
+        taskId: task.id,
+        nodes: [],
+      },
+      stopReason: "PARALLEL_APPROVAL_REQUIRED",
+    } as unknown as AdaptiveFactoryResult;
     const sequentialStart = vi.fn();
     const lightweightRun = vi.fn();
-    const adaptiveStart = vi.fn().mockResolvedValue(adaptiveResult);
+    const adaptiveStart = vi.fn();
+    const resumeAfterPlanApproval = vi.fn().mockResolvedValue(adaptiveResult);
     const sequentialFactory = {
       start: sequentialStart,
     } as unknown as SequentialFactory;
@@ -261,6 +277,7 @@ describe("FactoryRunner", () => {
     } as unknown as LightweightWorkflow;
     const adaptiveFactory = {
       start: adaptiveStart,
+      resumeAfterPlanApproval,
     } as unknown as AdaptiveFactory;
     const runner = new FactoryRunner(
       sequentialFactory,
@@ -272,11 +289,24 @@ describe("FactoryRunner", () => {
       task,
       "/repo",
       "2026-11-02T19:55:00.000Z",
+      "develop",
     );
 
     expect(result.decision.route).toBe("PARALLEL");
-    expect(adaptiveStart).toHaveBeenCalledOnce();
-    expect(adaptiveStart).toHaveBeenCalledWith(task, "/repo");
+    expect(adaptiveStart).not.toHaveBeenCalled();
+    expect(resumeAfterPlanApproval).toHaveBeenCalledOnce();
+    expect(resumeAfterPlanApproval).toHaveBeenCalledWith(
+      {
+        run: {
+          task,
+          repairs: [],
+        },
+        route: result.decision,
+        stopReason: "PLAN_APPROVAL_REQUIRED",
+      },
+      "/repo",
+      "develop",
+    );
     expect(sequentialStart).not.toHaveBeenCalled();
     expect(lightweightRun).not.toHaveBeenCalled();
     expect(result.adaptiveResult).toBe(adaptiveResult);
