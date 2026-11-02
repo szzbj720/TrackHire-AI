@@ -11,10 +11,20 @@ export interface AutonomyPolicyDecision {
   risk: TaskRisk;
   planApproval: ApprovalRequirement;
   finalApproval: "REQUIRED";
+  maxAutonomousRepairAttempts: number;
   reasoning: string[];
 }
 
 const MIN_AUTONOMOUS_PLAN_CONFIDENCE = 0.9;
+
+const AUTONOMOUS_REPAIR_BUDGET: Record<
+  TaskRisk,
+  number
+> = {
+  low: 2,
+  medium: 1,
+  high: 0,
+};
 
 export function evaluateAutonomyPolicy(
   task: EngineeringTask,
@@ -40,6 +50,13 @@ export function evaluateAutonomyPolicy(
     analysis.confidence <
       MIN_AUTONOMOUS_PLAN_CONFIDENCE ||
     task.strategy.mode === "parallel";
+
+  const maxAutonomousRepairAttempts =
+    analysis.requiresHumanInput
+      ? 0
+      : AUTONOMOUS_REPAIR_BUDGET[
+          analysis.risk
+        ];
 
   if (analysis.requiresHumanInput) {
     reasoning.push(
@@ -75,6 +92,10 @@ export function evaluateAutonomyPolicy(
   }
 
   reasoning.push(
+    `Risk policy allows at most ${maxAutonomousRepairAttempts} autonomous repair attempt${maxAutonomousRepairAttempts === 1 ? "" : "s"} before human escalation.`,
+  );
+
+  reasoning.push(
     "Final human approval remains required before completion regardless of risk level.",
   );
 
@@ -84,6 +105,7 @@ export function evaluateAutonomyPolicy(
       ? "REQUIRED"
       : "CAN_PROCEED",
     finalApproval: "REQUIRED",
+    maxAutonomousRepairAttempts,
     reasoning,
   };
 }
