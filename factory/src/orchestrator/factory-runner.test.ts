@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { EngineeringTask } from "../schemas/task.js";
 import type {
+  LightweightWorkflow,
+  LightweightWorkflowResult,
+} from "./lightweight-workflow.js";
+import type {
   SequentialFactory,
   SequentialFactoryResult,
 } from "./sequential-factory.js";
@@ -96,6 +100,82 @@ describe("FactoryRunner", () => {
       "TRUST_DECISION",
       "HUMAN_GATE",
       "RUN_OUTCOME",
+    ]);
+  });
+
+  it("executes lightweight work through the lightweight workflow", async () => {
+    const baseTask = createTask();
+    const task: EngineeringTask = {
+      ...baseTask,
+      status: "AWAITING_PLAN_APPROVAL",
+      strategy: {
+        mode: "single-agent",
+        reasoning: "Use lightweight execution.",
+      },
+    };
+    const finalTask: EngineeringTask = {
+      ...task,
+      status: "AWAITING_FINAL_APPROVAL",
+      updatedAt: "2026-11-02T19:54:00.000Z",
+    };
+    const lightweightResult = {
+      task: finalTask,
+      worktree: {
+        path: "/repo/.factory/worktrees/TH-FACTORY-RUNNER-001",
+        branch: "factory/TH-FACTORY-RUNNER-001",
+      },
+      implementation: {
+        summary: "Implemented lightweight task.",
+        changedFiles: ["src/example.ts"],
+        commandsRun: [],
+        warnings: [],
+        requiresHumanInput: false,
+      },
+      validation: {
+        passed: true,
+        commands: [],
+        durationMs: 10,
+      },
+    } as unknown as LightweightWorkflowResult;
+    const start = vi.fn();
+    const run = vi.fn().mockResolvedValue(lightweightResult);
+    const sequentialFactory = {
+      start,
+    } as unknown as SequentialFactory;
+    const lightweightWorkflow = {
+      run,
+    } as unknown as LightweightWorkflow;
+    const runner = new FactoryRunner(
+      sequentialFactory,
+      lightweightWorkflow,
+    );
+
+    const result = await runner.run(
+      task,
+      "/repo",
+      "2026-11-02T19:53:00.000Z",
+      "develop",
+    );
+
+    expect(result.decision.route).toBe("LIGHTWEIGHT");
+    expect(run).toHaveBeenCalledOnce();
+    expect(run).toHaveBeenCalledWith(
+      task,
+      "/repo",
+      "develop",
+    );
+    expect(start).not.toHaveBeenCalled();
+    expect(result.lightweightResult).toBe(lightweightResult);
+    expect(result.sequentialResult).toBeUndefined();
+    expect(result.trace.taskId).toBe(task.id);
+    expect(result.trace.startedAt).toBe("2026-11-02T19:53:00.000Z");
+    expect(
+      result.trace.observations.map(
+        (observation) => observation.type,
+      ),
+    ).toEqual([
+      "ROUTING_DECISION",
+      "AUTONOMY_DECISION",
     ]);
   });
 
