@@ -31,6 +31,9 @@ import {
   OllamaProvider,
 } from "./models/ollama-provider.js";
 import {
+  createAdaptiveFactory,
+} from "./orchestrator/adaptive-factory-composition.js";
+import {
   DiagnosisWorkflow,
 } from "./orchestrator/diagnosis-workflow.js";
 import {
@@ -91,26 +94,16 @@ import {
   VerificationWorkflow,
 } from "./verification/verification-workflow.js";
 
-function readInstruction(
-  args: string[],
-): string {
-  const instruction =
-    args.join(" ").trim();
-
+function readInstruction(args: string[]): string {
+  const instruction = args.join(" ").trim();
   if (instruction.length === 0) {
-    throw new Error(
-      "A TrackHire engineering instruction is required.",
-    );
+    throw new Error("A TrackHire engineering instruction is required.");
   }
-
   return instruction;
 }
 
-function createTask(
-  instruction: string,
-): EngineeringTask {
+function createTask(instruction: string): EngineeringTask {
   const now = new Date().toISOString();
-
   return {
     id: `LOCAL-${Date.now()}`,
     request: instruction,
@@ -131,331 +124,183 @@ function createTask(
   };
 }
 
-async function askForApproval(
-  question: string,
-): Promise<boolean> {
-  const readline = createInterface({
-    input,
-    output,
-  });
-
+async function askForApproval(question: string): Promise<boolean> {
+  const readline = createInterface({ input, output });
   try {
-    const answer = await readline.question(
-      `${question} (y/n): `,
-    );
-
-    return ["y", "yes"].includes(
-      answer.trim().toLowerCase(),
-    );
+    const answer = await readline.question(`${question} (y/n): `);
+    return ["y", "yes"].includes(answer.trim().toLowerCase());
   } finally {
     readline.close();
   }
 }
 
-function printPlanningResult(
-  task: EngineeringTask,
-): void {
+function printPlanningResult(task: EngineeringTask): void {
   console.log("\n=== AI Analysis ===\n");
-  console.log(
-    JSON.stringify(task.analysis, null, 2),
-  );
-  console.log(
-    "\n=== AI Implementation Plan ===\n",
-  );
-  console.log(
-    JSON.stringify(task.plan, null, 2),
-  );
-  console.log(
-    "\n=== Execution Strategy ===\n",
-  );
-  console.log(
-    JSON.stringify(task.strategy, null, 2),
-  );
+  console.log(JSON.stringify(task.analysis, null, 2));
+  console.log("\n=== AI Implementation Plan ===\n");
+  console.log(JSON.stringify(task.plan, null, 2));
+  console.log("\n=== Execution Strategy ===\n");
+  console.log(JSON.stringify(task.strategy, null, 2));
   console.log("\n=== Factory State ===\n");
   console.log(task.status);
 }
 
-function printValidation(
-  validation: ValidationResult | undefined,
-): void {
-  console.log(
-    "\n=== Validation Result ===\n",
-  );
-  console.log(
-    JSON.stringify(validation, null, 2),
-  );
+function printValidation(validation: ValidationResult | undefined): void {
+  console.log("\n=== Validation Result ===\n");
+  console.log(JSON.stringify(validation, null, 2));
 }
 
 async function main(): Promise<void> {
-  const instruction = readInstruction(
-    process.argv.slice(2),
-  );
+  const instruction = readInstruction(process.argv.slice(2));
   const repositoryRoot = resolve("..");
-
   const provider = new OllamaProvider({
-    model:
-      process.env.OLLAMA_MODEL ??
-      "qwen2.5-coder:7b",
+    model: process.env.OLLAMA_MODEL ?? "qwen2.5-coder:7b",
   });
 
-  const planningWorkflow =
-    new PlanningWorkflow(
-      new ModelTaskAnalyzer(provider),
-      new ModelPlanner(provider),
-    );
-
-  const commandRunner =
-    new ProcessCommandRunner();
-  const validator =
-    new DeterministicValidator(
-      commandRunner,
-      [
-        {
-          name: "flutter analyze",
-          command: "flutter",
-          args: ["analyze"],
-        },
-        {
-          name: "flutter test",
-          command: "flutter",
-          args: ["test"],
-        },
-      ],
-    );
-
+  const planningWorkflow = new PlanningWorkflow(
+    new ModelTaskAnalyzer(provider),
+    new ModelPlanner(provider),
+  );
+  const commandRunner = new ProcessCommandRunner();
+  const validator = new DeterministicValidator(commandRunner, [
+    { name: "flutter analyze", command: "flutter", args: ["analyze"] },
+    { name: "flutter test", command: "flutter", args: ["test"] },
+  ]);
   const builder = new ModelBuilder(provider);
   const repairer = new ModelRepairer(provider);
-  const diagnosisWorkflow =
-    new DiagnosisWorkflow(
-      new ModelDiagnostician(provider),
-    );
-  const repairWorkflow =
-    new RepairWorkflow(
-      repairer,
-      validator,
-      2,
-    );
-  const reviewWorkflow =
-    new ReviewWorkflow(
-      new ModelReviewer(provider),
-    );
-  const verificationWorkflow =
-    new VerificationWorkflow(
-      new ModelVerificationPlanner(provider),
-      new VerificationExecutor(
-        commandRunner,
-        new AllowlistedVerificationProbePolicy(),
-      ),
-    );
-  const trustDecisionWorkflow =
-    new TrustDecisionWorkflow();
-  const trustRetryWorkflow =
-    new TrustRetryWorkflow(
-      repairer,
-      validator,
-      2,
-    );
-
-  const lightweightWorkflow =
-    new LightweightWorkflow(
-      builder,
-      validator,
-    );
-
-  const sequentialFactory =
-    new SequentialFactory(
-      planningWorkflow,
-      new ImplementationWorkflow(
-        builder,
-        validator,
-      ),
-      diagnosisWorkflow,
-      repairWorkflow,
-      reviewWorkflow,
-      undefined,
-      verificationWorkflow,
-      trustDecisionWorkflow,
-      trustRetryWorkflow,
-    );
-
-  const factoryRunner =
-    new FactoryRunner(
-      sequentialFactory,
-      lightweightWorkflow,
-    );
-
-  const factoryEntrypoint =
-    new FactoryEntrypoint(
-      planningWorkflow,
-      factoryRunner,
-    );
+  const diagnosisWorkflow = new DiagnosisWorkflow(
+    new ModelDiagnostician(provider),
+  );
+  const repairWorkflow = new RepairWorkflow(repairer, validator, 2);
+  const reviewWorkflow = new ReviewWorkflow(new ModelReviewer(provider));
+  const verificationWorkflow = new VerificationWorkflow(
+    new ModelVerificationPlanner(provider),
+    new VerificationExecutor(
+      commandRunner,
+      new AllowlistedVerificationProbePolicy(),
+    ),
+  );
+  const trustDecisionWorkflow = new TrustDecisionWorkflow();
+  const trustRetryWorkflow = new TrustRetryWorkflow(repairer, validator, 2);
+  const lightweightWorkflow = new LightweightWorkflow(builder, validator);
+  const sequentialFactory = new SequentialFactory(
+    planningWorkflow,
+    new ImplementationWorkflow(builder, validator),
+    diagnosisWorkflow,
+    repairWorkflow,
+    reviewWorkflow,
+    undefined,
+    verificationWorkflow,
+    trustDecisionWorkflow,
+    trustRetryWorkflow,
+  );
+  const adaptiveFactory = createAdaptiveFactory(
+    provider,
+    sequentialFactory,
+    lightweightWorkflow,
+  );
+  const factoryRunner = new FactoryRunner(
+    sequentialFactory,
+    lightweightWorkflow,
+    adaptiveFactory,
+  );
+  const factoryEntrypoint = new FactoryEntrypoint(
+    planningWorkflow,
+    factoryRunner,
+  );
 
   const task = createTask(instruction);
-
-  console.log(
-    "\n=== TrackHire Local AI Factory ===\n",
-  );
+  console.log("\n=== TrackHire Local AI Factory ===\n");
   console.log(`Task: ${task.id}`);
   console.log(`Instruction: ${task.request}`);
-  console.log(
-    "\nThe local model is inspecting TrackHire and creating a plan...\n",
-  );
+  console.log("\nThe local model is inspecting TrackHire and creating a plan...\n");
 
-  const planningResult =
-    await factoryEntrypoint.plan(
-      task,
-      repositoryRoot,
-    );
-  const plannedTask =
-    planningResult.plannedTask;
-
+  const planningResult = await factoryEntrypoint.plan(task, repositoryRoot);
+  const plannedTask = planningResult.plannedTask;
   printPlanningResult(plannedTask);
 
-  if (
-    planningResult.stopReason ===
-    "HUMAN_INPUT_REQUIRED"
-  ) {
-    console.log(
-      "\nThe factory requires human input before implementation.",
-    );
+  if (planningResult.stopReason === "HUMAN_INPUT_REQUIRED") {
+    console.log("\nThe factory requires human input before implementation.");
     return;
   }
 
-  if (
-    plannedTask.strategy?.mode === "parallel"
-  ) {
-    console.log(
-      "\nParallel execution is not wired into the local CLI yet.",
-    );
-    console.log(
-      "No TrackHire code has been modified.",
-    );
-    return;
-  }
-
-  const approved = await askForApproval(
-    "\nApprove this implementation plan?",
-  );
-
+  const approved = await askForApproval("\nApprove this implementation plan?");
   if (!approved) {
-    console.log(
-      "\nPlan rejected. No TrackHire code has been modified.",
-    );
+    console.log("\nPlan rejected. No TrackHire code has been modified.");
     return;
   }
 
   console.log("\nPlan approved.");
-  console.log(
-    "Creating an isolated worktree and asking the local model to implement the change...\n",
-  );
+  console.log("Creating an isolated worktree and asking the local model to implement the change...\n");
 
-  const execution =
-    await factoryEntrypoint.resumeAfterPlanApproval(
-      plannedTask,
-      repositoryRoot,
-      new Date().toISOString(),
-      "main",
-    );
+  const execution = await factoryEntrypoint.resumeAfterPlanApproval(
+    plannedTask,
+    repositoryRoot,
+    new Date().toISOString(),
+    "main",
+  );
 
   console.log("\n=== Run Trace ===\n");
-  console.log(
-    JSON.stringify(execution.trace, null, 2),
-  );
+  console.log(JSON.stringify(execution.trace, null, 2));
+
+  if (execution.adaptiveResult) {
+    const result = execution.adaptiveResult;
+    console.log("\n=== Parallel Factory Result ===\n");
+    console.log(JSON.stringify({
+      stopReason: result.stopReason,
+      taskStatus: result.run.task.status,
+      workGraph: result.workGraph,
+    }, null, 2));
+
+    if (result.stopReason === "PARALLEL_APPROVAL_REQUIRED") {
+      console.log("\nThe parallel work graph is ready for explicit human approval.");
+      console.log("No parallel implementation has started yet.");
+      console.log("No TrackHire code has been modified by parallel execution.");
+      return;
+    }
+
+    throw new Error(
+      `Local runner received unsupported adaptive stop reason ${result.stopReason}.`,
+    );
+  }
 
   if (execution.lightweightResult) {
     const result = execution.lightweightResult;
     let currentTask = result.task;
     let currentValidation = result.validation;
-    let latestImplementation:
-      ImplementationResult =
-        result.implementation;
+    let latestImplementation: ImplementationResult = result.implementation;
 
-    console.log(
-      "\n=== AI Implementation Result ===\n",
-    );
-    console.log(
-      JSON.stringify(
-        result.implementation,
-        null,
-        2,
-      ),
-    );
+    console.log("\n=== AI Implementation Result ===\n");
+    console.log(JSON.stringify(result.implementation, null, 2));
     printValidation(currentValidation);
 
-    if (
-      currentTask.status ===
-        "DIAGNOSING_FAILURE" &&
-      currentValidation
-    ) {
-      while (
-        currentTask.status ===
-          "DIAGNOSING_FAILURE" &&
-        currentValidation
-      ) {
-        console.log(
-          `\n=== AI Failure Diagnosis ${currentTask.repairAttempts + 1} ===\n`,
-        );
-
-        const diagnosisResult =
-          await diagnosisWorkflow.run({
-            task: currentTask,
-            implementation:
-              latestImplementation,
-            validation:
-              currentValidation,
-            worktreePath:
-              result.worktree.path,
-          });
-
+    if (currentTask.status === "DIAGNOSING_FAILURE" && currentValidation) {
+      while (currentTask.status === "DIAGNOSING_FAILURE" && currentValidation) {
+        console.log(`\n=== AI Failure Diagnosis ${currentTask.repairAttempts + 1} ===\n`);
+        const diagnosisResult = await diagnosisWorkflow.run({
+          task: currentTask,
+          implementation: latestImplementation,
+          validation: currentValidation,
+          worktreePath: result.worktree.path,
+        });
         currentTask = diagnosisResult.task;
-        console.log(
-          JSON.stringify(
-            diagnosisResult.diagnosis,
-            null,
-            2,
-          ),
-        );
+        console.log(JSON.stringify(diagnosisResult.diagnosis, null, 2));
+        if (currentTask.status === "NEEDS_HUMAN") break;
 
-        if (
-          currentTask.status ===
-          "NEEDS_HUMAN"
-        ) {
-          break;
-        }
-
-        console.log(
-          `\n=== AI Repair Attempt ${currentTask.repairAttempts + 1} ===\n`,
-        );
-
-        const repairResult =
-          await repairWorkflow.run({
-            task: currentTask,
-            implementation:
-              latestImplementation,
-            validation:
-              currentValidation,
-            diagnosis:
-              diagnosisResult.diagnosis,
-            worktreePath:
-              result.worktree.path,
-          });
-
+        console.log(`\n=== AI Repair Attempt ${currentTask.repairAttempts + 1} ===\n`);
+        const repairResult = await repairWorkflow.run({
+          task: currentTask,
+          implementation: latestImplementation,
+          validation: currentValidation,
+          diagnosis: diagnosisResult.diagnosis,
+          worktreePath: result.worktree.path,
+        });
         currentTask = repairResult.task;
-        currentValidation =
-          repairResult.validation;
-
+        currentValidation = repairResult.validation;
         if (repairResult.repair) {
-          latestImplementation =
-            repairResult.repair;
-          console.log(
-            JSON.stringify(
-              repairResult.repair,
-              null,
-              2,
-            ),
-          );
+          latestImplementation = repairResult.repair;
+          console.log(JSON.stringify(repairResult.repair, null, 2));
         }
-
         printValidation(currentValidation);
       }
     }
@@ -465,129 +310,63 @@ async function main(): Promise<void> {
     console.log("\n=== Factory State ===\n");
     console.log(currentTask.status);
 
-    if (
-      currentTask.status ===
-      "AWAITING_FINAL_APPROVAL"
-    ) {
-      console.log(
-        "\nThe implementation passed deterministic validation.",
-      );
-      console.log(
-        "The changes remain isolated in the worktree.",
-      );
-      console.log(
-        "Nothing has been merged into main.",
-      );
+    if (currentTask.status === "AWAITING_FINAL_APPROVAL") {
+      console.log("\nThe implementation passed deterministic validation.");
+      console.log("The changes remain isolated in the worktree.");
+      console.log("Nothing has been merged into main.");
     }
-
-    if (
-      currentTask.status === "NEEDS_HUMAN"
-    ) {
-      console.log(
-        "\nThe implementation requires human review before continuing.",
-      );
-      console.log(
-        "The worktree has been preserved for inspection.",
-      );
+    if (currentTask.status === "NEEDS_HUMAN") {
+      console.log("\nThe implementation requires human review before continuing.");
+      console.log("The worktree has been preserved for inspection.");
     }
-
     return;
   }
 
   if (execution.sequentialResult) {
     let result = execution.sequentialResult;
-
-    if (
-      result.stopReason ===
-      "TRUST_RETRY_REQUIRED"
-    ) {
-      console.log(
-        "\nThe trust decision found actionable evidence that qualifies for a bounded repair retry.",
-      );
-
+    if (result.stopReason === "TRUST_RETRY_REQUIRED") {
+      console.log("\nThe trust decision found actionable evidence that qualifies for a bounded repair retry.");
       const retryApproved = await askForApproval(
         "Approve one bounded trust repair retry?",
       );
-
       if (retryApproved) {
-        console.log(
-          "\nTrust repair retry approved. Re-running the sequential verification lifecycle...\n",
-        );
-        result =
-          await sequentialFactory.resumeAfterTrustRetry(
-            result.run,
-          );
+        console.log("\nTrust repair retry approved. Re-running the sequential verification lifecycle...\n");
+        result = await sequentialFactory.resumeAfterTrustRetry(result.run);
       } else {
-        console.log(
-          "\nTrust repair retry rejected. The worktree has been preserved for inspection.",
-        );
+        console.log("\nTrust repair retry rejected. The worktree has been preserved for inspection.");
       }
     }
 
     const run = result.run;
-
-    console.log(
-      "\n=== Sequential Factory Result ===\n",
-    );
-    console.log(
-      JSON.stringify(
-        {
-          stopReason: result.stopReason,
-          taskStatus: run.task.status,
-          validation: run.validation,
-          verification: run.verification,
-          review: run.review,
-          trustDecision: run.trustDecision,
-        },
-        null,
-        2,
-      ),
-    );
+    console.log("\n=== Sequential Factory Result ===\n");
+    console.log(JSON.stringify({
+      stopReason: result.stopReason,
+      taskStatus: run.task.status,
+      validation: run.validation,
+      verification: run.verification,
+      review: run.review,
+      trustDecision: run.trustDecision,
+    }, null, 2));
 
     if (run.worktree) {
       console.log("\n=== Worktree ===\n");
       console.log(run.worktree.path);
     }
-
     console.log("\n=== Factory State ===\n");
     console.log(run.task.status);
 
-    if (
-      result.stopReason ===
-      "FINAL_APPROVAL_REQUIRED"
-    ) {
-      console.log(
-        "\nThe sequential factory reached the final human approval gate after independent verification, review, and trust evaluation.",
-      );
-      console.log(
-        "The changes remain isolated in the worktree.",
-      );
-      console.log(
-        "Nothing has been merged into main.",
-      );
+    if (result.stopReason === "FINAL_APPROVAL_REQUIRED") {
+      console.log("\nThe sequential factory reached the final human approval gate after independent verification, review, and trust evaluation.");
+      console.log("The changes remain isolated in the worktree.");
+      console.log("Nothing has been merged into main.");
     }
-
-    if (
-      result.stopReason ===
-      "TRUST_RETRY_REQUIRED"
-    ) {
-      console.log(
-        "\nThe trust decision still requires a bounded retry or human inspection.",
-      );
-      console.log(
-        "No additional retry has been started automatically. The worktree has been preserved.",
-      );
+    if (result.stopReason === "TRUST_RETRY_REQUIRED") {
+      console.log("\nThe trust decision still requires a bounded retry or human inspection.");
+      console.log("No additional retry has been started automatically. The worktree has been preserved.");
     }
-
-    if (
-      result.stopReason ===
-      "HUMAN_INPUT_REQUIRED"
-    ) {
-      console.log(
-        "\nThe sequential factory requires human input before continuing.",
-      );
+    if (result.stopReason === "HUMAN_INPUT_REQUIRED") {
+      console.log("\nThe sequential factory requires human input before continuing.");
     }
-
     return;
   }
 
@@ -596,16 +375,8 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch(
-  (error) => {
-    const message =
-      error instanceof Error
-        ? error.message
-        : String(error);
-
-    console.error(
-      `\nLocal AI factory failed: ${message}`,
-    );
-    process.exitCode = 1;
-  },
-);
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`\nLocal AI factory failed: ${message}`);
+  process.exitCode = 1;
+});
