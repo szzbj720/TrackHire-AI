@@ -189,6 +189,23 @@ describe("evaluateAutonomyPolicy", () => {
     ).toBe(0);
   });
 
+  it("keeps parallel work on the risk-based repair budget after plan approval", () => {
+    const decision = evaluateAutonomyPolicy(
+      createTask({
+        risk: "low",
+        confidence: 0.99,
+        mode: "parallel",
+      }),
+    );
+
+    expect(decision.planApproval).toBe(
+      "REQUIRED",
+    );
+    expect(
+      decision.maxAutonomousRepairAttempts,
+    ).toBe(2);
+  });
+
   it("always preserves final human approval", () => {
     const lowRisk = evaluateAutonomyPolicy(
       createTask(),
