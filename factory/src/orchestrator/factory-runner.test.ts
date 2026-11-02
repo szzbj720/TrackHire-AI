@@ -319,7 +319,21 @@ describe("FactoryRunner", () => {
     ).toEqual([
       "ROUTING_DECISION",
       "AUTONOMY_DECISION",
+      "HUMAN_GATE",
+      "RUN_OUTCOME",
     ]);
+    expect(result.trace.observations.at(-2)).toMatchObject({
+      type: "HUMAN_GATE",
+      details: {
+        gate: "PARALLEL_APPROVAL",
+      },
+    });
+    expect(result.trace.observations.at(-1)).toMatchObject({
+      type: "RUN_OUTCOME",
+      details: {
+        outcome: "PARALLEL_APPROVAL_REQUIRED",
+      },
+    });
   });
 
   it.each([
