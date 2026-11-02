@@ -29,6 +29,9 @@ import type {
   Validator,
 } from "../validation/validator.js";
 import {
+  evaluateAutonomyPolicy,
+} from "./autonomy-policy.js";
+import {
   Orchestrator,
 } from "./orchestrator.js";
 
@@ -80,9 +83,19 @@ export class TrustRetryWorkflow {
       );
     }
 
+    const autonomyRepairBudget =
+      input.task.analysis && input.task.strategy
+        ? evaluateAutonomyPolicy(input.task)
+            .maxAutonomousRepairAttempts
+        : this.maxRepairAttempts;
+    const repairAttemptBudget = Math.min(
+      this.maxRepairAttempts,
+      autonomyRepairBudget,
+    );
+
     if (
       input.task.repairAttempts >=
-      this.maxRepairAttempts
+      repairAttemptBudget
     ) {
       throw new Error(
         "Cannot retry trust decision after the repair attempt budget is exhausted.",
