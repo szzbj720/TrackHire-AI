@@ -152,6 +152,127 @@ export class FactoryRunner {
       );
     }
 
+    return this.resumeAdaptive(
+      result,
+      trace,
+      () =>
+        this.adaptiveFactory!.resumeAfterParallelApproval(
+          result,
+          repositoryRoot,
+          baseBranch,
+        ),
+    );
+  }
+
+  async resumeAfterParallelValidation(
+    result: AdaptiveFactoryResult,
+    trace: FactoryRunTrace,
+  ): Promise<FactoryRunnerResult> {
+    if (!this.adaptiveFactory) {
+      throw new Error(
+        "FactoryRunner requires an adaptive factory to resume parallel validation.",
+      );
+    }
+
+    if (result.stopReason !== "PARALLEL_VALIDATION_REQUIRED") {
+      throw new Error(
+        `FactoryRunner cannot resume parallel validation from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    return this.resumeAdaptive(
+      result,
+      trace,
+      () =>
+        this.adaptiveFactory!.resumeAfterParallelValidation(
+          result,
+        ),
+    );
+  }
+
+  async resumeAfterParallelDiagnosis(
+    result: AdaptiveFactoryResult,
+    trace: FactoryRunTrace,
+  ): Promise<FactoryRunnerResult> {
+    if (!this.adaptiveFactory) {
+      throw new Error(
+        "FactoryRunner requires an adaptive factory to resume parallel diagnosis.",
+      );
+    }
+
+    if (result.stopReason !== "PARALLEL_DIAGNOSIS_REQUIRED") {
+      throw new Error(
+        `FactoryRunner cannot resume parallel diagnosis from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    return this.resumeAdaptive(
+      result,
+      trace,
+      () =>
+        this.adaptiveFactory!.resumeAfterParallelDiagnosis(
+          result,
+        ),
+    );
+  }
+
+  async resumeAfterParallelRepair(
+    result: AdaptiveFactoryResult,
+    trace: FactoryRunTrace,
+  ): Promise<FactoryRunnerResult> {
+    if (!this.adaptiveFactory) {
+      throw new Error(
+        "FactoryRunner requires an adaptive factory to resume parallel repair.",
+      );
+    }
+
+    if (result.stopReason !== "PARALLEL_REPAIR_REQUIRED") {
+      throw new Error(
+        `FactoryRunner cannot resume parallel repair from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    return this.resumeAdaptive(
+      result,
+      trace,
+      () =>
+        this.adaptiveFactory!.resumeAfterParallelRepair(
+          result,
+        ),
+    );
+  }
+
+  async resumeAfterParallelReview(
+    result: AdaptiveFactoryResult,
+    trace: FactoryRunTrace,
+  ): Promise<FactoryRunnerResult> {
+    if (!this.adaptiveFactory) {
+      throw new Error(
+        "FactoryRunner requires an adaptive factory to resume parallel review.",
+      );
+    }
+
+    if (result.stopReason !== "PARALLEL_REVIEW_REQUIRED") {
+      throw new Error(
+        `FactoryRunner cannot resume parallel review from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    return this.resumeAdaptive(
+      result,
+      trace,
+      () =>
+        this.adaptiveFactory!.resumeAfterParallelReview(
+          result,
+        ),
+    );
+  }
+
+  private async resumeAdaptive(
+    result: AdaptiveFactoryResult,
+    trace: FactoryRunTrace,
+    resume: () => Promise<AdaptiveFactoryResult>,
+  ): Promise<FactoryRunnerResult> {
     const session = resumeFactoryRunTrace(
       result.run.task,
       trace,
@@ -159,16 +280,11 @@ export class FactoryRunner {
 
     if (session.decision.route !== "PARALLEL") {
       throw new Error(
-        "FactoryRunner can only resume parallel approval for PARALLEL routing.",
+        "FactoryRunner can only resume parallel lifecycle steps for PARALLEL routing.",
       );
     }
 
-    const adaptiveResult =
-      await this.adaptiveFactory.resumeAfterParallelApproval(
-        result,
-        repositoryRoot,
-        baseBranch,
-      );
+    const adaptiveResult = await resume();
     const continuedTrace = session.recordAdaptiveResult(
       adaptiveResult,
     );
