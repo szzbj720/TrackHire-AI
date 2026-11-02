@@ -233,7 +233,7 @@ async function main(): Promise<void> {
   console.log("\nPlan approved.");
   console.log("Creating an isolated worktree and asking the local model to implement the change...\n");
 
-  const execution = await factoryEntrypoint.resumeAfterPlanApproval(
+  let execution = await factoryEntrypoint.resumeAfterPlanApproval(
     plannedTask,
     repositoryRoot,
     new Date().toISOString(),
@@ -244,7 +244,7 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(execution.trace, null, 2));
 
   if (execution.adaptiveResult) {
-    const result = execution.adaptiveResult;
+    let result = execution.adaptiveResult;
     console.log("\n=== Parallel Factory Result ===\n");
     console.log(JSON.stringify({
       stopReason: result.stopReason,
@@ -253,9 +253,50 @@ async function main(): Promise<void> {
     }, null, 2));
 
     if (result.stopReason === "PARALLEL_APPROVAL_REQUIRED") {
-      console.log("\nThe parallel work graph is ready for explicit human approval.");
-      console.log("No parallel implementation has started yet.");
-      console.log("No TrackHire code has been modified by parallel execution.");
+      console.log("\n=== Proposed Parallel Work Graph ===\n");
+      console.log(JSON.stringify(result.workGraph, null, 2));
+      console.log("\nNo parallel implementation has started yet.");
+
+      const parallelApproved = await askForApproval(
+        "Approve this parallel work decomposition?",
+      );
+
+      if (!parallelApproved) {
+        console.log("\nParallel decomposition rejected. No parallel implementation has started.");
+        return;
+      }
+
+      console.log("\nParallel decomposition approved. Starting controlled parallel execution...\n");
+      execution = await factoryRunner.resumeAfterParallelApproval(
+        result,
+        execution.trace,
+        repositoryRoot,
+        "main",
+      );
+      result = execution.adaptiveResult!;
+
+      console.log("\n=== Continued Run Trace ===\n");
+      console.log(JSON.stringify(execution.trace, null, 2));
+      console.log("\n=== Parallel Factory Result After Approval ===\n");
+      console.log(JSON.stringify({
+        stopReason: result.stopReason,
+        taskStatus: result.run.task.status,
+        parallelExecution: result.parallelExecution,
+      }, null, 2));
+    }
+
+    if (result.stopReason === "PARALLEL_VALIDATION_REQUIRED") {
+      console.log("\nParallel implementation completed in isolated worktrees and is ready for validation.");
+      return;
+    }
+
+    if (result.stopReason === "HUMAN_INPUT_REQUIRED") {
+      console.log("\nThe parallel factory requires human input before continuing.");
+      return;
+    }
+
+    if (result.stopReason === "FAILED") {
+      console.log("\nParallel execution failed. Inspect the preserved worktrees and trace before continuing.");
       return;
     }
 
