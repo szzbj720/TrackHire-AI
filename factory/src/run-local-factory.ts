@@ -303,16 +303,29 @@ async function main(): Promise<void> {
       }, null, 2));
     }
 
+    while (result.stopReason === "PARALLEL_DIAGNOSIS_REQUIRED") {
+      console.log(`\n=== Parallel Failure Diagnosis ${result.run.task.repairAttempts + 1} ===\n`);
+      result = await adaptiveFactory.resumeAfterParallelDiagnosis(result);
+      console.log(JSON.stringify(result.diagnosis, null, 2));
+
+      if (result.stopReason !== "PARALLEL_REPAIR_REQUIRED") {
+        break;
+      }
+
+      console.log(`\n=== Parallel Repair Attempt ${result.run.task.repairAttempts + 1} ===\n`);
+      result = await adaptiveFactory.resumeAfterParallelRepair(result);
+      printValidation(result.run.validation);
+
+      if (result.stopReason === "PARALLEL_REVIEW_REQUIRED") {
+        console.log("\nParallel repair passed validation. Running integrated review...\n");
+        result = await adaptiveFactory.resumeAfterParallelReview(result);
+      }
+    }
+
     if (result.stopReason === "FINAL_APPROVAL_REQUIRED") {
       console.log("\nThe integrated parallel implementation passed validation and review and reached the final human approval gate.");
       console.log("The changes remain isolated in the integration worktree.");
       console.log("Nothing has been merged into main.");
-      return;
-    }
-
-    if (result.stopReason === "PARALLEL_DIAGNOSIS_REQUIRED") {
-      console.log("\nIntegrated parallel validation failed and requires failure diagnosis before repair.");
-      console.log("The integration worktree has been preserved for the next lifecycle step.");
       return;
     }
 
