@@ -17,6 +17,7 @@ function createTask(
     | "single-agent"
     | "sequential"
     | "parallel" = "sequential",
+  requiresHumanInput = false,
 ): EngineeringTask {
   const now = new Date().toISOString();
 
@@ -35,7 +36,7 @@ function createTask(
       ambiguities: [],
       assumptions: [],
       confidence,
-      requiresHumanInput: false,
+      requiresHumanInput,
       reasoning: "Deterministic test analysis.",
     },
     strategy: {
@@ -101,6 +102,24 @@ describe("adaptive routing autonomy integration", () => {
     expect(decision.autonomy?.planApproval).toBe(
       "REQUIRED",
     );
+  });
+
+  it("disables autonomous repairs when analysis requires human input", () => {
+    const decision = routeTask(
+      createTask(
+        "low",
+        0.99,
+        "sequential",
+        true,
+      ),
+    );
+
+    expect(decision.autonomy?.planApproval).toBe(
+      "REQUIRED",
+    );
+    expect(
+      decision.autonomy?.maxAutonomousRepairAttempts,
+    ).toBe(0);
   });
 
   it("keeps plan approval for parallel execution even when risk is low", () => {
