@@ -24,6 +24,7 @@ import {
 function createTask(
   repairAttempts = 0,
   risk: TaskRisk = "low",
+  requiresHumanInput = false,
 ): EngineeringTask {
   const now =
     new Date().toISOString();
@@ -48,7 +49,7 @@ function createTask(
       ambiguities: [],
       assumptions: [],
       confidence: 0.9,
-      requiresHumanInput: false,
+      requiresHumanInput,
       reasoning:
         "The task is well understood.",
     },
@@ -212,6 +213,31 @@ describe(
                 requiresHumanInput:
                   true,
                 confidence: 0.55,
+              }),
+          });
+
+        expect(decision.action).toBe(
+          "ESCALATE",
+        );
+      },
+    );
+
+    it(
+      "escalates when task analysis requires human input",
+      () => {
+        const engine =
+          new TrustDecisionEngine();
+
+        const decision =
+          engine.decide({
+            task: createTask(0, "low", true),
+            validation:
+              createValidation(),
+            verification:
+              createVerification(false),
+            review:
+              createReview({
+                approved: false,
               }),
           });
 
