@@ -291,5 +291,6 @@ describe("SequentialFactory trust decisions", () => {
 
     expect(result.stopReason).toBe("HUMAN_INPUT_REQUIRED");
     expect(result.run.trustDecision?.action).toBe("ESCALATE");
+    expect(result.run.task.status).toBe("AWAITING_FINAL_APPROVAL");
   });
 });
