@@ -110,6 +110,49 @@ describe("evaluateAutonomyPolicy", () => {
     );
   });
 
+  it("allows two autonomous repairs for low-risk work", () => {
+    const decision = evaluateAutonomyPolicy(
+      createTask({ risk: "low" }),
+    );
+
+    expect(
+      decision.maxAutonomousRepairAttempts,
+    ).toBe(2);
+  });
+
+  it("allows one autonomous repair for medium-risk work", () => {
+    const decision = evaluateAutonomyPolicy(
+      createTask({ risk: "medium" }),
+    );
+
+    expect(
+      decision.maxAutonomousRepairAttempts,
+    ).toBe(1);
+  });
+
+  it("does not allow autonomous repairs for high-risk work", () => {
+    const decision = evaluateAutonomyPolicy(
+      createTask({ risk: "high" }),
+    );
+
+    expect(
+      decision.maxAutonomousRepairAttempts,
+    ).toBe(0);
+  });
+
+  it("disables autonomous repairs when human input is required", () => {
+    const decision = evaluateAutonomyPolicy(
+      createTask({
+        risk: "low",
+        requiresHumanInput: true,
+      }),
+    );
+
+    expect(
+      decision.maxAutonomousRepairAttempts,
+    ).toBe(0);
+  });
+
   it("always preserves final human approval", () => {
     const lowRisk = evaluateAutonomyPolicy(
       createTask(),
