@@ -22,6 +22,9 @@ import type {
 import type {
   EngineeringTask,
 } from "../schemas/task.js";
+import type {
+  AdaptiveFactoryResult,
+} from "./adaptive-factory.js";
 import {
   routeTask,
   type AdaptiveRoutingDecision,
@@ -35,6 +38,10 @@ import type {
 
 export interface FactoryRunTraceSession {
   decision: AdaptiveRoutingDecision;
+  recordAdaptiveResult(
+    result: AdaptiveFactoryResult,
+    timestamp?: string,
+  ): FactoryRunTrace;
   recordLightweightResult(
     result: LightweightWorkflowResult,
     timestamp?: string,
@@ -65,6 +72,63 @@ export function startFactoryRunTrace(
 
   return {
     decision,
+    recordAdaptiveResult(
+      result: AdaptiveFactoryResult,
+      resultTimestamp = new Date().toISOString(),
+    ): FactoryRunTrace {
+      if (result.run.task.id !== task.id) {
+        throw new Error(
+          "Cannot record an adaptive result for a different task.",
+        );
+      }
+
+      recordSequentialRunEvidence(
+        recorder,
+        result.run,
+        resultTimestamp,
+      );
+
+      const gateByStopReason = {
+        PLAN_APPROVAL_REQUIRED: "PLAN_APPROVAL",
+        PARALLEL_APPROVAL_REQUIRED: "PARALLEL_APPROVAL",
+        FINAL_APPROVAL_REQUIRED: "FINAL_APPROVAL",
+        HUMAN_INPUT_REQUIRED: "HUMAN_INPUT",
+      } as const;
+      const gate =
+        result.stopReason in gateByStopReason
+          ? gateByStopReason[
+              result.stopReason as keyof typeof gateByStopReason
+            ]
+          : undefined;
+
+      if (gate) {
+        recorder.record(
+          createHumanGateObservation(
+            result.run.task,
+            gate,
+            `Adaptive factory stopped with ${result.stopReason}.`,
+            resultTimestamp,
+          ),
+        );
+      }
+
+      recorder.record(
+        createRunOutcomeObservation(
+          result.run.task,
+          result.stopReason,
+          resultTimestamp,
+        ),
+      );
+
+      if (
+        result.stopReason === "COMPLETE" ||
+        result.stopReason === "FAILED"
+      ) {
+        recorder.complete(resultTimestamp);
+      }
+
+      return recorder.snapshot();
+    },
     recordLightweightResult(
       result: LightweightWorkflowResult,
       resultTimestamp = new Date().toISOString(),
