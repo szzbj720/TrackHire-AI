@@ -10,7 +10,7 @@ export function createRoutingObservation(
   return {
     type: "ROUTING_DECISION",
     timestamp,
-    stage: task.state,
+    stage: task.status,
     summary: `Routed task to ${decision.route}.`,
     details: {
       route: decision.route,
