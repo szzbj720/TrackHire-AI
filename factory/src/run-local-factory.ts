@@ -495,7 +495,35 @@ async function main(): Promise<void> {
   }
 
   if (execution.sequentialResult) {
-    const result = execution.sequentialResult;
+    let result = execution.sequentialResult;
+
+    if (
+      result.stopReason ===
+      "TRUST_RETRY_REQUIRED"
+    ) {
+      console.log(
+        "\nThe trust decision found actionable evidence that qualifies for a bounded repair retry.",
+      );
+
+      const retryApproved = await askForApproval(
+        "Approve one bounded trust repair retry?",
+      );
+
+      if (retryApproved) {
+        console.log(
+          "\nTrust repair retry approved. Re-running the sequential verification lifecycle...\n",
+        );
+        result =
+          await sequentialFactory.resumeAfterTrustRetry(
+            result.run,
+          );
+      } else {
+        console.log(
+          "\nTrust repair retry rejected. The worktree has been preserved for inspection.",
+        );
+      }
+    }
+
     const run = result.run;
 
     console.log(
@@ -544,10 +572,10 @@ async function main(): Promise<void> {
       "TRUST_RETRY_REQUIRED"
     ) {
       console.log(
-        "\nThe trust decision found actionable evidence that qualifies for a bounded automated retry.",
+        "\nThe trust decision still requires a bounded retry or human inspection.",
       );
       console.log(
-        "The retry has not been started automatically. The worktree has been preserved.",
+        "No additional retry has been started automatically. The worktree has been preserved.",
       );
     }
 
