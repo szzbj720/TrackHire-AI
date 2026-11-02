@@ -69,11 +69,14 @@ export class FactoryRunner {
           repositoryRoot,
           baseBranch,
         );
+      const trace = session.recordLightweightResult(
+        lightweightResult,
+      );
 
       return {
         decision: session.decision,
         lightweightResult,
-        trace: session.snapshot(),
+        trace,
       };
     }
 
