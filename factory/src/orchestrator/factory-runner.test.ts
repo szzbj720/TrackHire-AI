@@ -202,7 +202,21 @@ describe("FactoryRunner", () => {
     ).toEqual([
       "ROUTING_DECISION",
       "AUTONOMY_DECISION",
+      "HUMAN_GATE",
+      "RUN_OUTCOME",
     ]);
+    expect(result.trace.observations.at(-2)).toMatchObject({
+      type: "HUMAN_GATE",
+      details: {
+        gate: "FINAL_APPROVAL",
+      },
+    });
+    expect(result.trace.observations.at(-1)).toMatchObject({
+      type: "RUN_OUTCOME",
+      details: {
+        outcome: "FINAL_APPROVAL_REQUIRED",
+      },
+    });
   });
 
   it("delegates parallel work to the adaptive factory", async () => {
