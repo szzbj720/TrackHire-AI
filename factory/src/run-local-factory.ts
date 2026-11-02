@@ -57,6 +57,12 @@ import {
 import {
   SequentialFactory,
 } from "./orchestrator/sequential-factory.js";
+import {
+  TrustDecisionWorkflow,
+} from "./orchestrator/trust-decision-workflow.js";
+import {
+  TrustRetryWorkflow,
+} from "./orchestrator/trust-retry-workflow.js";
 import type {
   ImplementationResult,
 } from "./schemas/implementation.js";
@@ -72,6 +78,18 @@ import {
 import {
   DeterministicValidator,
 } from "./validation/validator.js";
+import {
+  VerificationExecutor,
+} from "./verification/verification-executor.js";
+import {
+  ModelVerificationPlanner,
+} from "./verification/verification-planner.js";
+import {
+  AllowlistedVerificationProbePolicy,
+} from "./verification/verification-probe-policy.js";
+import {
+  VerificationWorkflow,
+} from "./verification/verification-workflow.js";
 
 function readInstruction(
   args: string[],
@@ -186,9 +204,11 @@ async function main(): Promise<void> {
       new ModelPlanner(provider),
     );
 
+  const commandRunner =
+    new ProcessCommandRunner();
   const validator =
     new DeterministicValidator(
-      new ProcessCommandRunner(),
+      commandRunner,
       [
         {
           name: "flutter analyze",
@@ -204,19 +224,36 @@ async function main(): Promise<void> {
     );
 
   const builder = new ModelBuilder(provider);
+  const repairer = new ModelRepairer(provider);
   const diagnosisWorkflow =
     new DiagnosisWorkflow(
       new ModelDiagnostician(provider),
     );
   const repairWorkflow =
     new RepairWorkflow(
-      new ModelRepairer(provider),
+      repairer,
       validator,
       2,
     );
   const reviewWorkflow =
     new ReviewWorkflow(
       new ModelReviewer(provider),
+    );
+  const verificationWorkflow =
+    new VerificationWorkflow(
+      new ModelVerificationPlanner(provider),
+      new VerificationExecutor(
+        commandRunner,
+        new AllowlistedVerificationProbePolicy(),
+      ),
+    );
+  const trustDecisionWorkflow =
+    new TrustDecisionWorkflow();
+  const trustRetryWorkflow =
+    new TrustRetryWorkflow(
+      repairer,
+      validator,
+      2,
     );
 
   const lightweightWorkflow =
@@ -235,6 +272,10 @@ async function main(): Promise<void> {
       diagnosisWorkflow,
       repairWorkflow,
       reviewWorkflow,
+      undefined,
+      verificationWorkflow,
+      trustDecisionWorkflow,
+      trustRetryWorkflow,
     );
 
   const factoryRunner =
@@ -488,13 +529,25 @@ async function main(): Promise<void> {
       "FINAL_APPROVAL_REQUIRED"
     ) {
       console.log(
-        "\nThe sequential factory reached the final human approval gate.",
+        "\nThe sequential factory reached the final human approval gate after independent verification, review, and trust evaluation.",
       );
       console.log(
         "The changes remain isolated in the worktree.",
       );
       console.log(
         "Nothing has been merged into main.",
+      );
+    }
+
+    if (
+      result.stopReason ===
+      "TRUST_RETRY_REQUIRED"
+    ) {
+      console.log(
+        "\nThe trust decision found actionable evidence that qualifies for a bounded automated retry.",
+      );
+      console.log(
+        "The retry has not been started automatically. The worktree has been preserved.",
       );
     }
 
