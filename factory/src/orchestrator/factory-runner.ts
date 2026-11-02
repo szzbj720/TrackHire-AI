@@ -21,6 +21,7 @@ import type {
 import type {
   SequentialFactory,
   SequentialFactoryResult,
+  SequentialFactoryRun,
 } from "./sequential-factory.js";
 
 export interface FactoryRunnerResult {
@@ -101,10 +102,15 @@ export class FactoryRunner {
       };
     }
 
+    const plannedRun: SequentialFactoryRun = {
+      task,
+      repairs: [],
+    };
     const sequentialResult =
-      await this.sequentialFactory.start(
-        task,
+      await this.sequentialFactory.resumeAfterPlanApproval(
+        plannedRun,
         repositoryRoot,
+        baseBranch,
       );
     const trace = session.recordSequentialResult(
       sequentialResult,
