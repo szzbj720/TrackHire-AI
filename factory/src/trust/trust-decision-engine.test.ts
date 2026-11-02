@@ -9,6 +9,7 @@ import type {
 } from "../schemas/review.js";
 import type {
   EngineeringTask,
+  TaskRisk,
 } from "../schemas/task.js";
 import type {
   ValidationResult,
@@ -22,6 +23,7 @@ import {
 
 function createTask(
   repairAttempts = 0,
+  risk: TaskRisk = "low",
 ): EngineeringTask {
   const now =
     new Date().toISOString();
@@ -40,7 +42,7 @@ function createTask(
     constraints: [],
     analysis: {
       complexity: "medium",
-      risk: "low",
+      risk,
       affectedAreas: ["app"],
       relevantFiles: [],
       ambiguities: [],
@@ -49,6 +51,10 @@ function createTask(
       requiresHumanInput: false,
       reasoning:
         "The task is well understood.",
+    },
+    strategy: {
+      mode: "sequential",
+      reasoning: "Use the full sequential workflow.",
     },
     repairAttempts,
     createdAt: now,
@@ -216,7 +222,7 @@ describe(
     );
 
     it(
-      "escalates when the repair budget is exhausted",
+      "escalates when the low-risk repair budget is exhausted",
       () => {
         const engine =
           new TrustDecisionEngine();
@@ -224,6 +230,56 @@ describe(
         const decision =
           engine.decide({
             task: createTask(2),
+            validation:
+              createValidation(),
+            verification:
+              createVerification(false),
+            review:
+              createReview({
+                approved: false,
+              }),
+          });
+
+        expect(decision.action).toBe(
+          "ESCALATE",
+        );
+      },
+    );
+
+    it(
+      "escalates medium-risk work after one autonomous repair",
+      () => {
+        const engine =
+          new TrustDecisionEngine();
+
+        const decision =
+          engine.decide({
+            task: createTask(1, "medium"),
+            validation:
+              createValidation(),
+            verification:
+              createVerification(false),
+            review:
+              createReview({
+                approved: false,
+              }),
+          });
+
+        expect(decision.action).toBe(
+          "ESCALATE",
+        );
+      },
+    );
+
+    it(
+      "never autonomously retries high-risk work",
+      () => {
+        const engine =
+          new TrustDecisionEngine();
+
+        const decision =
+          engine.decide({
+            task: createTask(0, "high"),
             validation:
               createValidation(),
             verification:
