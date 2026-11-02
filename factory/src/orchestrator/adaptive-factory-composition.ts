@@ -1,6 +1,9 @@
 import {
   ModelDecomposer,
 } from "../agents/decomposer.js";
+import type {
+  Builder,
+} from "../agents/builder.js";
 import {
   ModelWorkGraphGenerator,
 } from "../agents/work-graph-generator.js";
@@ -14,14 +17,26 @@ import {
   AdaptiveFactory,
 } from "./adaptive-factory.js";
 import type {
+  DiagnosisWorkflow,
+} from "./diagnosis-workflow.js";
+import type {
   LightweightWorkflow,
 } from "./lightweight-workflow.js";
+import {
+  ParallelExecutionWorkflow,
+} from "./parallel-execution-workflow.js";
 import {
   ParallelPlanningWorkflow,
 } from "./parallel-planning-workflow.js";
 import {
   ParallelValidationWorkflow,
 } from "./parallel-validation-workflow.js";
+import {
+  ParallelWorker,
+} from "./parallel-worker.js";
+import type {
+  RepairWorkflow,
+} from "./repair-workflow.js";
 import type {
   ReviewWorkflow,
 } from "./review-workflow.js";
@@ -33,7 +48,10 @@ export function createAdaptiveFactory(
   provider: ModelProvider,
   sequentialFactory: SequentialFactory,
   lightweightWorkflow: LightweightWorkflow,
+  builder?: Builder,
   validator?: Validator,
+  diagnosisWorkflow?: DiagnosisWorkflow,
+  repairWorkflow?: RepairWorkflow,
   reviewWorkflow?: ReviewWorkflow,
 ): AdaptiveFactory {
   const decomposer = new ModelDecomposer(
@@ -42,6 +60,12 @@ export function createAdaptiveFactory(
 
   const parallelPlanningWorkflow =
     new ParallelPlanningWorkflow(decomposer);
+
+  const parallelExecutionWorkflow = builder
+    ? new ParallelExecutionWorkflow(
+        new ParallelWorker(builder),
+      )
+    : undefined;
 
   const parallelValidationWorkflow =
     validator && reviewWorkflow
@@ -55,7 +79,10 @@ export function createAdaptiveFactory(
     sequentialFactory,
     lightweightWorkflow,
     parallelPlanningWorkflow,
-    undefined,
+    parallelExecutionWorkflow,
     parallelValidationWorkflow,
+    diagnosisWorkflow,
+    repairWorkflow,
+    reviewWorkflow,
   );
 }
