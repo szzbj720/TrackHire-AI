@@ -58,10 +58,9 @@ export class FactoryRunner {
 
     if (session.decision.route === "LIGHTWEIGHT") {
       if (!this.lightweightWorkflow) {
-        return {
-          decision: session.decision,
-          trace: session.snapshot(),
-        };
+        throw new Error(
+          "FactoryRunner requires a lightweight workflow for LIGHTWEIGHT routing.",
+        );
       }
 
       const lightweightResult =
@@ -83,10 +82,9 @@ export class FactoryRunner {
 
     if (session.decision.route === "PARALLEL") {
       if (!this.adaptiveFactory) {
-        return {
-          decision: session.decision,
-          trace: session.snapshot(),
-        };
+        throw new Error(
+          "FactoryRunner requires an adaptive factory for PARALLEL routing.",
+        );
       }
 
       const plannedResult: AdaptiveFactoryResult = {
