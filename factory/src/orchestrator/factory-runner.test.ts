@@ -336,45 +336,59 @@ describe("FactoryRunner", () => {
     });
   });
 
-  it.each([
-    ["single-agent", "LIGHTWEIGHT"],
-    ["parallel", "PARALLEL"],
-  ] as const)(
-    "returns the %s routing trace without invoking the sequential factory",
-    async (mode, expectedRoute) => {
-      const baseTask = createTask();
-      const task: EngineeringTask = {
-        ...baseTask,
-        strategy: {
-          mode,
-          reasoning: `Use ${mode} execution.`,
-        },
-      };
-      const start = vi.fn();
-      const sequentialFactory = {
-        start,
-      } as unknown as SequentialFactory;
-      const runner = new FactoryRunner(sequentialFactory);
+  it("rejects lightweight routing when the lightweight workflow is unavailable", async () => {
+    const baseTask = createTask();
+    const task: EngineeringTask = {
+      ...baseTask,
+      strategy: {
+        mode: "single-agent",
+        reasoning: "Use lightweight execution.",
+      },
+    };
+    const start = vi.fn();
+    const sequentialFactory = {
+      start,
+    } as unknown as SequentialFactory;
+    const runner = new FactoryRunner(sequentialFactory);
 
-      const result = await runner.run(
+    await expect(
+      runner.run(
         task,
         "/repo",
         "2026-11-02T19:52:00.000Z",
-      );
+      ),
+    ).rejects.toThrow(
+      "FactoryRunner requires a lightweight workflow for LIGHTWEIGHT routing.",
+    );
 
-      expect(result.decision.route).toBe(expectedRoute);
-      expect(start).not.toHaveBeenCalled();
-      expect(result.sequentialResult).toBeUndefined();
-      expect(result.trace.taskId).toBe(task.id);
-      expect(result.trace.startedAt).toBe("2026-11-02T19:52:00.000Z");
-      expect(
-        result.trace.observations.map(
-          (observation) => observation.type,
-        ),
-      ).toEqual([
-        "ROUTING_DECISION",
-        "AUTONOMY_DECISION",
-      ]);
-    },
-  );
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it("rejects parallel routing when the adaptive factory is unavailable", async () => {
+    const baseTask = createTask();
+    const task: EngineeringTask = {
+      ...baseTask,
+      strategy: {
+        mode: "parallel",
+        reasoning: "Use parallel execution.",
+      },
+    };
+    const start = vi.fn();
+    const sequentialFactory = {
+      start,
+    } as unknown as SequentialFactory;
+    const runner = new FactoryRunner(sequentialFactory);
+
+    await expect(
+      runner.run(
+        task,
+        "/repo",
+        "2026-11-02T19:52:00.000Z",
+      ),
+    ).rejects.toThrow(
+      "FactoryRunner requires an adaptive factory for PARALLEL routing.",
+    );
+
+    expect(start).not.toHaveBeenCalled();
+  });
 });
