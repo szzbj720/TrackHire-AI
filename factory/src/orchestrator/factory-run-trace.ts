@@ -1,0 +1,82 @@
+import {
+  recordAdaptiveRoutingDecision,
+} from "../observability/adaptive-routing-observability.js";
+import {
+  RunTraceRecorder,
+} from "../observability/run-trace-recorder.js";
+import {
+  recordSequentialRunEvidence,
+} from "../observability/sequential-run-evidence.js";
+import {
+  recordSequentialFactoryResult,
+} from "../observability/sequential-run-observability.js";
+import type {
+  FactoryRunTrace,
+} from "../schemas/run-observation.js";
+import type {
+  EngineeringTask,
+} from "../schemas/task.js";
+import {
+  routeTask,
+  type AdaptiveRoutingDecision,
+} from "./adaptive-routing.js";
+import type {
+  SequentialFactoryResult,
+} from "./sequential-factory.js";
+
+export interface FactoryRunTraceSession {
+  decision: AdaptiveRoutingDecision;
+  recordSequentialResult(
+    result: SequentialFactoryResult,
+    timestamp?: string,
+  ): FactoryRunTrace;
+  snapshot(): FactoryRunTrace;
+}
+
+export function startFactoryRunTrace(
+  task: EngineeringTask,
+  timestamp = new Date().toISOString(),
+): FactoryRunTraceSession {
+  const recorder = new RunTraceRecorder(
+    task.id,
+    timestamp,
+  );
+  const decision = routeTask(task);
+
+  recordAdaptiveRoutingDecision(
+    recorder,
+    task,
+    decision,
+    timestamp,
+  );
+
+  return {
+    decision,
+    recordSequentialResult(
+      result: SequentialFactoryResult,
+      resultTimestamp = new Date().toISOString(),
+    ): FactoryRunTrace {
+      if (result.run.task.id !== task.id) {
+        throw new Error(
+          "Cannot record a sequential result for a different task.",
+        );
+      }
+
+      recordSequentialRunEvidence(
+        recorder,
+        result.run,
+        resultTimestamp,
+      );
+      recordSequentialFactoryResult(
+        recorder,
+        result,
+        resultTimestamp,
+      );
+
+      return recorder.snapshot();
+    },
+    snapshot(): FactoryRunTrace {
+      return recorder.snapshot();
+    },
+  };
+}
