@@ -336,6 +336,112 @@ describe("FactoryRunner", () => {
     });
   });
 
+  it("continues parallel execution after approval without restarting the trace", async () => {
+    const baseTask = createTask();
+    const task: EngineeringTask = {
+      ...baseTask,
+      status: "AWAITING_PARALLEL_APPROVAL",
+      strategy: {
+        mode: "parallel",
+        reasoning: "Use parallel execution.",
+      },
+    };
+    const route = {
+      route: "PARALLEL",
+      policy: {
+        disposition: "SUPPORTED_PARALLEL",
+        reasoning: "Use parallel execution.",
+      },
+    } as AdaptiveFactoryResult["route"];
+    const approvedResult = {
+      run: {
+        task,
+        repairs: [],
+      },
+      route,
+      workGraph: {
+        taskId: task.id,
+        nodes: [],
+      },
+      stopReason: "PARALLEL_APPROVAL_REQUIRED",
+    } as unknown as AdaptiveFactoryResult;
+    const executionResult = {
+      ...approvedResult,
+      run: {
+        ...approvedResult.run,
+        task: {
+          ...task,
+          status: "VALIDATING",
+        },
+      },
+      stopReason: "PARALLEL_VALIDATION_REQUIRED",
+    } as unknown as AdaptiveFactoryResult;
+    const trace = {
+      taskId: task.id,
+      startedAt: "2026-11-02T19:55:00.000Z",
+      observations: [
+        {
+          taskId: task.id,
+          type: "ROUTING_DECISION",
+          timestamp: "2026-11-02T19:55:00.000Z",
+          stage: "AWAITING_PLAN_APPROVAL",
+          summary: "Task routed to PARALLEL execution.",
+        },
+        {
+          taskId: task.id,
+          type: "HUMAN_GATE",
+          timestamp: "2026-11-02T19:56:00.000Z",
+          stage: "AWAITING_PARALLEL_APPROVAL",
+          summary: "Human gate required: PARALLEL_APPROVAL.",
+          details: {
+            gate: "PARALLEL_APPROVAL",
+            reason: "Parallel execution plan requires approval.",
+            status: "AWAITING_PARALLEL_APPROVAL",
+            repairAttempts: 0,
+          },
+        },
+      ],
+    } as const;
+    const resumeAfterParallelApproval = vi.fn().mockResolvedValue(executionResult);
+    const sequentialFactory = {
+      start: vi.fn(),
+    } as unknown as SequentialFactory;
+    const adaptiveFactory = {
+      resumeAfterParallelApproval,
+    } as unknown as AdaptiveFactory;
+    const runner = new FactoryRunner(
+      sequentialFactory,
+      undefined,
+      adaptiveFactory,
+    );
+
+    const result = await runner.resumeAfterParallelApproval(
+      approvedResult,
+      trace,
+      "/repo",
+      "develop",
+    );
+
+    expect(resumeAfterParallelApproval).toHaveBeenCalledOnce();
+    expect(resumeAfterParallelApproval).toHaveBeenCalledWith(
+      approvedResult,
+      "/repo",
+      "develop",
+    );
+    expect(result.decision.route).toBe("PARALLEL");
+    expect(result.adaptiveResult).toBe(executionResult);
+    expect(result.trace.startedAt).toBe(trace.startedAt);
+    expect(result.trace.observations.slice(0, trace.observations.length)).toEqual(
+      trace.observations,
+    );
+    expect(result.trace.observations.at(-1)).toMatchObject({
+      type: "RUN_OUTCOME",
+      details: {
+        outcome: "PARALLEL_VALIDATION_REQUIRED",
+      },
+    });
+  });
+
   it("rejects lightweight routing when the lightweight workflow is unavailable", async () => {
     const baseTask = createTask();
     const task: EngineeringTask = {
