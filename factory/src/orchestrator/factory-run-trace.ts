@@ -53,23 +53,11 @@ export interface FactoryRunTraceSession {
   snapshot(): FactoryRunTrace;
 }
 
-export function startFactoryRunTrace(
+function createFactoryRunTraceSession(
   task: EngineeringTask,
-  timestamp = new Date().toISOString(),
+  decision: AdaptiveRoutingDecision,
+  recorder: RunTraceRecorder,
 ): FactoryRunTraceSession {
-  const recorder = new RunTraceRecorder(
-    task.id,
-    timestamp,
-  );
-  const decision = routeTask(task);
-
-  recordAdaptiveRoutingDecision(
-    recorder,
-    task,
-    decision,
-    timestamp,
-  );
-
   return {
     decision,
     recordAdaptiveResult(
@@ -202,4 +190,52 @@ export function startFactoryRunTrace(
       return recorder.snapshot();
     },
   };
+}
+
+export function startFactoryRunTrace(
+  task: EngineeringTask,
+  timestamp = new Date().toISOString(),
+): FactoryRunTraceSession {
+  const recorder = new RunTraceRecorder(
+    task.id,
+    timestamp,
+  );
+  const decision = routeTask(task);
+
+  recordAdaptiveRoutingDecision(
+    recorder,
+    task,
+    decision,
+    timestamp,
+  );
+
+  return createFactoryRunTraceSession(
+    task,
+    decision,
+    recorder,
+  );
+}
+
+export function resumeFactoryRunTrace(
+  task: EngineeringTask,
+  trace: FactoryRunTrace,
+): FactoryRunTraceSession {
+  if (trace.taskId !== task.id) {
+    throw new Error(
+      "Cannot resume a factory run trace for a different task.",
+    );
+  }
+
+  const decision = routeTask(task);
+  const recorder = new RunTraceRecorder(
+    task.id,
+    trace.startedAt,
+    trace,
+  );
+
+  return createFactoryRunTraceSession(
+    task,
+    decision,
+    recorder,
+  );
 }
