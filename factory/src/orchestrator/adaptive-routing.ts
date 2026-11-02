@@ -1,5 +1,9 @@
 import type { EngineeringTask } from "../schemas/task.js";
 import {
+  evaluateAutonomyPolicy,
+  type AutonomyPolicyDecision,
+} from "./autonomy-policy.js";
+import {
   evaluateExecutionPolicy,
   type ExecutionPolicyDecision,
 } from "./execution-policy.js";
@@ -12,6 +16,7 @@ export type AdaptiveRoute =
 export interface AdaptiveRoutingDecision {
   route: AdaptiveRoute;
   policy: ExecutionPolicyDecision;
+  autonomy?: AutonomyPolicyDecision;
 }
 
 export function routeTask(
@@ -26,24 +31,37 @@ export function routeTask(
   const policy = evaluateExecutionPolicy(
     task.strategy,
   );
+  const autonomy = task.analysis
+    ? evaluateAutonomyPolicy(task)
+    : undefined;
+
+  const withAutonomy = (
+    decision: Omit<
+      AdaptiveRoutingDecision,
+      "autonomy"
+    >,
+  ): AdaptiveRoutingDecision => ({
+    ...decision,
+    ...(autonomy ? { autonomy } : {}),
+  });
 
   switch (policy.disposition) {
     case "SUPPORTED_LIGHTWEIGHT":
-      return {
+      return withAutonomy({
         route: "LIGHTWEIGHT",
         policy,
-      };
+      });
 
     case "SUPPORTED_SEQUENTIAL":
-      return {
+      return withAutonomy({
         route: "SEQUENTIAL",
         policy,
-      };
+      });
 
     case "SUPPORTED_PARALLEL":
-      return {
+      return withAutonomy({
         route: "PARALLEL",
         policy,
-      };
+      });
   }
 }

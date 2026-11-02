@@ -42,6 +42,7 @@ import type {
 } from "./review-workflow.js";
 import type {
   SequentialFactoryResult,
+  SequentialFactoryRun,
 } from "./sequential-factory.js";
 
 function createTask(): EngineeringTask {
@@ -300,6 +301,41 @@ function createReviewRequiredResult(): AdaptiveFactoryResult {
   };
 }
 
+function createSequentialTrustRetryResult(): AdaptiveFactoryResult {
+  const task: EngineeringTask = {
+    ...createPlannedTask("sequential"),
+    status: "AWAITING_FINAL_APPROVAL",
+  };
+
+  const route = routeTask(
+    createPlannedTask("sequential"),
+  );
+
+  if (route.route !== "SEQUENTIAL") {
+    throw new Error(
+      "Expected sequential routing decision.",
+    );
+  }
+
+  return {
+    run: {
+      task,
+      repairs: [],
+      trustDecision: {
+        action: "RETRY",
+        confidence: 0.8,
+        reasons: [
+          "Independent verification found an actionable failure.",
+        ],
+        evidence: [],
+      },
+    },
+    route,
+    stopReason:
+      "TRUST_RETRY_REQUIRED",
+  };
+}
+
 class FakeSequentialFactory
   implements SequentialFactoryAdapter
 {
@@ -320,6 +356,48 @@ class FakeSequentialFactory
     throw new Error(
       "resumeAfterPlanApproval should not be called in this test.",
     );
+  }
+
+  async resumeAfterTrustRetry(): Promise<never> {
+    throw new Error(
+      "resumeAfterTrustRetry should not be called in this test.",
+    );
+  }
+
+  async resumeAfterFinalApproval(): Promise<never> {
+    throw new Error(
+      "resumeAfterFinalApproval should not be called in this test.",
+    );
+  }
+}
+
+class FakeTrustRetrySequentialFactory
+  implements SequentialFactoryAdapter
+{
+  calls = 0;
+
+  constructor(
+    private readonly retryResult:
+      SequentialFactoryResult,
+  ) {}
+
+  async start(): Promise<never> {
+    throw new Error(
+      "start should not be called in this test.",
+    );
+  }
+
+  async resumeAfterPlanApproval(): Promise<never> {
+    throw new Error(
+      "resumeAfterPlanApproval should not be called in this test.",
+    );
+  }
+
+  async resumeAfterTrustRetry(
+    _run: SequentialFactoryRun,
+  ): Promise<SequentialFactoryResult> {
+    this.calls += 1;
+    return this.retryResult;
   }
 
   async resumeAfterFinalApproval(): Promise<never> {
@@ -447,6 +525,58 @@ describe("AdaptiveFactory", () => {
 
     expect(
       sequentialFactory.calls,
+    ).toBe(1);
+  });
+
+  it("resumes sequential trust retry through the adaptive boundary", async () => {
+    const retryResult:
+      SequentialFactoryResult = {
+        run: {
+          task: {
+            ...createPlannedTask(
+              "sequential",
+            ),
+            status:
+              "AWAITING_FINAL_APPROVAL",
+            repairAttempts: 1,
+          },
+          repairs: [],
+        },
+        stopReason:
+          "FINAL_APPROVAL_REQUIRED",
+      };
+
+    const sequentialFactory =
+      new FakeTrustRetrySequentialFactory(
+        retryResult,
+      );
+
+    const factory =
+      new AdaptiveFactory(
+        sequentialFactory,
+      );
+
+    const result =
+      await factory.resumeAfterTrustRetry(
+        createSequentialTrustRetryResult(),
+      );
+
+    expect(
+      sequentialFactory.calls,
+    ).toBe(1);
+
+    expect(
+      result.route?.route,
+    ).toBe("SEQUENTIAL");
+
+    expect(
+      result.stopReason,
+    ).toBe(
+      "FINAL_APPROVAL_REQUIRED",
+    );
+
+    expect(
+      result.run.task.repairAttempts,
     ).toBe(1);
   });
 

@@ -55,6 +55,10 @@ export interface SequentialFactoryAdapter {
     baseBranch: string,
   ): Promise<SequentialFactoryResult>;
 
+  resumeAfterTrustRetry?(
+    run: SequentialFactoryRun,
+  ): Promise<SequentialFactoryResult>;
+
   resumeAfterFinalApproval(
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult>;
@@ -98,6 +102,7 @@ export type AdaptiveFactoryStopReason =
   | "PARALLEL_DIAGNOSIS_REQUIRED"
   | "PARALLEL_REPAIR_REQUIRED"
   | "PARALLEL_REVIEW_REQUIRED"
+  | "TRUST_RETRY_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
@@ -224,6 +229,48 @@ export class AdaptiveFactory {
           result,
         );
     }
+  }
+
+  async resumeAfterTrustRetry(
+    result: AdaptiveFactoryResult,
+  ): Promise<AdaptiveFactoryResult> {
+    if (
+      result.stopReason !==
+      "TRUST_RETRY_REQUIRED"
+    ) {
+      throw new Error(
+        `Cannot resume trust retry from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    if (
+      result.route?.route !==
+      "SEQUENTIAL"
+    ) {
+      throw new Error(
+        "Trust retry is only supported for sequential adaptive execution.",
+      );
+    }
+
+    if (
+      !this.sequentialFactory.resumeAfterTrustRetry
+    ) {
+      throw new Error(
+        "Cannot resume trust retry because the sequential factory does not support trust retry.",
+      );
+    }
+
+    const sequentialResult =
+      await this.sequentialFactory.resumeAfterTrustRetry(
+        result.run,
+      );
+
+    return {
+      run: sequentialResult.run,
+      route: result.route,
+      stopReason:
+        sequentialResult.stopReason,
+    };
   }
 
   async resumeAfterParallelApproval(

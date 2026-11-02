@@ -28,6 +28,9 @@ import type {
 import type {
   ValidationResult,
 } from "../schemas/validation.js";
+import type {
+  VerificationResult,
+} from "../schemas/verification.js";
 import {
   getGitDiffEvidence,
 } from "../tools/git-diff.js";
@@ -42,6 +45,7 @@ export interface ReviewWorkflowInput {
   task: EngineeringTask;
   implementation: ImplementationResult;
   validation: ValidationResult;
+  verification?: VerificationResult;
   worktreePath: string;
   baseRef?: string;
 }
@@ -136,6 +140,12 @@ export class ReviewWorkflow {
         input.implementation,
       validation:
         input.validation,
+      ...(input.verification
+        ? {
+            verification:
+              input.verification,
+          }
+        : {}),
       relevantFiles,
     };
 
