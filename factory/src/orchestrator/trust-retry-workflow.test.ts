@@ -18,6 +18,7 @@ import type {
 } from "../agents/repairer.js";
 import type {
   EngineeringTask,
+  TaskRisk,
 } from "../schemas/task.js";
 import type {
   Validator,
@@ -28,6 +29,7 @@ import {
 
 function createTask(
   repairAttempts = 0,
+  risk?: TaskRisk,
 ): EngineeringTask {
   const now = new Date().toISOString();
 
@@ -42,6 +44,25 @@ function createTask(
       "Existing applications continue to work.",
     ],
     constraints: [],
+    ...(risk
+      ? {
+          analysis: {
+            complexity: "low" as const,
+            risk,
+            affectedAreas: [],
+            relevantFiles: [],
+            ambiguities: [],
+            assumptions: [],
+            confidence: 0.95,
+            requiresHumanInput: false,
+            reasoning: "Test analysis.",
+          },
+          strategy: {
+            mode: "sequential" as const,
+            reasoning: "Test strategy.",
+          },
+        }
+      : {}),
     plan: {
       summary: "Add interview date support.",
       steps: [
@@ -70,6 +91,7 @@ function createTask(
 
 async function createInput(
   repairAttempts = 0,
+  risk?: TaskRisk,
 ) {
   const worktreePath = await mkdtemp(
     join(tmpdir(), "trust-retry-test-"),
@@ -92,7 +114,7 @@ async function createInput(
   );
 
   return {
-    task: createTask(repairAttempts),
+    task: createTask(repairAttempts, risk),
     implementation: {
       summary: "Added interview date support.",
       changedFiles: [
@@ -251,6 +273,36 @@ describe("TrustRetryWorkflow", () => {
 
     await expect(
       workflow.run(await createInput(2)),
+    ).rejects.toThrow(
+      "repair attempt budget is exhausted",
+    );
+  });
+
+  it("limits medium-risk trust retries to one autonomous repair", async () => {
+    const workflow = new TrustRetryWorkflow(
+      {} as Repairer,
+      {} as Validator,
+    );
+
+    await expect(
+      workflow.run(
+        await createInput(1, "medium"),
+      ),
+    ).rejects.toThrow(
+      "repair attempt budget is exhausted",
+    );
+  });
+
+  it("blocks autonomous trust repair for high-risk work", async () => {
+    const workflow = new TrustRetryWorkflow(
+      {} as Repairer,
+      {} as Validator,
+    );
+
+    await expect(
+      workflow.run(
+        await createInput(0, "high"),
+      ),
     ).rejects.toThrow(
       "repair attempt budget is exhausted",
     );
