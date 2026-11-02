@@ -16,6 +16,9 @@ import type {
 import type {
   VerificationResult,
 } from "../schemas/verification.js";
+import {
+  evaluateAutonomyPolicy,
+} from "../orchestrator/autonomy-policy.js";
 
 export interface TrustDecisionInput {
   task: EngineeringTask;
@@ -50,9 +53,12 @@ export class TrustDecisionEngine {
       });
     }
 
+    const repairBudget =
+      this.getRepairBudget(input.task);
+
     if (
       input.task.repairAttempts >=
-      this.maxRepairAttempts
+      repairBudget
     ) {
       return this.createDecision({
         action: "ESCALATE",
@@ -110,6 +116,17 @@ export class TrustDecisionEngine {
       ],
       evidence,
     });
+  }
+
+  private getRepairBudget(
+    task: EngineeringTask,
+  ): number {
+    if (task.analysis && task.strategy) {
+      return evaluateAutonomyPolicy(task)
+        .maxAutonomousRepairAttempts;
+    }
+
+    return this.maxRepairAttempts;
   }
 
   private buildEvidence(
