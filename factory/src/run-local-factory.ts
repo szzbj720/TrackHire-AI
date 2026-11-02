@@ -286,7 +286,28 @@ async function main(): Promise<void> {
     }
 
     if (result.stopReason === "PARALLEL_VALIDATION_REQUIRED") {
-      console.log("\nParallel implementation completed in isolated worktrees and is ready for validation.");
+      console.log("\nParallel implementation completed in isolated worktrees. Running integrated validation...\n");
+      result = await adaptiveFactory.resumeAfterParallelValidation(result);
+
+      console.log("\n=== Parallel Validation Result ===\n");
+      console.log(JSON.stringify({
+        stopReason: result.stopReason,
+        taskStatus: result.run.task.status,
+        validation: result.parallelValidation?.validation,
+        review: result.parallelValidation?.review?.review,
+      }, null, 2));
+    }
+
+    if (result.stopReason === "FINAL_APPROVAL_REQUIRED") {
+      console.log("\nThe integrated parallel implementation passed validation and review and reached the final human approval gate.");
+      console.log("The changes remain isolated in the integration worktree.");
+      console.log("Nothing has been merged into main.");
+      return;
+    }
+
+    if (result.stopReason === "PARALLEL_DIAGNOSIS_REQUIRED") {
+      console.log("\nIntegrated parallel validation failed and requires failure diagnosis before repair.");
+      console.log("The integration worktree has been preserved for the next lifecycle step.");
       return;
     }
 
