@@ -4,8 +4,7 @@ import {
   } from "../schemas/benchmark-scenario.js";
   
   const scenario = {
-    id:
-      "trackhire-status-summary",
+    id: "trackhire-status-summary",
   
     name:
       "TrackHire application status summary",
@@ -16,6 +15,20 @@ import {
     task:
       "Add a status summary that reports how many tracked job applications exist in each application status.",
   
+    category: "state-management",
+  
+    difficulty: "medium",
+  
+    failureModes: [
+      "state-consistency",
+      "api-mismatch",
+      "cross-file-inconsistency",
+      "regression",
+      "repository-convention",
+    ],
+  
+    expectedBehavior: "implement",
+  
     repositoryFiles: [
       "lib/models/job_application.dart",
       "lib/providers/application_provider.dart",
@@ -24,8 +37,7 @@ import {
   
     acceptanceCriteria: [
       {
-        id:
-          "counts-statuses",
+        id: "counts-statuses",
   
         description:
           "Applications are counted correctly by status.",
@@ -35,8 +47,7 @@ import {
       },
   
       {
-        id:
-          "zero-counts",
+        id: "zero-counts",
   
         description:
           "Statuses with no applications return a zero count.",
@@ -46,8 +57,7 @@ import {
       },
   
       {
-        id:
-          "updates-summary",
+        id: "updates-summary",
   
         description:
           "The status summary updates when the application collection changes.",
@@ -57,8 +67,7 @@ import {
       },
   
       {
-        id:
-          "all-statuses",
+        id: "all-statuses",
   
         description:
           "The summary covers every application status supported by TrackHire.",
@@ -68,8 +77,7 @@ import {
       },
   
       {
-        id:
-          "regression",
+        id: "regression",
   
         description:
           "Existing TrackHire behavior remains valid.",
@@ -84,14 +92,11 @@ import {
       "flutter test",
     ],
   
-    expectedComplexity:
-      "medium",
+    expectedComplexity: "medium",
   
-    expectedRisk:
-      "low",
+    expectedRisk: "low",
   
-    requiresRealRepository:
-      true,
+    requiresRealRepository: true,
   } satisfies BenchmarkScenario;
   
   export const trackHireStatusSummaryBenchmark =

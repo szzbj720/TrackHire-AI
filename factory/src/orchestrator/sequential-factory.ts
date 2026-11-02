@@ -20,14 +20,29 @@ import type {
   EngineeringTask,
 } from "../schemas/task.js";
 import type {
+  TrustDecision,
+} from "../schemas/trust-decision.js";
+import type {
   ValidationResult,
 } from "../schemas/validation.js";
+import type {
+  VerificationResult,
+} from "../schemas/verification.js";
 import type {
   Worktree,
 } from "../tools/git-worktree.js";
 import {
+  Workspace,
+} from "../tools/workspace.js";
+import {
   combineImplementationEvidence,
 } from "../evidence/implementation-evidence.js";
+import type {
+  VerificationPlan,
+} from "../verification/verification-planner.js";
+import type {
+  VerificationWorkflow,
+} from "../verification/verification-workflow.js";
 import type {
   DiagnosisWorkflow,
 } from "./diagnosis-workflow.js";
@@ -49,22 +64,32 @@ import {
 import type {
   ReviewWorkflow,
 } from "./review-workflow.js";
+import type {
+  TrustDecisionWorkflow,
+} from "./trust-decision-workflow.js";
+import type {
+  TrustRetryWorkflow,
+} from "./trust-retry-workflow.js";
 
 export interface SequentialFactoryRun {
   task: EngineeringTask;
   worktree?: Worktree;
   implementation?: ImplementationResult;
   validation?: ValidationResult;
+  verificationPlan?: VerificationPlan;
+  verification?: VerificationResult;
   diagnosis?: FailureDiagnosis;
   repairs: ImplementationResult[];
   review?: ReviewResult;
   multiModelReview?: MultiModelReviewResult;
   changeEvidence?: ChangeEvidence;
+  trustDecision?: TrustDecision;
 }
 
 export type SequentialFactoryStopReason =
   | "PLAN_APPROVAL_REQUIRED"
   | "FINAL_APPROVAL_REQUIRED"
+  | "TRUST_RETRY_REQUIRED"
   | "HUMAN_INPUT_REQUIRED"
   | "COMPLETE"
   | "FAILED";
@@ -88,6 +113,12 @@ export class SequentialFactory {
       ReviewWorkflow,
     private readonly artifactStore?:
       RunArtifactStore,
+    private readonly verificationWorkflow?:
+      VerificationWorkflow,
+    private readonly trustDecisionWorkflow?:
+      TrustDecisionWorkflow,
+    private readonly trustRetryWorkflow?:
+      TrustRetryWorkflow,
   ) {}
 
   async start(
@@ -202,6 +233,91 @@ export class SequentialFactory {
     );
   }
 
+  async resumeAfterTrustRetry(
+    run: SequentialFactoryRun,
+  ): Promise<SequentialFactoryResult> {
+    if (!this.trustRetryWorkflow) {
+      throw new Error(
+        "Sequential factory does not have a trust retry workflow.",
+      );
+    }
+
+    if (!run.worktree) {
+      throw new Error(
+        "Cannot retry trust decision without a worktree.",
+      );
+    }
+
+    if (!run.implementation) {
+      throw new Error(
+        "Cannot retry trust decision without an implementation result.",
+      );
+    }
+
+    if (!run.validation) {
+      throw new Error(
+        "Cannot retry trust decision without validation evidence.",
+      );
+    }
+
+    if (!run.verification) {
+      throw new Error(
+        "Cannot retry trust decision without verification evidence.",
+      );
+    }
+
+    if (!run.review) {
+      throw new Error(
+        "Cannot retry trust decision without review evidence.",
+      );
+    }
+
+    if (run.trustDecision?.action !== "RETRY") {
+      throw new Error(
+        "Cannot retry trust decision unless the trust action is RETRY.",
+      );
+    }
+
+    const retryResult =
+      await this.trustRetryWorkflow.run({
+        task: run.task,
+        implementation: run.implementation,
+        validation: run.validation,
+        verification: run.verification,
+        review: run.review,
+        trustDecision: run.trustDecision,
+        worktreePath: run.worktree.path,
+      });
+
+    const repairs = [...run.repairs];
+
+    if (retryResult.repair) {
+      repairs.push(retryResult.repair);
+    }
+
+    const {
+      verificationPlan: _verificationPlan,
+      verification: _verification,
+      review: _review,
+      multiModelReview: _multiModelReview,
+      changeEvidence: _changeEvidence,
+      trustDecision: _trustDecision,
+      ...runWithoutStaleTrustEvidence
+    } = run;
+
+    const nextRun: SequentialFactoryRun = {
+      ...runWithoutStaleTrustEvidence,
+      task: retryResult.task,
+      validation: retryResult.validation,
+      diagnosis: retryResult.diagnosis,
+      repairs,
+    };
+
+    await this.persistRun(nextRun);
+
+    return this.continueAfterValidation(nextRun);
+  }
+
   async resumeAfterFinalApproval(
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult> {
@@ -236,7 +352,7 @@ export class SequentialFactory {
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult> {
     if (run.task.status === "REVIEWING") {
-      return this.reviewImplementation(
+      return this.verifyAndReviewImplementation(
         run,
       );
     }
@@ -324,7 +440,7 @@ export class SequentialFactory {
         currentRun.task.status ===
         "REVIEWING"
       ) {
-        return this.reviewImplementation(
+        return this.verifyAndReviewImplementation(
           currentRun,
         );
       }
@@ -477,6 +593,80 @@ export class SequentialFactory {
     return nextRun;
   }
 
+  private async verifyAndReviewImplementation(
+    run: SequentialFactoryRun,
+  ): Promise<SequentialFactoryResult> {
+    if (!this.verificationWorkflow) {
+      return this.reviewImplementation(run);
+    }
+
+    if (!run.worktree) {
+      throw new Error(
+        "Cannot verify without a worktree.",
+      );
+    }
+
+    if (!run.implementation) {
+      throw new Error(
+        "Cannot verify without an implementation result.",
+      );
+    }
+
+    if (!run.validation) {
+      throw new Error(
+        "Cannot verify without validation evidence.",
+      );
+    }
+
+    if (!run.validation.passed) {
+      throw new Error(
+        "Cannot run independent verification after failed deterministic validation.",
+      );
+    }
+
+    const implementationEvidence =
+      combineImplementationEvidence(
+        run.implementation,
+        run.repairs,
+      );
+
+    const workspace =
+      new Workspace(run.worktree.path);
+
+    const changedFiles = await Promise.all(
+      implementationEvidence.changedFiles
+        .filter(
+          (change) =>
+            change.changeType !== "deleted",
+        )
+        .map(async (change) => ({
+          path: change.path,
+          content:
+            await workspace.read(change.path),
+        })),
+    );
+
+    const verificationResult =
+      await this.verificationWorkflow.run({
+        task: run.task,
+        validation: run.validation,
+        changedFiles,
+        worktreePath: run.worktree.path,
+      });
+
+    const nextRun: SequentialFactoryRun = {
+      ...run,
+      verificationPlan:
+        verificationResult.plan,
+      verification:
+        verificationResult.verification,
+    };
+
+    await this.persistRun(nextRun);
+
+    return this.reviewImplementation(nextRun);
+  }
+
   private async reviewImplementation(
     run: SequentialFactoryRun,
   ): Promise<SequentialFactoryResult> {
@@ -516,6 +706,12 @@ export class SequentialFactory {
         implementation:
           implementationEvidence,
         validation: run.validation,
+        ...(run.verification
+          ? {
+              verification:
+                run.verification,
+            }
+          : {}),
         worktreePath:
           run.worktree.path,
       });
@@ -525,7 +721,7 @@ export class SequentialFactory {
         reviewResult,
       );
 
-    const nextRun: SequentialFactoryRun = {
+    let nextRun: SequentialFactoryRun = {
       ...run,
       task: reviewResult.task,
       changeEvidence:
@@ -533,7 +729,49 @@ export class SequentialFactory {
       ...reviewEvidence,
     };
 
+    if (
+      this.trustDecisionWorkflow &&
+      nextRun.validation &&
+      nextRun.verification &&
+      nextRun.review
+    ) {
+      const trustDecision =
+        this.trustDecisionWorkflow.run({
+          task: nextRun.task,
+          validation: nextRun.validation,
+          verification: nextRun.verification,
+          review: nextRun.review,
+        });
+
+      nextRun = {
+        ...nextRun,
+        trustDecision,
+      };
+    }
+
     await this.persistRun(nextRun);
+
+    if (
+      nextRun.trustDecision?.action ===
+      "RETRY"
+    ) {
+      return {
+        run: nextRun,
+        stopReason:
+          "TRUST_RETRY_REQUIRED",
+      };
+    }
+
+    if (
+      nextRun.trustDecision?.action ===
+      "ESCALATE"
+    ) {
+      return {
+        run: nextRun,
+        stopReason:
+          "HUMAN_INPUT_REQUIRED",
+      };
+    }
 
     if (
       nextRun.task.status ===
@@ -618,6 +856,22 @@ export class SequentialFactory {
       );
     }
 
+    if (run.verificationPlan) {
+      await this.artifactStore.writeJson(
+        runId,
+        "verification-plan",
+        run.verificationPlan,
+      );
+    }
+
+    if (run.verification) {
+      await this.artifactStore.writeJson(
+        runId,
+        "verification",
+        run.verification,
+      );
+    }
+
     if (run.diagnosis) {
       await this.artifactStore.writeJson(
         runId,
@@ -655,6 +909,14 @@ export class SequentialFactory {
         runId,
         "change-evidence",
         run.changeEvidence,
+      );
+    }
+
+    if (run.trustDecision) {
+      await this.artifactStore.writeJson(
+        runId,
+        "trust-decision",
+        run.trustDecision,
       );
     }
 

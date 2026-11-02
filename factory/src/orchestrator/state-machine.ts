@@ -59,6 +59,7 @@ const allowedTransitions: Record<
     "FAILED",
   ],
   AWAITING_FINAL_APPROVAL: [
+    "REPAIRING",
     "COMPLETE",
     "FAILED",
   ],
@@ -67,6 +68,7 @@ const allowedTransitions: Record<
     "PLANNING",
     "IMPLEMENTING",
     "DIAGNOSING_FAILURE",
+    "REPAIRING",
     "FAILED",
   ],
   COMPLETE: [],
