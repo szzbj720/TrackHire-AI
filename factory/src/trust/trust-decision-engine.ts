@@ -53,6 +53,20 @@ export class TrustDecisionEngine {
       });
     }
 
+    if (
+      input.task.analysis?.requiresHumanInput
+    ) {
+      return this.createDecision({
+        action: "ESCALATE",
+        confidence:
+          input.review.confidence,
+        reasons: [
+          "Task analysis requires human judgment before autonomous continuation.",
+        ],
+        evidence,
+      });
+    }
+
     const repairBudget =
       this.getRepairBudget(input.task);
 
