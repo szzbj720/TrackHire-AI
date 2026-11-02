@@ -278,6 +278,44 @@ describe("TrustRetryWorkflow", () => {
     );
   });
 
+  it("allows the first medium-risk autonomous trust repair", async () => {
+    const repairer = {
+      async repair() {
+        return {
+          summary: "Repaired medium-risk trust failure.",
+          changedFiles: [],
+          commandsRun: [],
+          assumptions: [],
+          warnings: [],
+          requiresHumanInput: false,
+        };
+      },
+    } as Repairer;
+
+    const validator = {
+      async validate() {
+        return {
+          passed: true,
+          checks: [],
+          failedChecks: [],
+          durationMs: 1,
+        };
+      },
+    } as Validator;
+
+    const workflow = new TrustRetryWorkflow(
+      repairer,
+      validator,
+    );
+
+    const result = await workflow.run(
+      await createInput(0, "medium"),
+    );
+
+    expect(result.task.status).toBe("REVIEWING");
+    expect(result.task.repairAttempts).toBe(1);
+  });
+
   it("limits medium-risk trust retries to one autonomous repair", async () => {
     const workflow = new TrustRetryWorkflow(
       {} as Repairer,
