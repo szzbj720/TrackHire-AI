@@ -316,6 +316,21 @@ describe("TrustRetryWorkflow", () => {
     expect(result.task.repairAttempts).toBe(2);
   });
 
+  it("blocks a third low-risk autonomous trust repair", async () => {
+    const workflow = new TrustRetryWorkflow(
+      {} as Repairer,
+      {} as Validator,
+    );
+
+    await expect(
+      workflow.run(
+        await createInput(2, "low"),
+      ),
+    ).rejects.toThrow(
+      "repair attempt budget is exhausted",
+    );
+  });
+
   it("allows the first medium-risk autonomous trust repair", async () => {
     const repairer = {
       async repair() {
