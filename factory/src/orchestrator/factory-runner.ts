@@ -44,6 +44,12 @@ export class FactoryRunner {
     timestamp = new Date().toISOString(),
     baseBranch = "main",
   ): Promise<FactoryRunnerResult> {
+    if (!task.strategy) {
+      throw new Error(
+        "FactoryRunner requires a planned task with an execution strategy.",
+      );
+    }
+
     const session = startFactoryRunTrace(
       task,
       timestamp,
