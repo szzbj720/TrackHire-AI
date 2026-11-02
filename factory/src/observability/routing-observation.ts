@@ -17,12 +17,11 @@ export function createRoutingObservation(
       disposition: decision.policy.disposition,
       ...(decision.autonomy
         ? {
-            planApprovalRequired:
-              decision.autonomy.planApprovalRequired,
-            autonomousRepairBudget:
-              decision.autonomy.autonomousRepairBudget,
-            finalApprovalRequired:
-              decision.autonomy.finalApprovalRequired,
+            risk: decision.autonomy.risk,
+            planApproval: decision.autonomy.planApproval,
+            maxAutonomousRepairAttempts:
+              decision.autonomy.maxAutonomousRepairAttempts,
+            finalApproval: decision.autonomy.finalApproval,
           }
         : {}),
     },
