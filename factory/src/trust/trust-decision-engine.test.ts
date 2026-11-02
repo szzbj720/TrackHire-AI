@@ -218,14 +218,14 @@ describe(
     );
 
     it(
-      "allows one autonomous retry for medium-risk work",
+      "allows the second low-risk repair before escalation",
       () => {
         const engine =
           new TrustDecisionEngine();
 
         const decision =
           engine.decide({
-            task: createTask(0, "medium"),
+            task: createTask(1, "low"),
             validation:
               createValidation(),
             verification:
@@ -316,6 +316,31 @@ describe(
 
         expect(decision.action).toBe(
           "ESCALATE",
+        );
+      },
+    );
+
+    it(
+      "allows one medium-risk retry before escalation",
+      () => {
+        const engine =
+          new TrustDecisionEngine();
+
+        const decision =
+          engine.decide({
+            task: createTask(0, "medium"),
+            validation:
+              createValidation(),
+            verification:
+              createVerification(false),
+            review:
+              createReview({
+                approved: false,
+              }),
+          });
+
+        expect(decision.action).toBe(
+          "RETRY",
         );
       },
     );
