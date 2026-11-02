@@ -70,7 +70,11 @@ describe("FactoryRunner", () => {
   });
 
   it("routes sequential work through the sequential factory and preserves one trace", async () => {
-    const task = createTask();
+    const baseTask = createTask();
+    const task: EngineeringTask = {
+      ...baseTask,
+      status: "AWAITING_PLAN_APPROVAL",
+    };
     const finalTask: EngineeringTask = {
       ...task,
       status: "AWAITING_FINAL_APPROVAL",
@@ -101,9 +105,11 @@ describe("FactoryRunner", () => {
       },
       stopReason: "FINAL_APPROVAL_REQUIRED",
     };
-    const start = vi.fn().mockResolvedValue(sequentialResult);
+    const start = vi.fn();
+    const resumeAfterPlanApproval = vi.fn().mockResolvedValue(sequentialResult);
     const sequentialFactory = {
       start,
+      resumeAfterPlanApproval,
     } as unknown as SequentialFactory;
     const runner = new FactoryRunner(sequentialFactory);
 
@@ -111,11 +117,20 @@ describe("FactoryRunner", () => {
       task,
       "/repo",
       "2026-11-02T19:50:00.000Z",
+      "develop",
     );
 
     expect(result.decision.route).toBe("SEQUENTIAL");
-    expect(start).toHaveBeenCalledOnce();
-    expect(start).toHaveBeenCalledWith(task, "/repo");
+    expect(start).not.toHaveBeenCalled();
+    expect(resumeAfterPlanApproval).toHaveBeenCalledOnce();
+    expect(resumeAfterPlanApproval).toHaveBeenCalledWith(
+      {
+        task,
+        repairs: [],
+      },
+      "/repo",
+      "develop",
+    );
     expect(result.sequentialResult).toBe(sequentialResult);
     expect(result.trace.taskId).toBe(task.id);
     expect(result.trace.startedAt).toBe("2026-11-02T19:50:00.000Z");
