@@ -9,7 +9,24 @@ export class RunTraceRecorder {
   constructor(
     taskId: string,
     startedAt = new Date().toISOString(),
+    existingTrace?: FactoryRunTrace,
   ) {
+    if (existingTrace) {
+      if (existingTrace.taskId !== taskId) {
+        throw new Error(
+          "Cannot resume a run trace for a different task.",
+        );
+      }
+
+      this.trace = {
+        ...existingTrace,
+        observations: existingTrace.observations.map(
+          (observation) => ({ ...observation }),
+        ),
+      };
+      return;
+    }
+
     this.trace = {
       taskId,
       startedAt,
