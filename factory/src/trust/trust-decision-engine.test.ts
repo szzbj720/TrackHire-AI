@@ -218,6 +218,31 @@ describe(
     );
 
     it(
+      "allows one autonomous retry for medium-risk work",
+      () => {
+        const engine =
+          new TrustDecisionEngine();
+
+        const decision =
+          engine.decide({
+            task: createTask(0, "medium"),
+            validation:
+              createValidation(),
+            verification:
+              createVerification(false),
+            review:
+              createReview({
+                approved: false,
+              }),
+          });
+
+        expect(decision.action).toBe(
+          "RETRY",
+        );
+      },
+    );
+
+    it(
       "escalates when human judgment is required",
       () => {
         const engine =
