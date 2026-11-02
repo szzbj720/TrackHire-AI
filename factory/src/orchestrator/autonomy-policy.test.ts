@@ -68,6 +68,16 @@ describe("evaluateAutonomyPolicy", () => {
     );
   });
 
+  it("requires plan approval immediately below the autonomous confidence threshold", () => {
+    const decision = evaluateAutonomyPolicy(
+      createTask({ confidence: 0.899999 }),
+    );
+
+    expect(decision.planApproval).toBe(
+      "REQUIRED",
+    );
+  });
+
   it("requires plan approval for medium-risk work", () => {
     const decision = evaluateAutonomyPolicy(
       createTask({ risk: "medium" }),
