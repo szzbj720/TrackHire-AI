@@ -109,6 +109,22 @@ import type {
     return result;
   }
   
+  function unwrapJsonFence(content: string): string {
+    const trimmed = content.trim();
+    const match = trimmed.match(/^\x60\x60\x60json\s*\n([\s\S]*?)\n\x60\x60\x60$/i);
+
+    if (!match?.[1]) {
+      return content;
+    }
+
+    try {
+      JSON.parse(match[1]);
+      return match[1];
+    } catch {
+      return content;
+    }
+  }
+
   export class OllamaProvider
     implements ModelProvider {
     private readonly model:
@@ -224,7 +240,7 @@ import type {
   
       return {
         content:
-          payload.response,
+          unwrapJsonFence(payload.response),
   
         model:
           payload.model,
