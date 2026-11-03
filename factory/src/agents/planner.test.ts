@@ -223,4 +223,78 @@ describe("ModelPlanner", () => {
       "class JobApplication {}",
     );
   });
+  it("recovers a comparison-only search plan without changing stored model data", async () => {
+    const providerPath = "lib/providers/application_provider.dart";
+    const unsafePlan = {
+      summary: "Make search case-insensitive.",
+      steps: [
+        {
+          order: 1,
+          description: "Store all string fields in lowercase in JobApplication.",
+          files: ["lib/models/job_application.dart"],
+          rationale: "Persist normalized lowercase strings for case-insensitive search.",
+        },
+        {
+          order: 2,
+          description: "Update search comparisons in ApplicationProvider.",
+          files: [providerPath],
+          rationale: "Match company, role, and location case-insensitively.",
+        },
+      ],
+      affectedFiles: ["lib/models/job_application.dart", providerPath],
+      validationSteps: ["Run Flutter tests."],
+      risks: [],
+      assumptions: [],
+      requiresHumanInput: false,
+    };
+    const searchTask = {
+      ...task,
+      request:
+        "Improve application search to match company, role, and location case-insensitively while preserving status filtering.",
+    };
+    const searchContext: RepositoryContext = {
+      ...context,
+      relevantFiles: [
+        ...context.relevantFiles,
+        { path: providerPath, score: 1, matchedTerms: ["search"] },
+      ],
+      fileContents: [
+        ...context.fileContents,
+        { path: providerPath, content: "class ApplicationProvider {}", truncated: false },
+      ],
+    };
+    const result = await new ModelPlanner(
+      new FakeProvider(JSON.stringify(unsafePlan)),
+    ).plan(searchTask, analysis, searchContext);
+
+    expect(result.steps).toHaveLength(1);
+    expect(result.steps[0]?.files).toEqual([providerPath]);
+    expect(result.affectedFiles).toEqual([providerPath]);
+    expect(result.assumptions.join(" ")).toContain("Recovery replaced");
+  });
+
+  it("rejects unsafe search plans without complete provider context", async () => {
+    const unsafePlan = {
+      summary: "Change stored strings.",
+      steps: [{
+        order: 1,
+        description: "Store all string fields in lowercase.",
+        files: ["lib/models/job_application.dart"],
+        rationale: "Persist lowercase strings for case-insensitive search.",
+      }],
+      affectedFiles: ["lib/models/job_application.dart"],
+      validationSteps: ["Run tests."],
+      risks: [],
+      assumptions: [],
+      requiresHumanInput: false,
+    };
+    await expect(
+      new ModelPlanner(new FakeProvider(JSON.stringify(unsafePlan))).plan(
+        { ...task, request: "Make application search case-insensitive while preserving filters." },
+        analysis,
+        context,
+      ),
+    ).rejects.toThrow("no verified narrow recovery");
+  });
+
 });
