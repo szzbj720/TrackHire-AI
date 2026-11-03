@@ -179,6 +179,25 @@ function createImplementationPlanJsonSchema(
   };
 }
 
+function normalizePlanFileCoverage(
+  plan: ImplementationPlan,
+): ImplementationPlan {
+  const stepFiles =
+    plan.steps.flatMap(
+      (step) => step.files,
+    );
+
+  return {
+    ...plan,
+    affectedFiles: [
+      ...new Set([
+        ...plan.affectedFiles,
+        ...stepFiles,
+      ]),
+    ],
+  };
+}
+
 export class ModelPlanner
   implements Planner {
   constructor(
@@ -204,9 +223,11 @@ export class ModelPlanner
           "Do not modify any code.",
           "Do not invent repository files.",
           "Every file in affectedFiles and every file referenced by a step must come from the supplied allowedRepositoryFiles list.",
+          "Every file referenced by any implementation step must also appear in affectedFiles.",
           "Only include files that genuinely need modification.",
           "The plan should describe how to implement the requested behavior using the existing architecture.",
-          "Validation steps should describe deterministic checks such as static analysis or tests.",
+          "Validation steps should describe deterministic checks such as static analysis or tests, not source-file modifications.",
+          "Do not add implementation steps that modify unrelated files merely to describe validation.",
           "Set requiresHumanInput to true only when a real unresolved ambiguity prevents safe implementation.",
           "Do not require human input merely because multiple files or architectural layers are involved.",
           "Return only the requested structured JSON.",
@@ -272,8 +293,13 @@ export class ModelPlanner
         response.content,
       );
 
-    return implementationPlanSchema.parse(
-      parsed,
+    const plan =
+      implementationPlanSchema.parse(
+        parsed,
+      );
+
+    return normalizePlanFileCoverage(
+      plan,
     );
   }
 }
