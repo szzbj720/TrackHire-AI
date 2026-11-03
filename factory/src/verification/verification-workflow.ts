@@ -1,3 +1,6 @@
+import { stat } from "node:fs/promises";
+import { resolve, relative, isAbsolute } from "node:path";
+
 import type {
   EngineeringTask,
 } from "../schemas/task.js";
@@ -53,6 +56,35 @@ export class VerificationWorkflow {
         changedFiles:
           input.changedFiles,
       });
+
+    // A model may invent a test filename. Do not treat a missing test
+    // as an implementation failure or trigger an automated repair.
+    for (const probe of plan.probes) {
+      const targets = probe.args.slice(1).filter((arg) => !arg.startsWith("-"));
+      for (const target of targets) {
+        if (!target.endsWith(".dart")) {
+          continue;
+        }
+        const absoluteTarget = resolve(input.worktreePath, target);
+        const relativeTarget = relative(input.worktreePath, absoluteTarget);
+        if (
+          isAbsolute(target) ||
+          relativeTarget === ".." ||
+          relativeTarget.startsWith("../") ||
+          relativeTarget.startsWith("..\\")
+        ) {
+          throw new Error(
+            `Verification probe "${probe.id}" references an unsafe test path: ${target}.`,
+          );
+        }
+        const file = await stat(absoluteTarget).catch(() => null);
+        if (!file?.isFile()) {
+          throw new Error(
+            `Verification probe "${probe.id}" references a missing test file: ${target}. This is a verification-plan error, not an implementation failure.`,
+          );
+        }
+      }
+    }
 
     const verification =
       await this.executor.execute(
