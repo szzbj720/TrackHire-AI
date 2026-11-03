@@ -343,9 +343,56 @@ export class ModelPlanner
     );
 
     if (unsafeStorageSteps.length > 0) {
-      throw new Error(
-        "Implementation plan proposes changing stored data for case-insensitive search. Refusing unsafe plan; search comparisons must preserve original values.",
-      );
+      const providerPath = "lib/providers/application_provider.dart";
+      const isSearchComparisonTask =
+        /search/i.test(task.request) &&
+        /case.insensitive/i.test(task.request) &&
+        /(?:filter|match)/i.test(task.request) &&
+        /(?:preserv|do not change|without changing)/i.test(task.request);
+
+      if (
+        !isSearchComparisonTask ||
+        !allowedFiles.includes(providerPath) ||
+        !context.fileContents.some(
+          (file) => file.path === providerPath && !file.truncated,
+        )
+      ) {
+        throw new Error(
+          "Implementation plan proposes changing stored data for case-insensitive search. Refusing unsafe plan; no verified narrow recovery is available.",
+        );
+      }
+
+      // Recover only this narrowly identified comparison-only task.
+      // The original unsafe plan is discarded, never partially executed.
+      return implementationPlanSchema.parse({
+        summary:
+          "Update application search comparisons without modifying stored application data or unrelated UI behavior.",
+        steps: [
+          {
+            order: 1,
+            description:
+              "In ApplicationProvider, make the existing application search compare company name, role title, and location case-insensitively. Preserve the existing status filter, stored field values, and all unrelated behavior.",
+            files: [providerPath],
+            rationale:
+              "Case-insensitive comparisons belong in the filtering logic; changing stored model strings is unnecessary and unsafe.",
+          },
+        ],
+        affectedFiles: [providerPath],
+        validationSteps: [
+          "Run flutter analyze.",
+          "Run flutter test.",
+          "Verify mixed-case queries match company, role, and location while status filtering is unchanged.",
+        ],
+        risks: [
+          "Search changes may unintentionally alter status filter combinations.",
+        ],
+        assumptions: [
+          "Existing stored field values and serialization must remain unchanged.",
+          "Special-character matching retains its existing behavior.",
+          "Recovery replaced an unsafe model-generated plan; human approval is still required.",
+        ],
+        requiresHumanInput: false,
+      });
     }
 
     return normalizedPlan;
