@@ -151,6 +151,39 @@ function createTaskAnalysisJsonSchema(
   };
 }
 
+function normalizeConfidence(
+  parsed: unknown,
+): unknown {
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("confidence" in parsed)
+  ) {
+    return parsed;
+  }
+
+  const confidence = parsed.confidence;
+  if (
+    typeof confidence !== "number" ||
+    !Number.isFinite(confidence)
+  ) {
+    return parsed;
+  }
+
+  if (confidence >= 0 && confidence <= 1) {
+    return parsed;
+  }
+
+  if (confidence > 1 && confidence <= 100) {
+    return {
+      ...parsed,
+      confidence: confidence / 100,
+    };
+  }
+
+  return parsed;
+}
+
 export class ModelTaskAnalyzer
   implements TaskAnalyzer {
   constructor(
@@ -177,6 +210,7 @@ export class ModelTaskAnalyzer
           "Every path in relevantFiles must come from the supplied allowedRepositoryFiles list.",
           "Select every supplied file that is genuinely relevant to implementing the task.",
           "Identify complexity, risk, affected areas, relevant files, ambiguities, assumptions, confidence, whether human input is needed, and reasoning.",
+          "Return confidence as a decimal number from 0 to 1, where 1 means fully confident.",
           "Only set requiresHumanInput to true when a real unresolved ambiguity prevents safe planning.",
           "Do not require human input merely because the repository uses classes or architecture that you need to inspect.",
           "Return only the requested structured JSON.",
@@ -241,7 +275,7 @@ export class ModelTaskAnalyzer
       );
 
     return taskAnalysisSchema.parse(
-      parsed,
+      normalizeConfidence(parsed),
     );
   }
 }
