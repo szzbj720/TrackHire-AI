@@ -105,6 +105,7 @@ describe("FactoryRunner final approval", () => {
         route: "PARALLEL",
         policy: {
           disposition: "SUPPORTED_PARALLEL",
+          mode: "parallel",
           reasoning: "Use parallel execution.",
         },
       },
