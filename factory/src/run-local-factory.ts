@@ -479,7 +479,7 @@ async function main(): Promise<void> {
       }
     }
 
-    const run = result.run;
+    let run = result.run;
     console.log("\n=== Sequential Factory Result ===\n");
     console.log(JSON.stringify({
       stopReason: result.stopReason,
@@ -499,8 +499,37 @@ async function main(): Promise<void> {
 
     if (result.stopReason === "FINAL_APPROVAL_REQUIRED") {
       console.log("\nThe sequential factory reached the final human approval gate after independent verification, review, and trust evaluation.");
+      const finalApproved = await askForApproval(
+        "Approve the final sequential implementation?",
+      );
+
+      if (!finalApproved) {
+        console.log("\nFinal approval rejected. The worktree has been preserved for inspection.");
+        return;
+      }
+
+      execution = await factoryRunner.resumeAfterSequentialFinalApproval(
+        result,
+        execution.trace,
+      );
+      result = execution.sequentialResult!;
+      run = result.run;
+
+      console.log("\n=== Final Run Trace ===\n");
+      console.log(JSON.stringify(execution.trace, null, 2));
+      console.log("\n=== Factory State ===\n");
+      console.log(run.task.status);
+
+      if (result.stopReason !== "COMPLETE" || run.task.status !== "COMPLETE") {
+        throw new Error(
+          `Sequential final approval returned unexpected stop reason ${result.stopReason} with task state ${run.task.status}.`,
+        );
+      }
+
+      console.log("\nFinal sequential implementation approved. Factory run complete.");
       console.log("The changes remain isolated in the worktree.");
       console.log("Nothing has been merged into main.");
+      return;
     }
     if (result.stopReason === "TRUST_RETRY_REQUIRED") {
       console.log("\nThe trust decision still requires a bounded retry or human inspection.");
