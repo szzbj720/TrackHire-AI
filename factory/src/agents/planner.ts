@@ -329,6 +329,24 @@ export class ModelPlanner
       plan,
     );
 
+    // A user-facing toggle cannot be delivered by provider-only changes.
+    // Fail before plan approval rather than silently shipping an invisible setting.
+    const requestsVisibleToggle =
+      /(?:toggle|switch|checkbox)/i.test(task.request) &&
+      /(?:search|filter)/i.test(task.request) &&
+      /(?:case.sensitiv|case.insensitiv)/i.test(task.request);
+    if (requestsVisibleToggle) {
+      const plannedFiles = normalizedPlan.steps.flatMap((step) => step.files);
+      const includesPresentation = plannedFiles.some((path) =>
+        /^lib\/(?:screens|widgets|pages|views)\//.test(path),
+      );
+      if (!includesPresentation) {
+        throw new Error(
+          "Incomplete implementation plan: a user-facing search toggle requires a UI file as well as search state. Refusing provider-only plan before approval.",
+        );
+      }
+    }
+
     const unsafeStorageSteps = normalizedPlan.steps.filter(
       (step) =>
         /(?:stor(?:e|ed|ing)|persist|serializ|database|model fields?)/i.test(
