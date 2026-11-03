@@ -280,6 +280,39 @@ describe(
       },
     );
 
+    it("supplies current related approved files to later implementation steps", async () => {
+      const root = await mkdtemp(join(tmpdir(), "factory-builder-related-"));
+      await mkdir(join(root, "lib"), { recursive: true });
+      await writeFile(join(root, "lib/provider.dart"), "class Provider { bool enabled = false; }\n");
+      await writeFile(join(root, "lib/screen.dart"), "class Screen {}\n");
+      const requests: ModelRequest[] = [];
+      const provider: ModelProvider = {
+        async generate(request) {
+          requests.push(request);
+          return {
+            content: requests.length === 1
+              ? "class Provider { bool isCaseSensitiveSearch = false; }\n"
+              : "class Screen { bool visible = true; }\n",
+            model: "fake-builder",
+          };
+        },
+      };
+      const plan: ImplementationPlan = {
+        ...createPlan(),
+        steps: [
+          { order: 1, description: "Update provider", files: ["lib/provider.dart"], rationale: "Logic" },
+          { order: 2, description: "Update screen", files: ["lib/screen.dart"], rationale: "UI" },
+        ],
+        affectedFiles: ["lib/provider.dart", "lib/screen.dart"],
+      };
+      await new ModelBuilder(provider).implement({
+        task: createTask(), plan, worktreePath: root,
+      });
+      expect(requests).toHaveLength(2);
+      expect(requests[1]?.userPrompt).toContain("isCaseSensitiveSearch");
+      expect(requests[1]?.userPrompt).toContain("CURRENT RELATED APPROVED FILES");
+    });
+
     it(
       "strips a markdown source fence before writing",
       async () => {
