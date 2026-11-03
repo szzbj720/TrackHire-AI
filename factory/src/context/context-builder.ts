@@ -352,7 +352,7 @@ export async function buildRepositoryContext(
     await expandImportedFiles(
       repositoryRoot,
       snapshot,
-      initialFiles,
+      seedFiles,
       fileLimit,
     );
 
