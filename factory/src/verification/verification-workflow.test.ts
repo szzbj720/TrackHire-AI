@@ -1,3 +1,7 @@
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import {
   describe,
   expect,
@@ -116,6 +120,10 @@ describe(
             executor,
           );
 
+        const worktreePath = await mkdtemp(join(tmpdir(), "verification-workflow-"));
+        await mkdir(join(worktreePath, "test"));
+        await writeFile(join(worktreePath, "test/whitespace_probe_test.dart"), "void main() {}");
+
         const result =
           await workflow.run({
             task,
@@ -129,8 +137,7 @@ describe(
                   "changed code",
               },
             ],
-            worktreePath:
-              "/tmp/worktree",
+            worktreePath,
           });
 
         expect(
@@ -144,6 +151,38 @@ describe(
         );
       },
     );
+
+    it("rejects an invented test file before execution", async () => {
+      const worktreePath = await mkdtemp(join(tmpdir(), "verification-missing-"));
+      let executed = false;
+      const planner: VerificationPlanner = {
+        async plan() {
+          return {
+            probes: [{
+              id: "invented",
+              hypothesis: "A regression may exist.",
+              rationale: "Check a targeted test.",
+              command: "flutter",
+              args: ["test", "test/does_not_exist_test.dart"],
+              expectedOutcome: "Pass",
+            }],
+          };
+        },
+      };
+      const executor = {
+        async execute() {
+          executed = true;
+          throw new Error("must not execute");
+        },
+      } as unknown as VerificationExecutor;
+      await expect(new VerificationWorkflow(planner, executor).run({
+        task,
+        validation: passedValidation,
+        changedFiles: [],
+        worktreePath,
+      })).rejects.toThrow("This is a verification-plan error, not an implementation failure.");
+      expect(executed).toBe(false);
+    });
 
     it(
       "refuses to verify an implementation that failed deterministic validation",
