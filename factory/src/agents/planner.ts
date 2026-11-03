@@ -86,6 +86,9 @@ function createImplementationPlanJsonSchema(
               type:
                 "array",
 
+              minItems:
+                1,
+
               items:
                 fileSchema,
 
@@ -182,13 +185,29 @@ function createImplementationPlanJsonSchema(
 function normalizePlanFileCoverage(
   plan: ImplementationPlan,
 ): ImplementationPlan {
+  const implementationSteps =
+    plan.steps.filter(
+      (step) =>
+        step.files.length > 0,
+    );
+
+  if (
+    implementationSteps.length === 0
+  ) {
+    throw new Error(
+      "Implementation plan does not contain any source-file modification steps.",
+    );
+  }
+
   const stepFiles =
-    plan.steps.flatMap(
+    implementationSteps.flatMap(
       (step) => step.files,
     );
 
   return {
     ...plan,
+    steps:
+      implementationSteps,
     affectedFiles: [
       ...new Set([
         ...plan.affectedFiles,
@@ -224,6 +243,8 @@ export class ModelPlanner
           "Do not invent repository files.",
           "Every file in affectedFiles and every file referenced by a step must come from the supplied allowedRepositoryFiles list.",
           "Every file referenced by any implementation step must also appear in affectedFiles.",
+          "Every item in steps must be a source-file modification step and must contain at least one file.",
+          "Put static analysis, test execution, and other validation-only actions in validationSteps instead of steps.",
           "Only include files that genuinely need modification.",
           "The plan should describe how to implement the requested behavior using the existing architecture.",
           "Validation steps should describe deterministic checks such as static analysis or tests, not source-file modifications.",
