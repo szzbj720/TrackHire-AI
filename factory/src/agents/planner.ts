@@ -253,6 +253,9 @@ export class ModelPlanner
           "Follow the task analysis human-input decision unless the plan discovers a new concrete blocker.",
           "An unspecified edge case that can safely retain existing behavior is not a blocker; document the assumption and proceed.",
           "For case-insensitive search, preserve existing behavior for special characters and diacritics unless explicitly requested otherwise.",
+          "For search or filtering tasks, preserve original stored field values, serialization, display casing, and persistence behavior.",
+          "Implement case-insensitive matching at comparison time rather than lowercasing or normalizing stored model fields.",
+          "Do not propose model or persistence changes unless the task explicitly requires them.",
           "Do not require human input merely because multiple files or architectural layers are involved.",
           "Return only the requested structured JSON.",
         ].join(
