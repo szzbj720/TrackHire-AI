@@ -273,6 +273,71 @@ describe("ModelPlanner", () => {
     expect(result.assumptions.join(" ")).toContain("Recovery replaced");
   });
 
+  it("rejects provider-only plans for a visible case-sensitive search toggle", async () => {
+    const providerPath = "lib/providers/application_provider.dart";
+    const toggleTask = {
+      ...task,
+      request: "Add a case-sensitive search toggle to application search, off by default.",
+    };
+    const toggleContext: RepositoryContext = {
+      ...context,
+      relevantFiles: [
+        ...context.relevantFiles,
+        { path: providerPath, score: 1, matchedTerms: ["search"] },
+      ],
+    };
+    const providerOnlyPlan = {
+      summary: "Add a search toggle.",
+      steps: [{
+        order: 1,
+        description: "Add case-sensitive search state and comparison logic.",
+        files: [providerPath],
+        rationale: "Provider holds search state.",
+      }],
+      affectedFiles: [providerPath],
+      validationSteps: ["Run Flutter tests."],
+      risks: [],
+      assumptions: [],
+      requiresHumanInput: false,
+    };
+    await expect(
+      new ModelPlanner(new FakeProvider(JSON.stringify(providerOnlyPlan))).plan(
+        toggleTask, analysis, toggleContext,
+      ),
+    ).rejects.toThrow("requires a UI file");
+  });
+
+  it("accepts a search toggle plan covering provider and UI", async () => {
+    const providerPath = "lib/providers/application_provider.dart";
+    const uiPath = "lib/screens/home_screen.dart";
+    const toggleContext: RepositoryContext = {
+      ...context,
+      relevantFiles: [
+        ...context.relevantFiles,
+        { path: providerPath, score: 1, matchedTerms: ["search"] },
+        { path: uiPath, score: 1, matchedTerms: ["toggle"] },
+      ],
+    };
+    const completePlan = {
+      summary: "Add visible search toggle.",
+      steps: [
+        { order: 1, description: "Implement search state.", files: [providerPath], rationale: "Store toggle state." },
+        { order: 2, description: "Render toggle control.", files: [uiPath], rationale: "Users need access." },
+      ],
+      affectedFiles: [providerPath, uiPath],
+      validationSteps: ["Run Flutter tests."],
+      risks: [],
+      assumptions: [],
+      requiresHumanInput: false,
+    };
+    const result = await new ModelPlanner(new FakeProvider(JSON.stringify(completePlan))).plan(
+      { ...task, request: "Add a case-sensitive search toggle to application search." },
+      analysis,
+      toggleContext,
+    );
+    expect(result.affectedFiles).toContain(uiPath);
+  });
+
   it("rejects unsafe search plans without complete provider context", async () => {
     const unsafePlan = {
       summary: "Change stored strings.",
