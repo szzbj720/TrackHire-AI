@@ -95,6 +95,30 @@ describe(
       },
     );
 
+    it("normalizes model-generated non-test Flutter commands to the allowed test suite", async () => {
+      const provider: ModelProvider = {
+        async generate() {
+          return {
+            content: JSON.stringify({
+              probes: [{
+                id: "1",
+                hypothesis: "Static analysis may miss a regression.",
+                rationale: "Check the implementation.",
+                command: "flutter",
+                args: ["analyze"],
+                expectedOutcome: "No regressions.",
+              }],
+            }),
+            model: "fake-model",
+          };
+        },
+      };
+      const result = await new ModelVerificationPlanner(provider).plan({
+        task, changedFiles: [],
+      });
+      expect(result.probes[0]?.args).toEqual(["test"]);
+    });
+
     it(
       "rejects an empty probe plan",
       async () => {
