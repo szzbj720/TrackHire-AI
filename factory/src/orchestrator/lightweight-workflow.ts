@@ -108,4 +108,22 @@ export class LightweightWorkflow {
       validation,
     };
   }
+
+  approveFinal(
+    result: LightweightWorkflowResult,
+  ): LightweightWorkflowResult {
+    if (result.task.status !== "AWAITING_FINAL_APPROVAL") {
+      throw new Error(
+        `Cannot approve lightweight final result while task is in state ${result.task.status}`,
+      );
+    }
+
+    const orchestrator = new Orchestrator(result.task);
+    orchestrator.approveFinal();
+
+    return {
+      ...result,
+      task: orchestrator.getTask(),
+    };
+  }
 }
