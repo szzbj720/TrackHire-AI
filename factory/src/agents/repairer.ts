@@ -42,6 +42,31 @@ import type {
     ): Promise<ImplementationResult>;
   }
   
+  const repairResponseSchema: Record<string, unknown> = {
+    type: "object",
+    properties: {
+      summary: { type: "string", minLength: 1 },
+      writes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            path: { type: "string", minLength: 1 },
+            content: { type: "string" },
+            summary: { type: "string", minLength: 1 },
+          },
+          required: ["path", "content", "summary"],
+          additionalProperties: false,
+        },
+      },
+      assumptions: { type: "array", items: { type: "string" } },
+      warnings: { type: "array", items: { type: "string" } },
+      requiresHumanInput: { type: "boolean" },
+    },
+    required: ["summary", "writes", "assumptions", "warnings", "requiresHumanInput"],
+    additionalProperties: false,
+  };
+
   export class ModelRepairer
     implements Repairer
   {
@@ -97,11 +122,17 @@ import type {
             relevantFiles:
               input.relevantFiles,
           }),
+          responseSchema: repairResponseSchema,
         });
   
-      const parsed: unknown = JSON.parse(
-        response.content,
-      );
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(response.content);
+      } catch {
+        throw new Error(
+          "Repair agent returned non-JSON output. No repair writes were applied.",
+        );
+      }
   
       const changeSet =
         codeChangeSetSchema.parse(parsed);
