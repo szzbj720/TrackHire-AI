@@ -1,4 +1,4 @@
-import { stat } from "node:fs/promises";
+import { stat, readdir } from "node:fs/promises";
 import { resolve, relative, isAbsolute } from "node:path";
 
 import type {
@@ -50,11 +50,28 @@ export class VerificationWorkflow {
       );
     }
 
+    const availableTestFiles: string[] = [];
+    const findTests = async (directory: string): Promise<void> => {
+      const entries = await readdir(resolve(input.worktreePath, directory), {
+        withFileTypes: true,
+      }).catch(() => []);
+      for (const entry of entries) {
+        const path = directory + "/" + entry.name;
+        if (entry.isDirectory()) {
+          await findTests(path);
+        } else if (entry.isFile() && path.endsWith("_test.dart")) {
+          availableTestFiles.push(path);
+        }
+      }
+    };
+    await findTests("test");
+
     const plan =
       await this.planner.plan({
         task: input.task,
         changedFiles:
           input.changedFiles,
+        availableTestFiles,
       });
 
     // A model may invent a test filename. Do not treat a missing test
