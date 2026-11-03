@@ -224,6 +224,15 @@ export class ModelBuilder
         path,
       );
 
+    const relatedFiles = await Promise.all(
+      plan.affectedFiles
+        .filter((approvedPath) => approvedPath !== path)
+        .map(async (approvedPath) => ({
+          path: approvedPath,
+          content: await workspace.read(approvedPath),
+        })),
+    );
+
     const response =
       await this.provider.generate({
         systemPrompt: [
@@ -238,6 +247,8 @@ export class ModelBuilder
           "Start from the exact original source file.",
           "Make only the smallest changes necessary for the current implementation step.",
           "Preserve all unrelated imports, declarations, classes, methods, widgets, comments, formatting, and behavior.",
+          "Related approved files are provided for API consistency. Use their actual identifiers and do not invent properties or methods.",
+          "Earlier steps may have already changed related files. The related file contents reflect the current worktree.",
           "Do not remove existing code unless the current implementation step explicitly requires it.",
           "The returned source must be a complete replacement for the original file.",
         ].join(
@@ -260,6 +271,9 @@ export class ModelBuilder
             "",
             "OVERALL PLAN:",
             plan.summary,
+            "",
+            "CURRENT RELATED APPROVED FILES (read-only context):",
+            JSON.stringify(relatedFiles),
             "",
             "ORIGINAL COMPLETE SOURCE FILE:",
             original,
