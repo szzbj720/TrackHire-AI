@@ -314,6 +314,40 @@ export async function buildRepositoryContext(
       seedLimit,
     );
 
+  // Search toggle tasks require both the search provider and the screen
+  // that exposes the control. Import expansion alone cannot discover
+  // a screen that imports the provider (reverse dependency).
+  const visibleSearchToggle =
+    /(?:toggle|switch|checkbox)/i.test(task.request) &&
+    /(?:search|filter)/i.test(task.request) &&
+    /case.sensitiv/i.test(task.request);
+  const requiredPaths = visibleSearchToggle
+    ? [
+        "lib/providers/application_provider.dart",
+        "lib/screens/home_screen.dart",
+      ]
+    : [];
+  const availablePaths = new Set(snapshot.files.map((file) => file.path));
+  const mandatoryFiles: RelevantFile[] = requiredPaths
+    .filter((path) => availablePaths.has(path))
+    .map((path) => ({
+      path,
+      score: 100,
+      matchedTerms: ["search-toggle-dependency"],
+    }));
+  if (visibleSearchToggle && mandatoryFiles.length !== requiredPaths.length) {
+    throw new Error(
+      "Cannot plan visible search toggle: required provider or home screen is missing from repository snapshot.",
+    );
+  }
+  if (mandatoryFiles.length > fileLimit) {
+    throw new Error("Repository context file limit cannot cover required search toggle files.");
+  }
+  const seedFiles = [
+    ...mandatoryFiles,
+    ...initialFiles.filter((file) => !requiredPaths.includes(file.path)),
+  ].slice(0, Math.max(0, fileLimit));
+
   const relevantFiles =
     await expandImportedFiles(
       repositoryRoot,
