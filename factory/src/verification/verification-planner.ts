@@ -59,6 +59,7 @@ const verificationResponseSchema: Record<string, unknown> = {
 
 export interface VerificationPlannerInput {
   task: EngineeringTask;
+  availableTestFiles?: string[];
   changedFiles: Array<{
     path: string;
     content: string;
@@ -95,7 +96,7 @@ export class ModelVerificationPlanner
           "Each probe must be an object with id, hypothesis, rationale, command, args, and expectedOutcome.",
           "Use command flutter and args starting with test, for example [\"test\", \"test/application_provider_test.dart\"].",
           "Do not use shell commands, scripts, or paths outside the repository.",
-          "Never invent test filenames. Use flutter test with no file argument when the available test list is unknown.",
+          "Only reference a test file when its exact path appears in availableTestFiles. Otherwise use args [\"test\"] to run the existing suite.",
           "Focus on requirement gaps, edge cases, regressions, state inconsistencies, persistence failures, API mismatches, and cross-file inconsistencies that are relevant to the supplied task and changed files.",
           "Each probe must test a concrete failure hypothesis.",
           "Do not modify the implementation.",
@@ -115,6 +116,7 @@ export class ModelVerificationPlanner
             constraints:
               input.task.constraints,
           },
+          availableTestFiles: input.availableTestFiles ?? [],
           changedFiles:
             input.changedFiles,
         }),
