@@ -19,6 +19,44 @@ const verificationPlanSchema =
       ).min(1),
   });
 
+const verificationResponseSchema: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    probes: {
+      type: "array",
+      minItems: 1,
+      maxItems: 4,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", minLength: 1 },
+          hypothesis: { type: "string", minLength: 1 },
+          rationale: { type: "string", minLength: 1 },
+          command: { type: "string", enum: ["flutter"] },
+          args: {
+            type: "array",
+            minItems: 1,
+            items: { type: "string" },
+          },
+          expectedOutcome: { type: "string", minLength: 1 },
+          requirement: { type: "string" },
+        },
+        required: [
+          "id",
+          "hypothesis",
+          "rationale",
+          "command",
+          "args",
+          "expectedOutcome",
+        ],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["probes"],
+  additionalProperties: false,
+};
+
 export interface VerificationPlannerInput {
   task: EngineeringTask;
   changedFiles: Array<{
@@ -53,7 +91,10 @@ export class ModelVerificationPlanner
         systemPrompt: [
           "You are an independent software verification engineer.",
           "Your job is to actively look for ways an implementation could be wrong even when deterministic validation already passes.",
-          "Generate targeted executable verification probes.",
+          "Generate 1 to 4 targeted executable verification probes.",
+          "Each probe must be an object with id, hypothesis, rationale, command, args, and expectedOutcome.",
+          "Use command flutter and args starting with test, for example [\"test\", \"test/application_provider_test.dart\"].",
+          "Do not use shell commands, scripts, or paths outside the repository.",
           "Focus on requirement gaps, edge cases, regressions, state inconsistencies, persistence failures, API mismatches, and cross-file inconsistencies that are relevant to the supplied task and changed files.",
           "Each probe must test a concrete failure hypothesis.",
           "Do not modify the implementation.",
@@ -76,6 +117,7 @@ export class ModelVerificationPlanner
           changedFiles:
             input.changedFiles,
         }),
+        responseSchema: verificationResponseSchema,
       });
 
     const parsed: unknown =
