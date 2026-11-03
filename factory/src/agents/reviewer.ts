@@ -21,6 +21,46 @@ import type {
   VerificationResult,
 } from "../schemas/verification.js";
 
+const reviewerResponseSchema: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    approved: { type: "boolean" },
+    summary: { type: "string", minLength: 1 },
+    findings: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          severity: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+          summary: { type: "string", minLength: 1 },
+          evidence: { type: "array", minItems: 1, items: { type: "string" } },
+          files: { type: "array", items: { type: "string" } },
+          recommendation: { type: "string", minLength: 1 },
+        },
+        required: ["severity", "summary", "evidence", "files", "recommendation"],
+        additionalProperties: false,
+      },
+    },
+    requirementCoverage: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          requirement: { type: "string", minLength: 1 },
+          satisfied: { type: "boolean" },
+          evidence: { type: "array", minItems: 1, items: { type: "string" } },
+        },
+        required: ["requirement", "satisfied", "evidence"],
+        additionalProperties: false,
+      },
+    },
+    requiresHumanInput: { type: "boolean" },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+  },
+  required: ["approved", "summary", "findings", "requirementCoverage", "requiresHumanInput", "confidence"],
+  additionalProperties: false,
+};
+
 export interface ReviewerInput {
   task: EngineeringTask;
   plan: ImplementationPlan;
@@ -96,11 +136,17 @@ export class ModelReviewer
           relevantFiles:
             input.relevantFiles,
         }),
+        responseSchema: reviewerResponseSchema,
       });
 
-    const parsed: unknown = JSON.parse(
-      response.content,
-    );
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(response.content);
+    } catch {
+      throw new Error(
+        "Reviewer returned non-JSON output. Independent review cannot proceed without structured evidence.",
+      );
+    }
 
     return reviewResultSchema.parse(
       parsed,
