@@ -315,6 +315,38 @@ describe("ImplementationWorkflow", () => {
     );
   });
 
+  it("rejects reported changes when the worktree has no actual Git diff", async () => {
+    const repositoryRoot = await createTemporaryRepository();
+    let validationCalled = false;
+    const unchangedBuilder: Builder = {
+      async implement() {
+        return {
+          summary: "Claimed an update.",
+          changedFiles: [{
+            path: "lib/models/job_application.dart",
+            changeType: "modified",
+            summary: "Claimed change.",
+          }],
+          commandsRun: [],
+          assumptions: [],
+          warnings: [],
+          requiresHumanInput: false,
+        };
+      },
+    };
+    const validator: Validator = {
+      async validate() {
+        validationCalled = true;
+        throw new Error("Validation should not run");
+      },
+    };
+    const workflow = new ImplementationWorkflow(unchangedBuilder, validator);
+    await expect(
+      workflow.run(createTask(), repositoryRoot, "main"),
+    ).rejects.toThrow("without corresponding Git diffs");
+    expect(validationCalled).toBe(false);
+  });
+
   it("routes successful validation to review", async () => {
     const repositoryRoot =
       await createTemporaryRepository();
