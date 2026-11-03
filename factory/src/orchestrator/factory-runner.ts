@@ -232,6 +232,19 @@ export class FactoryRunner {
     );
   }
 
+  async resumeAfterParallelFinalApproval(
+    result: AdaptiveFactoryResult,
+    trace: FactoryRunTrace,
+  ): Promise<FactoryRunnerResult> {
+    return this.resumeParallelContinuation(
+      result,
+      trace,
+      "FINAL_APPROVAL_REQUIRED",
+      (adaptiveFactory) =>
+        adaptiveFactory.resumeAfterFinalApproval(result),
+    );
+  }
+
   async resumeAfterTrustRetry(
     result: SequentialFactoryResult,
     trace: FactoryRunTrace,
@@ -255,6 +268,42 @@ export class FactoryRunner {
 
     const sequentialResult =
       await this.sequentialFactory.resumeAfterTrustRetry(
+        result.run,
+      );
+    const continuedTrace = session.recordSequentialResult(
+      sequentialResult,
+    );
+
+    return {
+      decision: session.decision,
+      sequentialResult,
+      trace: continuedTrace,
+    };
+  }
+
+  async resumeAfterSequentialFinalApproval(
+    result: SequentialFactoryResult,
+    trace: FactoryRunTrace,
+  ): Promise<FactoryRunnerResult> {
+    if (result.stopReason !== "FINAL_APPROVAL_REQUIRED") {
+      throw new Error(
+        `FactoryRunner cannot resume final approval from stop reason ${result.stopReason}.`,
+      );
+    }
+
+    const session = resumeFactoryRunTrace(
+      result.run.task,
+      trace,
+    );
+
+    if (session.decision.route !== "SEQUENTIAL") {
+      throw new Error(
+        "FactoryRunner can only resume sequential final approval for SEQUENTIAL routing.",
+      );
+    }
+
+    const sequentialResult =
+      await this.sequentialFactory.resumeAfterFinalApproval(
         result.run,
       );
     const continuedTrace = session.recordSequentialResult(
