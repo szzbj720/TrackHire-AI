@@ -250,6 +250,9 @@ export class ModelPlanner
           "Validation steps should describe deterministic checks such as static analysis or tests, not source-file modifications.",
           "Do not add implementation steps that modify unrelated files merely to describe validation.",
           "Set requiresHumanInput to true only when a real unresolved ambiguity prevents safe implementation.",
+          "Follow the task analysis human-input decision unless the plan discovers a new concrete blocker.",
+          "An unspecified edge case that can safely retain existing behavior is not a blocker; document the assumption and proceed.",
+          "For case-insensitive search, preserve existing behavior for special characters and diacritics unless explicitly requested otherwise.",
           "Do not require human input merely because multiple files or architectural layers are involved.",
           "Return only the requested structured JSON.",
         ].join(
