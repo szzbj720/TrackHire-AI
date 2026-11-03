@@ -62,8 +62,10 @@ describe(
     it(
       "plans and executes independent verification after validation passes",
       async () => {
+        let discoveredTests: string[] = [];
         const planner: VerificationPlanner = {
-          async plan() {
+          async plan(input) {
+            discoveredTests = input.availableTestFiles ?? [];
             return {
               probes: [
                 {
@@ -139,6 +141,8 @@ describe(
             ],
             worktreePath,
           });
+
+        expect(discoveredTests).toContain("test/whitespace_probe_test.dart");
 
         expect(
           result.plan.probes,
