@@ -325,8 +325,29 @@ export class ModelPlanner
         parsed,
       );
 
-    return normalizePlanFileCoverage(
+    const normalizedPlan = normalizePlanFileCoverage(
       plan,
     );
+
+    const unsafeStorageSteps = normalizedPlan.steps.filter(
+      (step) =>
+        /(?:stor(?:e|ed|ing)|persist|serializ|database|model fields?)/i.test(
+          `${step.description} ${step.rationale}`,
+        ) &&
+        /(?:case.insensitive|lowercase|lower.case|normaliz)/i.test(
+          `${step.description} ${step.rationale}`,
+        ) &&
+        /(?:all string fields|stored|persist|serializ|database)/i.test(
+          `${step.description} ${step.rationale}`,
+        ),
+    );
+
+    if (unsafeStorageSteps.length > 0) {
+      throw new Error(
+        "Implementation plan proposes changing stored data for case-insensitive search. Refusing unsafe plan; search comparisons must preserve original values.",
+      );
+    }
+
+    return normalizedPlan;
   }
 }
