@@ -162,7 +162,7 @@ export class FactoryRunner {
     }
 
     const lightweightResult =
-      await this.lightweightWorkflow.resumeAfterFinalApproval(result);
+      this.lightweightWorkflow.approveFinal(result);
     const continuedTrace = session.recordLightweightResult(
       lightweightResult,
     );
