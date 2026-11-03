@@ -410,9 +410,42 @@ async function main(): Promise<void> {
     console.log(currentTask.status);
 
     if (currentTask.status === "AWAITING_FINAL_APPROVAL") {
-      console.log("\nThe implementation passed deterministic validation.");
+      console.log("\nThe implementation passed deterministic validation and reached the final human approval gate.");
+      const finalApproved = await askForApproval(
+        "Approve the final lightweight implementation?",
+      );
+
+      if (!finalApproved) {
+        console.log("\nFinal approval rejected. The worktree has been preserved for inspection.");
+        return;
+      }
+
+      execution = await factoryRunner.resumeAfterLightweightFinalApproval(
+        {
+          ...result,
+          task: currentTask,
+          implementation: latestImplementation,
+          validation: currentValidation,
+        },
+        execution.trace,
+      );
+      const approvedResult = execution.lightweightResult!;
+
+      console.log("\n=== Final Run Trace ===\n");
+      console.log(JSON.stringify(execution.trace, null, 2));
+      console.log("\n=== Factory State ===\n");
+      console.log(approvedResult.task.status);
+
+      if (approvedResult.task.status !== "COMPLETE") {
+        throw new Error(
+          `Lightweight final approval returned unexpected state ${approvedResult.task.status}.`,
+        );
+      }
+
+      console.log("\nFinal lightweight implementation approved. Factory run complete.");
       console.log("The changes remain isolated in the worktree.");
       console.log("Nothing has been merged into main.");
+      return;
     }
     if (currentTask.status === "NEEDS_HUMAN") {
       console.log("\nThe implementation requires human review before continuing.");
