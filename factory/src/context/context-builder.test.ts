@@ -391,6 +391,31 @@ describe(
       },
     );
 
+    it("includes provider and home screen for a visible case-sensitive search toggle", async () => {
+      const root = await createTemporaryRepository();
+      await writeFile(
+        join(root, "lib", "providers", "application_provider.dart"),
+        "class ApplicationProvider {}",
+      );
+      await writeFile(
+        join(root, "lib", "screens", "home_screen.dart"),
+        "class HomeScreen {}",
+      );
+      const context = await buildRepositoryContext(
+        {
+          ...createTask(),
+          request: "Add a case-sensitive search toggle to application search.",
+        },
+        root,
+        2,
+      );
+      expect(context.relevantFiles.map((file) => file.path)).toEqual([
+        "lib/providers/application_provider.dart",
+        "lib/screens/home_screen.dart",
+      ]);
+      expect(context.fileContents).toHaveLength(2);
+    });
+
     it(
       "respects the context file limit while expanding imports",
       async () => {
