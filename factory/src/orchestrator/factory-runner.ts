@@ -134,6 +134,46 @@ export class FactoryRunner {
     };
   }
 
+  async resumeAfterLightweightFinalApproval(
+    result: LightweightWorkflowResult,
+    trace: FactoryRunTrace,
+  ): Promise<FactoryRunnerResult> {
+    if (!this.lightweightWorkflow) {
+      throw new Error(
+        "FactoryRunner requires a lightweight workflow to resume final approval.",
+      );
+    }
+
+    if (result.task.status !== "AWAITING_FINAL_APPROVAL") {
+      throw new Error(
+        `FactoryRunner cannot resume lightweight final approval from state ${result.task.status}.`,
+      );
+    }
+
+    const session = resumeFactoryRunTrace(
+      result.task,
+      trace,
+    );
+
+    if (session.decision.route !== "LIGHTWEIGHT") {
+      throw new Error(
+        "FactoryRunner can only resume lightweight final approval for LIGHTWEIGHT routing.",
+      );
+    }
+
+    const lightweightResult =
+      await this.lightweightWorkflow.resumeAfterFinalApproval(result);
+    const continuedTrace = session.recordLightweightResult(
+      lightweightResult,
+    );
+
+    return {
+      decision: session.decision,
+      lightweightResult,
+      trace: continuedTrace,
+    };
+  }
+
   async resumeAfterParallelApproval(
     result: AdaptiveFactoryResult,
     trace: FactoryRunTrace,
