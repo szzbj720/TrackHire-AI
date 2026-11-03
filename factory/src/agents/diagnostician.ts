@@ -153,7 +153,9 @@ export class ModelDiagnostician
           "Do not claim evidence that is not present in the supplied context.",
           "Classify the failure using one of the allowed failure categories.",
           "Confidence MUST be a decimal number between 0 and 1. For example, use 0.9 instead of 90.",
-          "Set requiresHumanInput to true when requirements are ambiguous, evidence is insufficient, or a safe repair cannot be determined.",
+          "Treat explicit undefined_getter, undefined_method, and undefined_identifier errors in approved source files as potentially repairable integration mismatches when the supplied files show the actual APIs.",
+          "Do not request human input solely because an implementation has compile errors; prefer a bounded repair when the validation output identifies the broken symbols and approved files contain the relevant code.",
+          "Set requiresHumanInput to true when requirements are genuinely ambiguous, evidence is insufficient, or a safe repair cannot be determined.",
           "Return only the requested FailureDiagnosis JSON object.",
         ].join(" "),
 
