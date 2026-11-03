@@ -95,6 +95,7 @@ export class ModelVerificationPlanner
           "Each probe must be an object with id, hypothesis, rationale, command, args, and expectedOutcome.",
           "Use command flutter and args starting with test, for example [\"test\", \"test/application_provider_test.dart\"].",
           "Do not use shell commands, scripts, or paths outside the repository.",
+          "Never invent test filenames. Use flutter test with no file argument when the available test list is unknown.",
           "Focus on requirement gaps, edge cases, regressions, state inconsistencies, persistence failures, API mismatches, and cross-file inconsistencies that are relevant to the supplied task and changed files.",
           "Each probe must test a concrete failure hypothesis.",
           "Do not modify the implementation.",
