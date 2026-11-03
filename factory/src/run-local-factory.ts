@@ -420,6 +420,12 @@ async function main(): Promise<void> {
         return;
       }
 
+      if (!currentValidation) {
+        throw new Error(
+          "Lightweight final approval requires a completed validation result.",
+        );
+      }
+
       execution = await factoryRunner.resumeAfterLightweightFinalApproval(
         {
           ...result,
