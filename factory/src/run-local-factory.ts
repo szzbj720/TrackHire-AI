@@ -469,7 +469,11 @@ async function main(): Promise<void> {
       );
       if (retryApproved) {
         console.log("\nTrust repair retry approved. Re-running the sequential verification lifecycle...\n");
-        result = await sequentialFactory.resumeAfterTrustRetry(result.run);
+        execution = await factoryRunner.resumeAfterTrustRetry(
+          result,
+          execution.trace,
+        );
+        result = execution.sequentialResult!;
       } else {
         console.log("\nTrust repair retry rejected. The worktree has been preserved for inspection.");
       }
