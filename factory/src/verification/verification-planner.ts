@@ -126,8 +126,17 @@ export class ModelVerificationPlanner
     const parsed: unknown =
       JSON.parse(response.content);
 
-    return verificationPlanSchema.parse(
-      parsed,
-    );
+    const plan = verificationPlanSchema.parse(parsed);
+
+    // The executor permits only flutter test. A model can still emit
+    // flutter analyze or flutter run despite the prompt and JSON schema.
+    // Fall back to the existing test suite rather than execute an
+    // unapproved command or crash after successful validation.
+    return {
+      probes: plan.probes.map((probe) => ({
+        ...probe,
+        args: probe.args[0] === "test" ? probe.args : ["test"],
+      })),
+    };
   }
 }
