@@ -687,11 +687,17 @@ export class SequentialFactory {
         })),
     );
 
-    assertCaseSensitiveSearchIntegration(
-      run.task.request,
-      await workspace.read("lib/providers/application_provider.dart").catch(() => ""),
-      await workspace.read("lib/screens/home_screen.dart").catch(() => ""),
-    );
+    if (
+      /case[- ]sensitive/i.test(run.task.request) &&
+      /search/i.test(run.task.request) &&
+      /toggle|switch|checkbox/i.test(run.task.request)
+    ) {
+      assertCaseSensitiveSearchIntegration(
+        run.task.request,
+        await workspace.read("lib/providers/application_provider.dart"),
+        await workspace.read("lib/screens/home_screen.dart"),
+      );
+    }
 
     const verificationResult =
       await this.verificationWorkflow.run({
