@@ -313,6 +313,37 @@ describe(
       expect(requests[1]?.userPrompt).toContain("CURRENT RELATED APPROVED FILES");
     });
 
+    it("combines multiple steps for the same file into one replacement", async () => {
+      const root = await createWorktree();
+      const requests: ModelRequest[] = [];
+      const provider: ModelProvider = {
+        async generate(request) {
+          requests.push(request);
+          return {
+            content: "class JobApplication { DateTime? interviewDate; bool isSaved = false; }\n",
+            model: "fake-builder",
+          };
+        },
+      };
+      const plan: ImplementationPlan = {
+        ...createPlan(),
+        steps: [
+          { order: 1, files: ["lib/models/job_application.dart"], description: "Add interview date", rationale: "Store interview date" },
+          { order: 2, files: ["lib/models/job_application.dart"], description: "Add saved flag", rationale: "Track saved state" },
+        ],
+      };
+      const result = await new ModelBuilder(provider).implement({
+        task: createTask(), plan, worktreePath: root,
+      });
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.userPrompt).toContain("Add interview date");
+      expect(requests[0]?.userPrompt).toContain("Add saved flag");
+      expect(result.changedFiles).toHaveLength(1);
+      const content = await readFile(join(root, "lib/models/job_application.dart"), "utf8");
+      expect(content).toContain("interviewDate");
+      expect(content).toContain("isSaved");
+    });
+
     it("rejects a model response that leaves an implementation step unchanged", async () => {
       const worktreePath = await createWorktree();
       const original = await readFile(
