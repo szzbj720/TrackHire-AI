@@ -320,7 +320,7 @@ describe(
         async generate(request) {
           requests.push(request);
           return {
-            content: "class JobApplication { DateTime? interviewDate; bool isSaved = false; }\n",
+            content: "class JobApplication { DateTime? interviewDate; }\n",
             model: "fake-builder",
           };
         },
@@ -341,7 +341,7 @@ describe(
       expect(result.changedFiles).toHaveLength(1);
       const content = await readFile(join(root, "lib/models/job_application.dart"), "utf8");
       expect(content).toContain("interviewDate");
-      expect(content).toContain("isSaved");
+      expect(content).toContain("DateTime? interviewDate");
     });
 
     it("rejects a model response that leaves an implementation step unchanged", async () => {
