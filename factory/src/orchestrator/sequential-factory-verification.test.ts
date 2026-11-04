@@ -34,6 +34,7 @@ import type {
 } from "./review-workflow.js";
 import {
   SequentialFactory,
+  assertCaseSensitiveSearchIntegration,
   type SequentialFactoryRun,
 } from "./sequential-factory.js";
 
@@ -324,3 +325,43 @@ describe(
     );
   },
 );
+
+describe("case-sensitive search integration guard", () => {
+  const request = "Add a case-sensitive search toggle to application search.";
+  const provider = `
+class ApplicationProvider {
+  bool isCaseSensitiveSearch = false;
+  List get filteredApplications {
+    return applications.where((item) =>
+      isCaseSensitiveSearch ? item.company.contains(searchQuery) :
+      item.company.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+  }
+  void toggleCaseSensitiveSearch() { isCaseSensitiveSearch = !isCaseSensitiveSearch; }
+}
+`;
+  const home = `
+Switch(
+  value: provider.isCaseSensitiveSearch,
+  onChanged: (_) => provider.toggleCaseSensitiveSearch(),
+)
+`;
+
+  it("rejects a provider-only implementation with no visible toggle", () => {
+    expect(() => assertCaseSensitiveSearchIntegration(request, provider, ""))
+      .toThrow("Case-sensitive search acceptance guard failed");
+  });
+
+  it("rejects a visible toggle with no provider search branch", () => {
+    const incompleteProvider = provider.replace(
+      "isCaseSensitiveSearch ? item.company.contains(searchQuery) :",
+      "item.company.contains(searchQuery) ? true :",
+    );
+    expect(() => assertCaseSensitiveSearchIntegration(request, incompleteProvider, home))
+      .toThrow("Case-sensitive search acceptance guard failed");
+  });
+
+  it("accepts matching provider and UI wiring", () => {
+    expect(() => assertCaseSensitiveSearchIntegration(request, provider, home))
+      .not.toThrow();
+  });
+});
