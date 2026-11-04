@@ -232,11 +232,14 @@ describe("SequentialFactory autonomy boundaries", () => {
     expect(result.run.task.status).toBe("AWAITING_FINAL_APPROVAL");
   });
 
-  it("escalates failed high-risk work instead of autonomously retrying", async () => {
+  it("stops failed high-risk verification before review or trust decisions", async () => {
     const result = await runHighRiskTask(false, false);
 
     expect(result.stopReason).toBe("HUMAN_INPUT_REQUIRED");
-    expect(result.run.trustDecision?.action).toBe("ESCALATE");
-    expect(result.run.task.status).toBe("AWAITING_FINAL_APPROVAL");
+    expect(result.run.trustDecision).toBeUndefined();
+    expect(result.run.review).toBeUndefined();
+    expect(result.run.verification?.passed).toBe(false);
+    expect(result.run.verification?.failedProbes).toContain("high-risk-probe");
+    expect(result.run.task.status).toBe("NEEDS_HUMAN");
   });
 });
