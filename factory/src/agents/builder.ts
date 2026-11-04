@@ -248,7 +248,8 @@ export class ModelBuilder
           "Make only the smallest changes necessary for the current implementation step.",
           "Preserve all unrelated imports, declarations, classes, methods, widgets, comments, formatting, and behavior.",
           "Related approved files are provided for API consistency. Use their actual identifiers and do not invent properties or methods.",
-          "Earlier steps may have already changed related files. The related file contents reflect the current worktree.",
+          "Earlier steps may have already changed this same file or related files. The original source below is the CURRENT worktree version, including all earlier edits.",
+          "Do not undo any earlier approved step. Every step must make a meaningful change to its target file.",
           "Do not remove existing code unless the current implementation step explicitly requires it.",
           "The returned source must be a complete replacement for the original file.",
         ].join(
@@ -294,6 +295,13 @@ export class ModelBuilder
       original,
       replacement,
     );
+
+    if (replacement === original) {
+      throw new Error(
+        `Builder made no source changes in step ${step.order} (${path}). ` +
+        "The model returned the unchanged file; refusing to claim implementation success.",
+      );
+    }
 
     await workspace.write(
       path,
