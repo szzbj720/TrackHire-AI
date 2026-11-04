@@ -68,15 +68,26 @@ export class ModelBuilder
     const warnings:
       string[] = [];
 
-    const orderedSteps =
-      [...input.plan.steps].sort(
-        (
-          left,
-          right,
-        ) =>
-          left.order -
-          right.order,
-      );
+    // Consolidate consecutive or separated steps targeting the same file.
+    // Otherwise a later full-file replacement can silently erase earlier edits.
+    const groupedSteps = new Map<string, PlanStep>();
+    for (const step of [...input.plan.steps].sort((a, b) => a.order - b.order)) {
+      if (step.files.length !== 1 || !step.files[0]) {
+        throw new Error(
+          `Local builder requires one file per implementation step. Step ${step.order} contains ${step.files.length} files.`,
+        );
+      }
+      const path = step.files[0];
+      const previous = groupedSteps.get(path);
+      groupedSteps.set(path, previous
+        ? {
+            ...previous,
+            description: `${previous.description}\n${step.description}`,
+            rationale: `${previous.rationale}\n${step.rationale}`,
+          }
+        : { ...step });
+    }
+    const orderedSteps = [...groupedSteps.values()];
 
     for (
       const step of
@@ -245,7 +256,7 @@ export class ModelBuilder
           "Do not use triple backticks.",
           "Do not include explanations before or after the source code.",
           "Start from the exact original source file.",
-          "Make only the smallest changes necessary for the current implementation step.",
+          "Make the smallest changes necessary to satisfy ALL requirements in the current implementation step.",
           "Preserve all unrelated imports, declarations, classes, methods, widgets, comments, formatting, and behavior.",
           "Related approved files are provided for API consistency. Use their actual identifiers and do not invent properties or methods.",
           "Earlier steps may have already changed this same file or related files. The original source below is the CURRENT worktree version, including all earlier edits.",
