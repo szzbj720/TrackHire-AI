@@ -120,34 +120,37 @@ export class VerificationWorkflow {
         "utf8",
       );
       const setter = providerSource.match(
-        /\\bvoid\\s+(toggleCaseSensitiveSearch\\w*|setCaseSensitiveSearch\\w*)\\s*\\(([^)]*)\\)/,
+        /\bvoid\s+(toggleCaseSensitiveSearch\w*|setCaseSensitiveSearch\w*)\s*\(([^)]*)\)/,
       );
-      if (!setter) {
+      const methodName = setter?.[1];
+      if (!methodName) {
         throw new Error("Case-sensitive search behavioral verification requires a provider toggle or setter.");
       }
 
-      let fixtureContent = trackHireCaseSensitiveSearchFixture.content;
-      const calls = [
-        "provider.toggleCaseSensitiveSearch();",
-        "provider.toggleCaseSensitiveSearch();",
-        "provider.toggleCaseSensitiveSearch();",
-        "provider.toggleCaseSensitiveSearch();",
-      ];
-      const replacementCalls = setter[1].startsWith("set")
-        ? [true, true, false, true].map((value) => `provider.${setter[1]}(${value});`)
-        : calls.map(() => `provider.${setter[1]}();`);
-      for (const replacement of replacementCalls) {
-        fixtureContent = fixtureContent.replace(
-          "provider.toggleCaseSensitiveSearch();",
-          replacement === "provider.toggleCaseSensitiveSearch();"
-            ? "provider.__factoryTemporaryToggle__();"
-            : replacement,
-        );
+      const setterUsesBoolean = methodName.startsWith("set");
+      if (setterUsesBoolean && !/\bbool\b/.test(setter?.[2] ?? "")) {
+        throw new Error("Case-sensitive search setter must accept a boolean.");
       }
-      fixtureContent = fixtureContent.replaceAll(
-        "provider.__factoryTemporaryToggle__();",
-        "provider.toggleCaseSensitiveSearch();",
+      if (!setterUsesBoolean && (setter?.[2] ?? "").trim() !== "") {
+        throw new Error("Case-sensitive search toggle must take no arguments.");
+      }
+
+      const callPattern = /provider\.toggleCaseSensitiveSearch\(\);/g;
+      let callIndex = 0;
+      const fixtureContent = trackHireCaseSensitiveSearchFixture.content.replace(
+        callPattern,
+        () => {
+          const index = callIndex++;
+          if (!setterUsesBoolean) {
+            return "provider." + methodName + "();";
+          }
+          const enabled = [true, true, false, true][index];
+          return "provider." + methodName + "(" + enabled + ");";
+        },
       );
+      if (callIndex !== 4) {
+        throw new Error("Case-sensitive search fixture has an unexpected number of toggle calls.");
+      }
 
       const fixturePath = resolve(
         input.worktreePath,
