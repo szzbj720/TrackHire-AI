@@ -313,6 +313,22 @@ describe(
       expect(requests[1]?.userPrompt).toContain("CURRENT RELATED APPROVED FILES");
     });
 
+    it("rejects a model response that leaves an implementation step unchanged", async () => {
+      const worktreePath = await createWorktree();
+      const original = await readFile(
+        join(worktreePath, "lib/models/job_application.dart"), "utf8",
+      );
+      const provider = new FakeProvider(original);
+      await expect(new ModelBuilder(provider).implement({
+        task: createTask(),
+        plan: createPlan(),
+        worktreePath,
+      })).rejects.toThrow("Builder made no source changes in step 1");
+      expect(await readFile(
+        join(worktreePath, "lib/models/job_application.dart"), "utf8",
+      )).toBe(original);
+    });
+
     it(
       "strips a markdown source fence before writing",
       async () => {
