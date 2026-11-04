@@ -296,8 +296,9 @@ describe(
           );
 
         expect(result.stopReason).toBe(
-          "FINAL_APPROVAL_REQUIRED",
+          "HUMAN_INPUT_REQUIRED",
         );
+        expect(result.run.task.status).toBe("NEEDS_HUMAN");
 
         expect(
           verificationInput?.changedFiles,
@@ -318,9 +319,7 @@ describe(
             ?.probes[0]?.id,
         ).toBe("edge-case");
 
-        expect(
-          reviewInput?.verification,
-        ).toEqual(verification);
+        expect(reviewInput).toBeUndefined();
       },
     );
   },
