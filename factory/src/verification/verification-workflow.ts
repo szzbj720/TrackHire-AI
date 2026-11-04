@@ -1,5 +1,6 @@
-import { stat, readdir } from "node:fs/promises";
+import { stat, readdir, readFile, writeFile, unlink } from "node:fs/promises";
 import { resolve, relative, isAbsolute } from "node:path";
+import { trackHireCaseSensitiveSearchFixture } from "../benchmarks/trackhire-case-sensitive-search-fixture.js";
 
 import type {
   EngineeringTask,
@@ -108,6 +109,77 @@ export class VerificationWorkflow {
         plan.probes,
         input.worktreePath,
       );
+
+    const requiresCaseToggle =
+      /case[- ]sensitive/i.test(input.task.request) &&
+      /search/i.test(input.task.request) &&
+      /toggle|switch|checkbox/i.test(input.task.request);
+    if (requiresCaseToggle) {
+      const providerSource = await readFile(
+        resolve(input.worktreePath, "lib/providers/application_provider.dart"),
+        "utf8",
+      );
+      const setter = providerSource.match(
+        /\\bvoid\\s+(toggleCaseSensitiveSearch\\w*|setCaseSensitiveSearch\\w*)\\s*\\(([^)]*)\\)/,
+      );
+      if (!setter) {
+        throw new Error("Case-sensitive search behavioral verification requires a provider toggle or setter.");
+      }
+
+      let fixtureContent = trackHireCaseSensitiveSearchFixture.content;
+      const calls = [
+        "provider.toggleCaseSensitiveSearch();",
+        "provider.toggleCaseSensitiveSearch();",
+        "provider.toggleCaseSensitiveSearch();",
+        "provider.toggleCaseSensitiveSearch();",
+      ];
+      const replacementCalls = setter[1].startsWith("set")
+        ? [true, true, false, true].map((value) => `provider.${setter[1]}(${value});`)
+        : calls.map(() => `provider.${setter[1]}();`);
+      for (const replacement of replacementCalls) {
+        fixtureContent = fixtureContent.replace(
+          "provider.toggleCaseSensitiveSearch();",
+          replacement === "provider.toggleCaseSensitiveSearch();"
+            ? "provider.__factoryTemporaryToggle__();"
+            : replacement,
+        );
+      }
+      fixtureContent = fixtureContent.replaceAll(
+        "provider.__factoryTemporaryToggle__();",
+        "provider.toggleCaseSensitiveSearch();",
+      );
+
+      const fixturePath = resolve(
+        input.worktreePath,
+        trackHireCaseSensitiveSearchFixture.path,
+      );
+      const existing = await stat(fixturePath).catch(() => null);
+      if (existing) {
+        throw new Error("Refusing to overwrite an existing case-sensitive search test fixture.");
+      }
+      await writeFile(fixturePath, fixtureContent, { flag: "wx" });
+      const behaviorProbe = {
+        id: "case-sensitive-search-behavior",
+        hypothesis: "Case-sensitive search may not behave as requested.",
+        rationale: "Execute held-out Flutter provider behavior tests.",
+        command: "flutter",
+        args: ["test", trackHireCaseSensitiveSearchFixture.path],
+        expectedOutcome: "All case-sensitive search behavior tests pass.",
+      };
+      try {
+        const behavioral = await this.executor.execute(
+          [behaviorProbe],
+          input.worktreePath,
+        );
+        plan.probes.push(behaviorProbe);
+        verification.probes.push(...behavioral.probes);
+        verification.failedProbes.push(...behavioral.failedProbes);
+        verification.passed = verification.passed && behavioral.passed;
+        verification.durationMs += behavioral.durationMs;
+      } finally {
+        await unlink(fixturePath);
+      }
+    }
 
     return {
       plan,
