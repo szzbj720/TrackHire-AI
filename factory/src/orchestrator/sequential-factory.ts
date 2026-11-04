@@ -71,6 +71,47 @@ import type {
   TrustRetryWorkflow,
 } from "./trust-retry-workflow.js";
 
+export function assertCaseSensitiveSearchIntegration(
+  taskRequest: string,
+  providerSource: string,
+  homeSource: string,
+): void {
+    const request = taskRequest;
+    const requiresCaseToggle =
+      /case[- ]sensitive/i.test(request) &&
+      /search/i.test(request) &&
+      /toggle|switch|checkbox/i.test(request);
+    if (requiresCaseToggle) {
+
+      const providerFlag = providerSource.match(
+        /\b(?:bool)\s+(isCaseSensitiveSearch\w*|caseSensitiveSearch\w*)\s*=/,
+      )?.[1];
+      const providerSetter = providerSource.match(
+        /\b(?:void)\s+(setCaseSensitiveSearch\w*|toggleCaseSensitiveSearch\w*)\s*\(/,
+      )?.[1];
+      const hasSearchBranch =
+        /filteredApplications/.test(providerSource) &&
+        /toLowerCase\s*\(/.test(providerSource) &&
+        providerFlag !== undefined &&
+        new RegExp(`\\b${providerFlag}\\b`).test(
+          providerSource.slice(providerSource.indexOf("get filteredApplications")),
+        );
+      const hasVisibleControl =
+        /\b(?:Switch|SwitchListTile|Checkbox|CheckboxListTile)\s*\(/.test(homeSource) &&
+        providerFlag !== undefined &&
+        providerSetter !== undefined &&
+        homeSource.includes(providerFlag) &&
+        homeSource.includes(providerSetter);
+      if (!hasSearchBranch || !hasVisibleControl) {
+        throw new Error(
+          "Case-sensitive search acceptance guard failed: " +
+          "the provider must branch search matching on a case-sensitivity flag, " +
+          "and the home screen must wire a visible toggle to its setter.",
+        );
+      }
+    }
+}
+
 export interface SequentialFactoryRun {
   task: EngineeringTask;
   worktree?: Worktree;
@@ -646,45 +687,11 @@ export class SequentialFactory {
         })),
     );
 
-    // Guard the concrete UI and provider contract for this requested feature.
-    // Generic Flutter checks alone cannot establish that the toggle exists.
-    const request = run.task.request;
-    const requiresCaseToggle =
-      /case[- ]sensitive/i.test(request) &&
-      /search/i.test(request) &&
-      /toggle|switch|checkbox/i.test(request);
-    if (requiresCaseToggle) {
-      const providerSource = await workspace.read(
-        "lib/providers/application_provider.dart",
-      );
-      const homeSource = await workspace.read("lib/screens/home_screen.dart");
-      const providerFlag = providerSource.match(
-        /\b(?:bool)\s+(isCaseSensitiveSearch\w*|caseSensitiveSearch\w*)\s*=/,
-      )?.[1];
-      const providerSetter = providerSource.match(
-        /\b(?:void)\s+(setCaseSensitiveSearch\w*|toggleCaseSensitiveSearch\w*)\s*\(/,
-      )?.[1];
-      const hasSearchBranch =
-        /filteredApplications/.test(providerSource) &&
-        /toLowerCase\s*\(/.test(providerSource) &&
-        providerFlag !== undefined &&
-        new RegExp(`\\b${providerFlag}\\b`).test(
-          providerSource.slice(providerSource.indexOf("get filteredApplications")),
-        );
-      const hasVisibleControl =
-        /\b(?:Switch|SwitchListTile|Checkbox|CheckboxListTile)\s*\(/.test(homeSource) &&
-        providerFlag !== undefined &&
-        providerSetter !== undefined &&
-        homeSource.includes(providerFlag) &&
-        homeSource.includes(providerSetter);
-      if (!hasSearchBranch || !hasVisibleControl) {
-        throw new Error(
-          "Case-sensitive search acceptance guard failed: " +
-          "the provider must branch search matching on a case-sensitivity flag, " +
-          "and the home screen must wire a visible toggle to its setter.",
-        );
-      }
-    }
+    assertCaseSensitiveSearchIntegration(
+      run.task.request,
+      await workspace.read("lib/providers/application_provider.dart").catch(() => ""),
+      await workspace.read("lib/screens/home_screen.dart").catch(() => ""),
+    );
 
     const verificationResult =
       await this.verificationWorkflow.run({
