@@ -719,6 +719,20 @@ export class SequentialFactory {
         verificationResult.verification,
     };
 
+    if (!verificationResult.verification.passed) {
+      const orchestrator = new Orchestrator(nextRun.task);
+      orchestrator.transition("NEEDS_HUMAN");
+      const failedRun: SequentialFactoryRun = {
+        ...nextRun,
+        task: orchestrator.getTask(),
+      };
+      await this.persistRun(failedRun);
+      return {
+        run: failedRun,
+        stopReason: "HUMAN_INPUT_REQUIRED",
+      };
+    }
+
     await this.persistRun(nextRun);
 
     return this.reviewImplementation(nextRun);
