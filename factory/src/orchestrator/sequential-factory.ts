@@ -89,13 +89,17 @@ export function assertCaseSensitiveSearchIntegration(
       const providerSetter = providerSource.match(
         /\b(?:void)\s+(setCaseSensitiveSearch\w*|toggleCaseSensitiveSearch\w*)\s*\(/,
       )?.[1];
+      const searchGetter = providerSource.slice(
+        providerSource.indexOf("get filteredApplications"),
+      );
       const hasSearchBranch =
         /filteredApplications/.test(providerSource) &&
-        /toLowerCase\s*\(/.test(providerSource) &&
+        /toLowerCase\s*\(/.test(searchGetter) &&
         providerFlag !== undefined &&
-        new RegExp(`\\b${providerFlag}\\b`).test(
-          providerSource.slice(providerSource.indexOf("get filteredApplications")),
-        );
+        new RegExp(
+          `\\\\b${providerFlag}\\\\b\\\\s*\\\\?[^:]+:[^;]+`,
+          "s",
+        ).test(searchGetter);
       const hasVisibleControl =
         /\b(?:Switch|SwitchListTile|Checkbox|CheckboxListTile)\s*\(/.test(homeSource) &&
         providerFlag !== undefined &&
