@@ -252,6 +252,61 @@ describe(
       expect(await stat(join(worktreePath, "test/factory_case_sensitive_search_test.dart")).catch(() => null)).toBeNull();
     });
 
+    it("records behavioral test failures and removes the fixture", async () => {
+      const worktreePath = await mkdtemp(join(tmpdir(), "verification-case-failure-"));
+      await mkdir(join(worktreePath, "lib/providers"), { recursive: true });
+      await mkdir(join(worktreePath, "test"), { recursive: true });
+      await writeFile(
+        join(worktreePath, "lib/providers/application_provider.dart"),
+        "class ApplicationProvider { void toggleCaseSensitiveSearch() {} }",
+      );
+      const planner = {
+        async plan() {
+          return { probes: [{
+            id: "existing",
+            hypothesis: "Baseline check.",
+            rationale: "Check regression.",
+            command: "flutter",
+            args: ["test"],
+            expectedOutcome: "Pass",
+          }] };
+        },
+      } as VerificationPlanner;
+      const executor = {
+        async execute(probes: Array<{ id: string }>) {
+          const failed = probes[0]?.id === "case-sensitive-search-behavior";
+          return {
+            passed: !failed,
+            probes: probes.map((probe) => ({
+              probeId: probe.id,
+              command: "flutter",
+              args: ["test"],
+              exitCode: failed ? 1 : 0,
+              stdout: "",
+              stderr: failed ? "behavior mismatch" : "",
+              durationMs: 1,
+              passed: !failed,
+            })),
+            failedProbes: failed ? ["case-sensitive-search-behavior"] : [],
+            durationMs: 1,
+          };
+        },
+      } as unknown as VerificationExecutor;
+      const result = await new VerificationWorkflow(planner, executor).run({
+        task: {
+          ...task,
+          request: "Add a case-sensitive search toggle to application search.",
+        },
+        validation: passedValidation,
+        changedFiles: [],
+        worktreePath,
+      });
+      expect(result.verification.passed).toBe(false);
+      expect(result.verification.failedProbes).toContain("case-sensitive-search-behavior");
+      expect(result.verification.probes).toHaveLength(2);
+      expect(await stat(join(worktreePath, "test/factory_case_sensitive_search_test.dart")).catch(() => null)).toBeNull();
+    });
+
     it(
       "refuses to verify an implementation that failed deterministic validation",
       async () => {
