@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -186,6 +186,70 @@ describe(
         worktreePath,
       })).rejects.toThrow("This is a verification-plan error, not an implementation failure.");
       expect(executed).toBe(false);
+    });
+
+    it("runs and removes the held-out Flutter fixture using a set-style provider method", async () => {
+      const worktreePath = await mkdtemp(join(tmpdir(), "verification-case-search-"));
+      await mkdir(join(worktreePath, "lib/providers"), { recursive: true });
+      await mkdir(join(worktreePath, "test"), { recursive: true });
+      await writeFile(
+        join(worktreePath, "lib/providers/application_provider.dart"),
+        "class ApplicationProvider { void setCaseSensitiveSearchEnabled(bool value) {} }",
+      );
+      const taskWithToggle = {
+        ...task,
+        request: "Add a case-sensitive search toggle to application search.",
+      };
+      const planner = {
+        async plan() {
+          return {
+            probes: [{
+              id: "existing",
+              hypothesis: "Check existing behavior.",
+              rationale: "Existing validation.",
+              command: "flutter",
+              args: ["test"],
+              expectedOutcome: "Pass",
+            }],
+          };
+        },
+      } as VerificationPlanner;
+      let fixtureText = "";
+      const executor = {
+        async execute(probes: Array<{ id: string }>) {
+          if (probes[0]?.id === "case-sensitive-search-behavior") {
+            fixtureText = await readFile(
+              join(worktreePath, "test/factory_case_sensitive_search_test.dart"),
+              "utf8",
+            );
+          }
+          return {
+            passed: true,
+            probes: probes.map((probe) => ({
+              probeId: probe.id,
+              command: "flutter",
+              args: ["test"],
+              exitCode: 0,
+              stdout: "",
+              stderr: "",
+              durationMs: 1,
+              passed: true,
+            })),
+            failedProbes: [],
+            durationMs: 1,
+          };
+        },
+      } as unknown as VerificationExecutor;
+      const result = await new VerificationWorkflow(planner, executor).run({
+        task: taskWithToggle,
+        validation: passedValidation,
+        changedFiles: [],
+        worktreePath,
+      });
+      expect(result.verification.probes).toHaveLength(2);
+      expect(fixtureText).toContain("provider.setCaseSensitiveSearchEnabled(true);");
+      expect(fixtureText).toContain("provider.setCaseSensitiveSearchEnabled(false);");
+      expect(await stat(join(worktreePath, "test/factory_case_sensitive_search_test.dart")).catch(() => null)).toBeNull();
     });
 
     it(
