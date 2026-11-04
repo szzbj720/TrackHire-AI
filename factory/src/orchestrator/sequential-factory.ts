@@ -97,7 +97,7 @@ export function assertCaseSensitiveSearchIntegration(
         /toLowerCase\s*\(/.test(searchGetter) &&
         providerFlag !== undefined &&
         new RegExp(
-          `\\\\b${providerFlag}\\\\b\\\\s*\\\\?[^:]+:[^;]+`,
+          `\\b${providerFlag}\\b\\s*\\?[^:]+:[^;]+`,
           "s",
         ).test(searchGetter);
       const hasVisibleControl =
